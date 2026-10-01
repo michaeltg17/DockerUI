@@ -1,7 +1,9 @@
 services:
   docker-ui:
     # Image published to GHCR by CI on every push to main.
-    # To build from source instead: docker compose build (requires Dockerfile context)
+    # To build from source instead:
+    #   docker build -t docker-ui:latest .
+    #   then set image: docker-ui:latest
     image: ghcr.io/michaeltg17/docker-ui:latest
     container_name: docker-ui
     ports:

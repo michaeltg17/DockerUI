@@ -1,0 +1,44 @@
+root = true
+
+[*]
+end_of_line = lf
+
+[*.cs]
+# Make all style analyzers errors
+dotnet_analyzer_diagnostic.category-Style.severity = warning
+
+# CA1515: Consider making public types internal
+dotnet_diagnostic.CA1515.severity = none
+
+# CA1707: Underscores in identifiers - xUnit convention uses underscores for test names
+dotnet_diagnostic.CA1707.severity = none
+
+# CA2007: Consider calling ConfigureAwait - not needed in ASP.NET Core (no SynchronizationContext)
+dotnet_diagnostic.CA2007.severity = none
+
+# CA1032: Standard exception constructors - unnecessary boilerplate for custom exceptions
+dotnet_diagnostic.CA1032.severity = none
+
+# IDE0160: Convert to block scoped namespace
+dotnet_diagnostic.IDE0160.severity = none
+
+# IDE0058: Expression value is never used
+dotnet_diagnostic.IDE0058.severity = none
+
+# IDE0008: Use explicit type
+dotnet_diagnostic.IDE0008.severity = none
+
+# IDE0040: Add accessibility modifiers
+dotnet_diagnostic.IDE0040.severity = none
+
+# IDE0011: Add braces
+dotnet_diagnostic.IDE0011.severity = none
+
+# IDE0022: Use block body for method
+dotnet_diagnostic.IDE0022.severity = none
+
+# IDE0036: Order modifiers
+dotnet_diagnostic.IDE0036.severity = none
+
+# CA1720: Identifier contains type name (e.g., Guid Guid, Type Type)
+dotnet_diagnostic.CA1720.severity = none

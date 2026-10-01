@@ -1,0 +1,13 @@
+services:
+  docker-ui:
+    build: .
+    image: docker-ui:latest
+    container_name: docker-ui
+    ports:
+      - "5000:8080"
+    environment:
+      DockerUi__DockerSocketPath: /var/run/docker.sock
+      DockerUi__PollIntervalSeconds: "5"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped

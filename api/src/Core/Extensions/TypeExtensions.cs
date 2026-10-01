@@ -1,0 +1,11 @@
+﻿namespace Core.Extensions
+{
+    public static class TypeExtensions
+    {
+        public static string GetNameWithoutGenericArity(this Type type)
+        {
+            var index = type.Name.IndexOf('`', StringComparison.Ordinal);
+            return index == -1 ? type.Name : type.Name[..index];
+        }
+    }
+}

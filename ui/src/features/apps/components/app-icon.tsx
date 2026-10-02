@@ -16,25 +16,33 @@ const getInitials = (name: string) =>
     .map((part) => part[0]?.toUpperCase())
     .join('');
 
+const getHue = (name: string) =>
+  [...name.toLowerCase()].reduce(
+    (hash, char) => (hash * 31 + char.charCodeAt(0)) % 997,
+    7,
+  ) % 360;
+
 export const AppIcon = ({ icon, name, className }: AppIconProps) => {
   if (icon) {
     return (
       <img
         src={icon}
         alt=""
-        className={cn('h-12 w-12 rounded-lg object-cover', className)}
+        className={cn('rounded-2xl object-cover', className)}
       />
     );
   }
 
   const initials = getInitials(name);
+  const hue = getHue(name);
 
   return (
     <div
       className={cn(
-        'flex h-12 w-12 items-center justify-center rounded-lg bg-slate-200 text-lg font-semibold text-slate-600',
+        'flex items-center justify-center rounded-2xl font-semibold text-white',
         className,
       )}
+      style={{ backgroundColor: `hsl(${hue} 60% 55%)` }}
     >
       {initials ? initials : <Boxes className="size-6" aria-hidden="true" />}
     </div>

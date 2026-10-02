@@ -8,10 +8,16 @@ import type { App, AppState } from '../types';
 
 import { AppIcon } from './app-icon';
 
-const stateStyles: Record<AppState, string> = {
-  running: 'bg-emerald-100 text-emerald-700',
-  partial: 'bg-amber-100 text-amber-700',
-  stopped: 'bg-slate-200 text-slate-600',
+const stateDotStyles: Record<AppState, string> = {
+  running: 'bg-emerald-500',
+  partial: 'bg-amber-500',
+  stopped: 'bg-slate-400',
+};
+
+const stateLabels: Record<AppState, string> = {
+  running: 'Running',
+  partial: 'Partially running',
+  stopped: 'Stopped',
 };
 
 type AppCardProps = {
@@ -28,30 +34,23 @@ export const AppCard = ({ app }: AppCardProps) => {
     startApp.isPending || stopApp.isPending || restartApp.isPending;
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <AppIcon icon={app.icon} name={app.name} />
+    <div className="group flex flex-col items-center gap-3 rounded-2xl p-4 transition-colors focus-within:bg-white focus-within:shadow-sm hover:bg-white hover:shadow-sm">
+      <div className="relative">
+        <AppIcon icon={app.icon} name={app.name} className="size-24 text-3xl" />
         <span
           className={cn(
-            'rounded-full px-2 py-0.5 text-xs font-medium capitalize',
-            stateStyles[app.state],
+            'absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-white',
+            stateDotStyles[app.state],
           )}
-        >
-          {app.state}
-        </span>
+          title={stateLabels[app.state]}
+        />
       </div>
 
-      <div className="min-w-0">
-        <h3 className="truncate text-base font-semibold" title={app.name}>
-          {app.name}
-        </h3>
-        <p className="truncate text-xs text-slate-500">
-          {app.services.length} service
-          {app.services.length === 1 ? '' : 's'}
-        </p>
-      </div>
+      <h3 className="max-w-full truncate text-sm font-medium" title={app.name}>
+        {app.name}
+      </h3>
 
-      <div className="mt-auto flex gap-2">
+      <div className="flex w-full gap-1.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
         <Button
           size="sm"
           variant="outline"
@@ -59,9 +58,10 @@ export const AppCard = ({ app }: AppCardProps) => {
           isLoading={stopApp.isPending}
           onClick={() => void stopApp.mutate(app.name)}
           className="flex-1"
+          title="Stop"
+          aria-label={`Stop ${app.name}`}
         >
-          <Square className="mr-1 size-3.5" aria-hidden="true" />
-          Stop
+          <Square className="size-3.5" aria-hidden="true" />
         </Button>
         <Button
           size="sm"
@@ -70,9 +70,10 @@ export const AppCard = ({ app }: AppCardProps) => {
           isLoading={startApp.isPending}
           onClick={() => void startApp.mutate(app.name)}
           className="flex-1"
+          title="Start"
+          aria-label={`Start ${app.name}`}
         >
-          <Play className="mr-1 size-3.5" aria-hidden="true" />
-          Start
+          <Play className="size-3.5" aria-hidden="true" />
         </Button>
         <Button
           size="sm"
@@ -81,12 +82,13 @@ export const AppCard = ({ app }: AppCardProps) => {
           isLoading={restartApp.isPending}
           onClick={() => void restartApp.mutate(app.name)}
           className="flex-1"
+          title="Restart"
+          aria-label={`Restart ${app.name}`}
         >
           <RefreshCw
-            className={cn('mr-1 h-3.5 w-3.5', isBusy && 'animate-spin')}
+            className={cn('size-3.5', isBusy && 'animate-spin')}
             aria-hidden="true"
           />
-          Restart
         </Button>
       </div>
     </div>

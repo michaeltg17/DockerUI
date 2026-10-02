@@ -1,7 +1,10 @@
 services:
   docker-ui:
-    build: .
-    image: docker-ui:latest
+    # Image published to GHCR by CI on every push to main.
+    # To build from source instead:
+    #   docker build -t docker-ui:latest .
+    #   then set image: docker-ui:latest
+    image: ghcr.io/michaeltg17/docker-ui:latest
     container_name: docker-ui
     ports:
       - "5000:8080"

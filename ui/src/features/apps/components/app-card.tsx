@@ -7,21 +7,9 @@ import {
 import { cn } from '@/utils/cn';
 
 import { useRestartApp, useStartApp, useStopApp } from '../hooks/use-apps';
-import type { App, AppState } from '../types';
+import type { App } from '../types';
 
 import { AppIcon } from './app-icon';
-
-const stateDotStyles: Record<AppState, string> = {
-  running: 'bg-emerald-500',
-  partial: 'bg-amber-500',
-  stopped: 'bg-slate-400',
-};
-
-const stateLabels: Record<AppState, string> = {
-  running: 'Running',
-  partial: 'Partially running',
-  stopped: 'Stopped',
-};
 
 type AppCardProps = {
   app: App;
@@ -80,31 +68,26 @@ export const AppCard = ({ app }: AppCardProps) => {
         type="button"
         onClick={openApp}
         title={app.url ?? undefined}
-        className="flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group flex size-full cursor-pointer flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="relative">
-          <AppIcon
-            icon={app.icon}
-            name={app.name}
-            className="size-24 text-3xl"
-          />
-          {isRunning && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40">
-                <Square
-                  className="size-4 fill-white text-white"
-                  aria-hidden="true"
-                />
+        <div className="rounded-[22px] border-2 border-transparent p-1 transition-colors duration-200 group-hover:border-slate-300">
+          <div className="relative transition-transform duration-200 ease-out group-hover:scale-105">
+            <AppIcon
+              icon={app.icon}
+              name={app.name}
+              className="size-24 text-3xl"
+            />
+            {app.state === 'stopped' && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40">
+                  <Square
+                    className="size-4 fill-white text-white"
+                    aria-hidden="true"
+                  />
+                </span>
               </span>
-            </span>
-          )}
-          <span
-            className={cn(
-              'absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-white',
-              stateDotStyles[app.state],
             )}
-            title={stateLabels[app.state]}
-          />
+          </div>
         </div>
 
         <h3

@@ -12,6 +12,7 @@ namespace Api.Features.Apps.Models
         string Name,
         string? Icon,
         AppState State,
+        Uri? Url,
         IReadOnlyList<AppServiceDto> Services);
 
     public sealed record AppServiceDto(

@@ -11,5 +11,6 @@ export interface App {
   name: string;
   icon: string | null;
   state: AppState;
+  url: string | null;
   services: AppService[];
 }

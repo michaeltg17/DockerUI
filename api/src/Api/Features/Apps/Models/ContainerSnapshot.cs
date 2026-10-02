@@ -6,5 +6,9 @@ namespace Api.Features.Apps.Models
         string Name,
         string State,
         string? Image,
-        IReadOnlyDictionary<string, string> Labels);
+        IReadOnlyDictionary<string, string> Labels,
+        IReadOnlyList<PortMapping> Ports);
+
+    /// <summary>A container port mapping as reported by the Docker daemon.</summary>
+    public sealed record PortMapping(ushort PrivatePort, ushort? PublicPort, string Protocol);
 }

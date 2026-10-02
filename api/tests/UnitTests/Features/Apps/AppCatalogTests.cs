@@ -12,7 +12,8 @@ namespace UnitTests.Features.Apps
             string state = "running",
             string? project = null,
             string? service = null,
-            string? icon = null)
+            string? icon = null,
+            IReadOnlyList<PortMapping> ports = null)
         {
             var labels = new Dictionary<string, string>();
 
@@ -23,7 +24,13 @@ namespace UnitTests.Features.Apps
             if (icon is not null)
                 labels[AppCatalog.IconLabel] = icon;
 
-            return new ContainerSnapshot($"{name}-id", name, state, "nginx:latest", labels);
+            return new ContainerSnapshot(
+                $"{name}-id",
+                name,
+                state,
+                "nginx:latest",
+                labels,
+                ports ?? Array.Empty<PortMapping>());
         }
 
         [Fact]
@@ -107,6 +114,89 @@ namespace UnitTests.Features.Apps
 
             //Then
             apps[0].Icon.Should().BeNull();
+        }
+
+        [Fact]
+        public void BuildApps_PublishedPort_ResolvesAppUrl()
+        {
+            //When
+            var apps = AppCatalog.BuildApps(new[]
+            {
+                Container(
+                    "web",
+                    project: "stack1",
+                    service: "web",
+                    ports: [new PortMapping(3000, 3000, "tcp")]),
+            });
+
+            //Then
+            apps[0].Url.Should().Be(new Uri("http://localhost:3000"));
+        }
+
+        [Fact]
+        public void BuildApps_MultiplePublishedPorts_PrefersCommonWebPort()
+        {
+            //When
+            var apps = AppCatalog.BuildApps(new[]
+            {
+                Container(
+                    "web",
+                    project: "stack1",
+                    service: "web",
+                    ports:
+                    [
+                        new PortMapping(5432, 5432, "tcp"),
+                        new PortMapping(80, 8080, "tcp"),
+                    ]),
+            });
+
+            //Then
+            apps[0].Url.Should().Be(new Uri("http://localhost:8080"));
+        }
+
+        [Fact]
+        public void BuildApps_PublishedPort80_ResolvesBareUrl()
+        {
+            //When
+            var apps = AppCatalog.BuildApps(new[]
+            {
+                Container(
+                    "web",
+                    project: "stack1",
+                    service: "web",
+                    ports: [new PortMapping(80, 80, "tcp")]),
+            });
+
+            //Then
+            apps[0].Url.Should().Be(new Uri("http://localhost"));
+        }
+
+        [Fact]
+        public void BuildApps_NoPublishedPorts_ReturnsNullUrl()
+        {
+            //When
+            var apps = AppCatalog.BuildApps(new[] { Container("web", project: "stack1", service: "web") });
+
+            //Then
+            apps[0].Url.Should().BeNull();
+        }
+
+        [Fact]
+        public void BuildApps_StoppedContainer_ReturnsNullUrl()
+        {
+            //When
+            var apps = AppCatalog.BuildApps(new[]
+            {
+                Container(
+                    "web",
+                    state: "exited",
+                    project: "stack1",
+                    service: "web",
+                    ports: [new PortMapping(80, null, "tcp")]),
+            });
+
+            //Then
+            apps[0].Url.Should().BeNull();
         }
 
         [Fact]

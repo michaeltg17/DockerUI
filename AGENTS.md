@@ -16,8 +16,8 @@ through its socket.
 - `ui/` — Vite + React SPA. `src/features/apps` holds the single feature
   (types, api, hooks, components); `src/app` is the shell; `src/components/ui`
   is the shared UI kit (button, spinner, notifications).
-- `tests/UnitTests` — pure logic (`AppCatalog`).
-- `tests/IntegrationTests` — endpoint behavior via `WebApplicationFactory`,
+- `api/src/UnitTests` — pure logic (`AppCatalog`).
+- `api/src/IntegrationTests` — endpoint behavior via `WebApplicationFactory`,
   pointed at a nonexistent socket (no Docker daemon required).
 
 ## Conventions
@@ -38,8 +38,8 @@ through its socket.
 ```bash
 # API
 dotnet run --project api/src/Api            # dev on :5000
-dotnet test tests/UnitTests
-dotnet test tests/IntegrationTests
+dotnet test api/src/UnitTests
+dotnet test api/src/IntegrationTests
 
 # UI (from ui/)
 yarn install

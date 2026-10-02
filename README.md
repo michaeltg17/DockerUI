@@ -77,8 +77,8 @@ cd ui && yarn && yarn dev
 
 ```bash
 # API (unit + integration; integration tests use a nonexistent socket, no daemon needed)
-dotnet test tests/UnitTests
-dotnet test tests/IntegrationTests
+dotnet test api/src/UnitTests
+dotnet test api/src/IntegrationTests
 
 # UI (type check, lint, unit tests, build)
 cd ui
@@ -106,14 +106,13 @@ every connected client whenever the daemon state changes.
 
 ```
 ├── api/
-│   ├── src/
-│   │   ├── Api/               # Minimal API: features, endpoints, hub, DI, Program
-│   │   ├── Core/              # Small shared helpers
-│   │   └── CrossCutting/      # Settings + DI configurator
+│   └── src/
+│       ├── Api/               # Minimal API: features, endpoints, hub, DI, Program
+│       ├── Core/              # Small shared helpers
+│       ├── CrossCutting/      # Settings + DI configurator
+│       ├── UnitTests/         # AppCatalog grouping logic
+│       └── IntegrationTests/  # Endpoints against WebApplicationFactory
 ├── ui/                        # Vite + React SPA (served by the API in prod)
-├── tests/
-│   ├── UnitTests/             # AppCatalog grouping logic
-│   └── IntegrationTests/      # Endpoints against WebApplicationFactory
 ├── docker-ui.slnx
 ├── Directory.Build.props      # net10.0, central package management, analysis
 ├── Directory.Packages.props

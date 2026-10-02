@@ -26,10 +26,15 @@ picked up automatically and pushed to the browser in real time.
 ## Quick start (production)
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
 Then open http://localhost:5000.
+
+The `docker-compose.yml` pulls the image from GHCR
+(`ghcr.io/michaeltg17/docker-ui:latest`), which CI publishes on every push to
+`main`. To build from source instead, run `docker build -t docker-ui:latest .`
+and set `image: docker-ui:latest` in `docker-compose.yml`.
 
 The Docker socket is mounted read-only into the container. To serve on a
 different host port, change the `"5000:8080"` mapping in `docker-compose.yml`.

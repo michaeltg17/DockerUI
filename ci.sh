@@ -7,8 +7,8 @@ echo "========================================="
 
 echo
 echo "API: restore, build and test (Release)."
-dotnet test api/src/UnitTests --configuration Release
-dotnet test api/src/IntegrationTests --configuration Release
+dotnet test api/tests/UnitTests --configuration Release
+dotnet test api/tests/IntegrationTests --configuration Release
 echo "API tests passed"
 
 echo

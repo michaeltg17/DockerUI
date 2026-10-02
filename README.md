@@ -77,8 +77,8 @@ cd ui && yarn && yarn dev
 
 ```bash
 # API (unit + integration; integration tests use a nonexistent socket, no daemon needed)
-dotnet test api/src/UnitTests
-dotnet test api/src/IntegrationTests
+dotnet test api/tests/UnitTests
+dotnet test api/tests/IntegrationTests
 
 # UI (type check, lint, unit tests, build)
 cd ui

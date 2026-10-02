@@ -5,7 +5,7 @@
     <Project Path="api/src/CrossCutting/CrossCutting.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="api/src/UnitTests/UnitTests.csproj" />
-    <Project Path="api/src/IntegrationTests/IntegrationTests.csproj" />
+    <Project Path="api/tests/UnitTests/UnitTests.csproj" />
+    <Project Path="api/tests/IntegrationTests/IntegrationTests.csproj" />
   </Folder>
 </Solution>

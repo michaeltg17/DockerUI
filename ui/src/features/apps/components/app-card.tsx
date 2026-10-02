@@ -67,7 +67,7 @@ export const AppCard = ({ app }: AppCardProps) => {
       <button
         type="button"
         onClick={openApp}
-        className="group flex size-full cursor-pointer flex-col items-center gap-3 rounded-2xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group flex size-full cursor-pointer flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div className="rounded-[22px] border-2 border-transparent p-1 transition-colors duration-200 group-hover:border-slate-300">
           <div className="relative transition-transform duration-200 ease-out group-hover:scale-105">

@@ -1,7 +1,4 @@
-import Axios, {
-  type AxiosResponse,
-  type InternalAxiosRequestConfig,
-} from 'axios';
+import Axios, { type InternalAxiosRequestConfig } from 'axios';
 
 import { useNotifications } from '@/components/ui/notifications';
 import { env } from '@/config/env';
@@ -42,13 +39,12 @@ api.interceptors.response.use(
 );
 
 /**
- * The response interceptor above unwraps `response.data` at runtime,
- * but axios still types the calls as `AxiosResponse<T>`. These helpers
- * make that unwrapping explicit in the type system.
+ * The response interceptor above already unwraps `response.data` at runtime,
+ * so the promise resolves to the response body (T) rather than an
+ * `AxiosResponse<T>`. The `R = T` generic tells axios the resolved value is
+ * the body itself — no second `.data` access (which would yield `undefined`).
  */
 export const http = {
-  get: <T>(url: string) =>
-    api.get<T, AxiosResponse<T>>(url).then((response) => response.data as T),
-  post: <T>(url: string) =>
-    api.post<T, AxiosResponse<T>>(url).then((response) => response.data as T),
+  get: <T>(url: string) => api.get<T, T>(url),
+  post: <T>(url: string) => api.post<T, T>(url),
 };

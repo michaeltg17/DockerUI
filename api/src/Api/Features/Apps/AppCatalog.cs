@@ -13,6 +13,11 @@ namespace Api.Features.Apps
         public const string ComposeServiceLabel = "com.docker.compose.service";
         public const string IconLabel = "dockerui.icon";
 
+        static readonly ushort[] PreferredWebPorts =
+        [
+            80, 8080, 3000, 8000, 5000, 8888, 9000, 9090, 5173, 4200, 443, 8443,
+        ];
+
         public static IReadOnlyList<AppDto> BuildApps(IEnumerable<ContainerSnapshot> containers)
         {
             var apps = new List<AppDto>();
@@ -88,7 +93,32 @@ namespace Api.Features.Apps
                 .Select(GetIcon)
                 .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
-            return new AppDto(name, icon, state, services);
+            return new AppDto(name, icon, state, ResolveUrl(containers), services);
+        }
+
+        /// <summary>Best-effort URL of the app, derived from its running containers' published ports.</summary>
+        public static Uri? ResolveUrl(IReadOnlyList<ContainerSnapshot> containers)
+        {
+            var publishedPorts = containers
+                .Where(container => IsRunningState(container.State))
+                .SelectMany(container => container.Ports)
+                .Where(port => port.Protocol == "tcp" && port.PublicPort is > 0)
+                .Select(port => port.PublicPort!.Value)
+                .ToHashSet();
+
+            if (publishedPorts.Count == 0)
+                return null;
+
+            var preferred = PreferredWebPorts.FirstOrDefault(publishedPorts.Contains);
+            var port = preferred != 0 ? preferred : publishedPorts.Min();
+
+            return port switch
+            {
+                80 => new Uri("http://localhost"),
+                443 => new Uri("https://localhost"),
+                8443 => new Uri("https://localhost:8443"),
+                _ => new Uri($"http://localhost:{port}"),
+            };
         }
 
         static string GetServiceName(ContainerSnapshot container) =>

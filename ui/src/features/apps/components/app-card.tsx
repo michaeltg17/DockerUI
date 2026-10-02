@@ -1,6 +1,9 @@
-import { RefreshCw, Play, Square } from 'lucide-react';
+import { Play, RefreshCw, Square } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import {
+  ContextMenu,
+  type ContextMenuItem,
+} from '@/components/ui/context-menu';
 import { cn } from '@/utils/cn';
 
 import { useRestartApp, useStartApp, useStopApp } from '../hooks/use-apps';
@@ -33,64 +36,84 @@ export const AppCard = ({ app }: AppCardProps) => {
   const isBusy =
     startApp.isPending || stopApp.isPending || restartApp.isPending;
 
-  return (
-    <div className="group flex flex-col items-center gap-3 rounded-2xl p-4 transition-colors focus-within:bg-white focus-within:shadow-sm hover:bg-white hover:shadow-sm">
-      <div className="relative">
-        <AppIcon icon={app.icon} name={app.name} className="size-24 text-3xl" />
-        <span
-          className={cn(
-            'absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-white',
-            stateDotStyles[app.state],
-          )}
-          title={stateLabels[app.state]}
+  const actions: ContextMenuItem[] = [
+    {
+      id: 'start',
+      label: 'Start',
+      icon: <Play className="size-4" aria-hidden="true" />,
+      disabled: isBusy || isRunning,
+      isLoading: startApp.isPending,
+      onSelect: () => void startApp.mutate(app.name),
+    },
+    {
+      id: 'stop',
+      label: 'Stop',
+      icon: <Square className="size-4" aria-hidden="true" />,
+      disabled: isBusy || !isRunning,
+      isLoading: stopApp.isPending,
+      onSelect: () => void stopApp.mutate(app.name),
+    },
+    {
+      id: 'restart',
+      label: 'Restart',
+      icon: (
+        <RefreshCw
+          className={cn('size-4', isBusy && 'animate-spin')}
+          aria-hidden="true"
         />
-      </div>
+      ),
+      disabled: isBusy,
+      isLoading: restartApp.isPending,
+      onSelect: () => void restartApp.mutate(app.name),
+    },
+  ];
 
-      <h3 className="max-w-full truncate text-sm font-medium" title={app.name}>
-        {app.name}
-      </h3>
+  const openApp = () => {
+    if (app.url) {
+      window.open(app.url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
-      <div className="flex w-full gap-1.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={isBusy || !isRunning}
-          isLoading={stopApp.isPending}
-          onClick={() => void stopApp.mutate(app.name)}
-          className="flex-1"
-          title="Stop"
-          aria-label={`Stop ${app.name}`}
-        >
-          <Square className="size-3.5" aria-hidden="true" />
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={isBusy || isRunning}
-          isLoading={startApp.isPending}
-          onClick={() => void startApp.mutate(app.name)}
-          className="flex-1"
-          title="Start"
-          aria-label={`Start ${app.name}`}
-        >
-          <Play className="size-3.5" aria-hidden="true" />
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={isBusy}
-          isLoading={restartApp.isPending}
-          onClick={() => void restartApp.mutate(app.name)}
-          className="flex-1"
-          title="Restart"
-          aria-label={`Restart ${app.name}`}
-        >
-          <RefreshCw
-            className={cn('size-3.5', isBusy && 'animate-spin')}
-            aria-hidden="true"
+  return (
+    <ContextMenu label={`Actions for ${app.name}`} items={actions}>
+      <button
+        type="button"
+        onClick={openApp}
+        title={app.url ?? undefined}
+        className="flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <div className="relative">
+          <AppIcon
+            icon={app.icon}
+            name={app.name}
+            className="size-24 text-3xl"
           />
-        </Button>
-      </div>
-    </div>
+          {isRunning && (
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40">
+                <Square
+                  className="size-4 fill-white text-white"
+                  aria-hidden="true"
+                />
+              </span>
+            </span>
+          )}
+          <span
+            className={cn(
+              'absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-white',
+              stateDotStyles[app.state],
+            )}
+            title={stateLabels[app.state]}
+          />
+        </div>
+
+        <h3
+          className="max-w-full truncate text-sm font-medium"
+          title={app.name}
+        >
+          {app.name}
+        </h3>
+      </button>
+    </ContextMenu>
   );
 };

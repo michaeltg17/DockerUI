@@ -85,7 +85,12 @@ namespace Api.Features.Apps
                         container.Image,
                         container.Labels is { Count: > 0 } labels
                             ? new Dictionary<string, string>(labels)
-                            : new Dictionary<string, string>()))
+                            : new Dictionary<string, string>(),
+                        container.Ports is { Count: > 0 } ports
+                            ? ports
+                                .Select(binding => new PortMapping(binding.PrivatePort, binding.PublicPort, binding.Type))
+                                .ToList()
+                            : Array.Empty<PortMapping>()))
                     .ToList();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

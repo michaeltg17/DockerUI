@@ -20,15 +20,11 @@ public sealed class AppsPage(IPage page)
 
     public IPage Page { get; } = page;
 
-    public ILocator Title => Page.GetByRole(AriaRole.Heading, new PageGetByRoleOptions { Name = "Docker UI", Level = 1, Exact = true });
-
-    // 'paragraph' is not a name-from-content role, so these are addressed by text, not by role + name.
-    public ILocator Tagline => Page.GetByText("Your Docker stacks at a glance", new PageGetByTextOptions { Exact = true });
-
     public ILocator SearchBox => Page.GetByRole(AriaRole.Searchbox, new PageGetByRoleOptions { Name = "Search apps", Exact = true });
 
     public ILocator RetryButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Retry", Exact = true });
 
+    // 'paragraph' is not a name-from-content role, so this is addressed by text, not by role + name.
     public ILocator LoadError => Page.GetByText("Could not load apps. Is the Docker daemon reachable?", new PageGetByTextOptions { Exact = true });
 
     /// <summary>The card (button) of the given app, addressed via the h3 title attribute.</summary>

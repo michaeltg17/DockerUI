@@ -14,14 +14,12 @@ namespace DockerUI.E2ETests.Tests.Basic;
 public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixture browser) : IClassFixture<BasicEnvironment>
 {
     [Fact]
-    public async Task Shows_page_header()
+    public async Task Shows_search_box()
     {
         await using var context = await browser.NewContextAsync();
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
-        await apps.Title.WaitForAsync();
-        await apps.Tagline.WaitForAsync();
         await apps.SearchBox.WaitForAsync();
     }
 

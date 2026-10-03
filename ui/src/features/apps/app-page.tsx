@@ -27,13 +27,6 @@ export const AppsPage = () => {
 
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-6 py-4">
-          <Ship className="size-7 text-sky-600" aria-hidden="true" />
-          <div className="mr-auto">
-            <h1 className="text-lg font-semibold leading-tight">Docker UI</h1>
-            <p className="text-xs text-slate-500">
-              Your Docker stacks at a glance
-            </p>
-          </div>
           <label className="relative block">
             <span className="sr-only">Search apps</span>
             <Search

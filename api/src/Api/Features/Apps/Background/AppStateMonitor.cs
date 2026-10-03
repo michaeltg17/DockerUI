@@ -11,15 +11,23 @@ namespace Api.Features.Apps.Background
         void ForgetLastSnapshot();
     }
 
-    /// <summary>Polls the Docker daemon and pushes the app list to all clients whenever it changes.</summary>
+    /// <summary>
+    /// Polls the Docker daemon and pushes the app list to all clients whenever it
+    /// changes. Also watches the settings files: when one is edited the
+    /// configuration is reloaded so live settings (base URL, icons, per-app
+    /// overrides, order, poll interval) apply on the next cycle.
+    /// </summary>
     public sealed partial class AppStateMonitor(
         AppService appService,
         IHubContext<AppAppsHub> hubContext,
-        IDockerUiSettings settings,
+        IConfiguration configuration,
+        IConfigurationRoot configurationRoot,
+        IWebHostEnvironment environment,
         ILogger<AppStateMonitor> logger) : BackgroundService, IAppStateMonitor
     {
         static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+        readonly DateTimeOffset[] _lastConfigWrites = [DateTimeOffset.MinValue, DateTimeOffset.MinValue];
         string? _lastSnapshot;
         readonly Lock _gate = new();
 
@@ -38,6 +46,9 @@ namespace Api.Features.Apps.Background
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                RefreshConfigurationIfChanged();
+                var settings = CurrentSettings;
+
                 try
                 {
                     await PollAndBroadcastAsync(stoppingToken);
@@ -54,9 +65,13 @@ namespace Api.Features.Apps.Background
                 }
 #pragma warning restore CA1031
 
-                await Task.Delay(TimeSpan.FromSeconds(settings.PollIntervalSeconds), stoppingToken);
+                //Clamped so a hot edit with an invalid value can never busy-loop the monitor.
+                await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, settings?.PollIntervalSeconds ?? 5)), stoppingToken);
             }
         }
+
+        DockerUiSettings? CurrentSettings =>
+            configuration.GetSection(DockerUiSettings.Section).Get<DockerUiSettings>();
 
         async Task PollAndBroadcastAsync(CancellationToken cancellationToken)
         {
@@ -76,9 +91,59 @@ namespace Api.Features.Apps.Background
             await hubContext.Clients.All.SendAsync("appsUpdated", apps, cancellationToken);
         }
 
+        /// <summary>
+        /// The standard configuration reload relies on file-system change events, which
+        /// don't propagate through some bind mounts (e.g. Docker Desktop). As a
+        /// fallback, edits are detected by the files' last write times and the
+        /// configuration is reloaded explicitly.
+        /// </summary>
+        void RefreshConfigurationIfChanged()
+        {
+            string[] files =
+            [
+                Path.Combine(environment.ContentRootPath, "appsettings.json"),
+                Path.Combine(environment.ContentRootPath, $"appsettings.{environment.EnvironmentName}.json"),
+            ];
+
+            var changed = false;
+
+            for (var i = 0; i < files.Length; i++)
+            {
+                var path = files[i];
+
+                if (!File.Exists(path))
+                    continue;
+
+                var lastWrite = File.GetLastWriteTimeUtc(path);
+
+                if (_lastConfigWrites[i] == DateTimeOffset.MinValue)
+                {
+                    _lastConfigWrites[i] = lastWrite;
+                    continue;
+                }
+
+                if (lastWrite != _lastConfigWrites[i])
+                {
+                    _lastConfigWrites[i] = lastWrite;
+                    changed = true;
+                }
+            }
+
+            if (!changed)
+                return;
+
+            configurationRoot.Reload();
+            LogConfigurationReloaded(logger);
+        }
+
         [LoggerMessage(
             Level = LogLevel.Warning,
             Message = "Failed to poll Docker state; will retry on the next cycle")]
         static partial void LogPollFailed(ILogger logger, Exception? exception);
+
+        [LoggerMessage(
+            Level = LogLevel.Information,
+            Message = "A settings file changed; configuration reloaded (changes apply from the next poll)")]
+        static partial void LogConfigurationReloaded(ILogger logger);
     }
 }

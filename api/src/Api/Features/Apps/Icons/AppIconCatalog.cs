@@ -1,11 +1,9 @@
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
+using CrossCutting.Settings;
 
 namespace Api.Features.Apps.Icons
 {
-    /// <summary>A mapping from a container image to an icon file served from <c>/icons</c>.</summary>
-    public sealed record AppIconMapping(string Image, string Icon);
-
     public interface IAppIconCatalog
     {
         /// <summary>Tries to resolve an icon path for the given container image reference.</summary>

@@ -31,7 +31,11 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
   - `Background/AppStateMonitor` — `BackgroundService` that polls
     `AppService.GetAppsAsync`, serializes the result, and broadcasts over
     SignalR only when the JSON changed. Also implements `IAppStateMonitor`
-    so endpoints can force a re-broadcast right after a state change.
+    so endpoints can force a re-broadcast right after a state change. On
+    every cycle it checks the settings files' last write times and calls
+    `IConfigurationRoot.Reload()` on change, so edited settings apply from
+    the next poll even when file-change events don't propagate through the
+    bind mount (e.g. Docker Desktop).
   - `Hubs/AppAppsHub` — SignalR hub mapped at `/api/apps/hub`; server →
     client only (`appsUpdated`).
 - **Features/Health** — `/health/live` (no checks) and `/health/ready`
@@ -48,8 +52,9 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
 ## api/src/Core, api/src/CrossCutting
 
 - `Core` — small pure helpers (e.g. `string.JoinNonEmpty`).
-- `CrossCutting` — `IDockerUiSettings` / `DockerUiSettings` (validated on
-  start) and `AddCrossCuttingDependencies`.
+- `CrossCutting` — `DockerUiSettings` (all settings, bound from the
+  `DockerUi` appsettings section, validated at startup) and
+  `AddCrossCuttingDependencies`.
 
 ## ui/
 
@@ -73,4 +78,7 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
 `Dockerfile` is multi-stage: `node:24-alpine` builds `ui/dist`,
 `dotnet/sdk:10.0` publishes the API, `dotnet/aspnet:10.0` runs it with the
 UI in `wwwroot`. `docker-compose.yml` mounts the host Docker socket
-read-only and exposes `5000:8080`.
+read-only and exposes `5000:8080`. All configuration lives in
+`appsettings.json` under the `DockerUi` section; an optionally mounted
+`appsettings.json` replaces the packaged defaults (see the README) and is
+hot-reloaded for everything except `DockerSocketPath`.

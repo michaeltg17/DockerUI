@@ -1,7 +1,7 @@
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
-using Api.Features.Apps.Settings;
+using CrossCutting.Settings;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 
@@ -11,7 +11,7 @@ namespace Api.Features.Apps
     public sealed class AppService(
         IContainerOperations containers,
         IAppIconCatalog iconCatalog,
-        DockerUiUserSettings userSettings,
+        IConfiguration configuration,
         AppBaseUrlTracker baseUrlTracker,
         IHttpContextAccessor httpContextAccessor)
     {
@@ -19,9 +19,17 @@ namespace Api.Features.Apps
 
         public async Task<IReadOnlyList<AppDto>> GetAppsAsync(CancellationToken cancellationToken = default)
         {
+            var settings = CurrentSettings;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
-            return AppCatalog.BuildApps(snapshots, iconCatalog, ResolveBaseUrl(), userSettings);
+            return AppCatalog.BuildApps(snapshots, iconCatalog, ResolveBaseUrl(settings), settings);
         }
+
+        /// <summary>
+        /// Binds the current settings from the configuration on every call, so a
+        /// configuration reload (settings file edited) is picked up immediately.
+        /// </summary>
+        DockerUiSettings? CurrentSettings =>
+            configuration.GetSection(DockerUiSettings.Section).Get<DockerUiSettings>();
 
         public async Task<AppDto> StartAppAsync(string appName, CancellationToken cancellationToken = default)
         {
@@ -67,15 +75,17 @@ namespace Api.Features.Apps
         }
 
         /// <summary>
-        /// Resolves the base URL used to build app links: the 'baseUrl' from the user
-        /// settings file wins; otherwise the current client request is used (and
-        /// remembered); otherwise the last client seen (used by background broadcasts).
-        /// With none of those, URLs fall back to 'localhost'.
+        /// Resolves the base URL used to build app links: 'DockerUi:BaseUrl' wins;
+        /// otherwise the current client request is used (and remembered); otherwise
+        /// the last client seen (used by background broadcasts). With none of those,
+        /// URLs fall back to 'localhost'.
         /// </summary>
-        Uri? ResolveBaseUrl()
+        Uri? ResolveBaseUrl(DockerUiSettings? settings)
         {
-            if (!string.IsNullOrWhiteSpace(userSettings.BaseUrl) &&
-                Uri.TryCreate(userSettings.BaseUrl, UriKind.Absolute, out var configured))
+            var baseUrl = settings?.BaseUrl;
+
+            if (!string.IsNullOrWhiteSpace(baseUrl) &&
+                Uri.TryCreate(baseUrl, UriKind.Absolute, out var configured))
             {
                 return configured;
             }

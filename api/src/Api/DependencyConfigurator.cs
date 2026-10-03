@@ -2,7 +2,6 @@ using Api.Extensions;
 using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
-using Api.Features.Apps.Settings;
 using Api.Features.Health;
 using CrossCutting;
 using CrossCutting.Settings;
@@ -20,13 +19,16 @@ namespace Api
 
             builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
+            //The web host registers the root configuration as IConfiguration; expose the root
+            //explicitly so the app-state monitor can call Reload() on settings-file edits.
+            builder.Services.AddSingleton<IConfigurationRoot>(sp => (IConfigurationRoot)sp.GetRequiredService<IConfiguration>());
+
             builder.AddSerilog();
 
             builder.Services
                 .AddCrossCuttingDependencies()
-                .AddDockerClient(builder.Configuration.GetSection(IDockerUiSettings.Section))
-                .AddAppsDependencies()
-                .AddAppIconCatalog(builder.Environment.ContentRootPath);
+                .AddDockerClient(builder.Configuration.GetSection(DockerUiSettings.Section))
+                .AddAppsDependencies();
 
             builder.Services.AddSignalR();
 
@@ -80,31 +82,15 @@ namespace Api
 
         public static IServiceCollection AddAppsDependencies(this IServiceCollection services)
         {
-            services.AddSingleton<DockerUiUserSettings>(serviceProvider =>
-            {
-                var settings = serviceProvider.GetRequiredService<IDockerUiSettings>();
-                return DockerUiUserSettingsLoader.Load(settings.SettingsFile, serviceProvider.GetRequiredService<IWebHostEnvironment>().ContentRootPath);
-            });
+            //Live icon mappings come from 'DockerUi:Icons' and are merged per request in AppCatalog;
+            //only the built-in catalog (embedded in the assembly) is registered here.
+            services.AddSingleton<IAppIconCatalog>(new AppIconCatalog(IconMappingLoader.LoadBuiltIn()));
 
             services.AddSingleton<AppBaseUrlTracker>();
             services.AddSingleton<AppService>();
             services.AddSingleton<AppStateMonitor>();
             services.AddSingleton<IAppStateMonitor>(sp => sp.GetRequiredService<AppStateMonitor>());
             services.AddHostedService(sp => sp.GetRequiredService<AppStateMonitor>());
-
-            return services;
-        }
-
-        public static IServiceCollection AddAppIconCatalog(this IServiceCollection services, string contentRootPath)
-        {
-            services.AddSingleton<IAppIconCatalog>(serviceProvider =>
-            {
-                var settings = serviceProvider.GetRequiredService<IDockerUiSettings>();
-                var mappings = new List<AppIconMapping>(IconMappingLoader.LoadBuiltIn());
-                mappings.AddRange(IconMappingLoader.LoadOverrides(settings.IconsOverrideFile, contentRootPath));
-                mappings.AddRange(serviceProvider.GetRequiredService<DockerUiUserSettings>().Icons ?? []);
-                return new AppIconCatalog(mappings);
-            });
 
             return services;
         }
@@ -140,7 +126,8 @@ namespace Api
             configuration
                 .ReadFrom.Configuration(context.Configuration)
                 .ReadFrom.Services(services)
-                .Enrich.FromLogContext();
+                .Enrich.FromLogContext()
+                .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning);
         }
 
         public static WebApplication Configure(this WebApplication app)

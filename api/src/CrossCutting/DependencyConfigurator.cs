@@ -10,11 +10,9 @@ namespace CrossCutting
         {
             services
                 .AddOptionsWithValidateOnStart<DockerUiSettings>()
-                .BindConfiguration(IDockerUiSettings.Section);
+                .BindConfiguration(DockerUiSettings.Section);
 
             services.AddSingleton<IValidateOptions<DockerUiSettings>, DockerUiSettingsValidator>();
-
-            services.AddSingleton<IDockerUiSettings>(sp => sp.GetRequiredService<IOptions<DockerUiSettings>>().Value);
 
             return services;
         }

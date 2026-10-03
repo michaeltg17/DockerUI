@@ -1,6 +1,6 @@
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
-using Api.Features.Apps.Settings;
+using CrossCutting.Settings;
 using Serilog;
 
 namespace Api.Features.Apps
@@ -25,9 +25,10 @@ namespace Api.Features.Apps
             IEnumerable<ContainerSnapshot> containers,
             IAppIconCatalog? iconCatalog = null,
             Uri? baseUrl = null,
-            DockerUiUserSettings? userSettings = null)
+            DockerUiSettings? settings = null)
         {
             var apps = new List<AppDto>();
+            var liveIconCatalog = settings?.Icons is { Count: > 0 } icons ? new AppIconCatalog(icons) : null;
 
             var groups = containers
                 .GroupBy(GetProject)
@@ -37,7 +38,7 @@ namespace Api.Features.Apps
                 .Where(group => group.Key is not null)
                 .OrderBy(group => group.Key, StringComparer.Ordinal))
             {
-                apps.Add(BuildApp(group.Key!, [.. group], iconCatalog, baseUrl, userSettings));
+                apps.Add(BuildApp(group.Key!, [.. group], iconCatalog, liveIconCatalog, baseUrl, settings));
             }
 
             var standalone = groups.FirstOrDefault(group => group.Key is null);
@@ -45,13 +46,13 @@ namespace Api.Features.Apps
             {
                 foreach (var container in standalone)
                 {
-                    apps.Add(BuildApp(container.Name, [container], iconCatalog, baseUrl, userSettings));
+                    apps.Add(BuildApp(container.Name, [container], iconCatalog, liveIconCatalog, baseUrl, settings));
                 }
             }
 
-            RemoveHidden(apps, userSettings);
+            RemoveHidden(apps, settings);
 
-            return OrderApps(apps, userSettings);
+            return OrderApps(apps, settings);
         }
 
         /// <summary>Resolves the containers that make up the given app, or an empty list if it doesn't exist.</summary>
@@ -86,8 +87,9 @@ namespace Api.Features.Apps
             string name,
             IReadOnlyList<ContainerSnapshot> containers,
             IAppIconCatalog? iconCatalog,
+            IAppIconCatalog? liveIconCatalog,
             Uri? baseUrl,
-            DockerUiUserSettings? userSettings)
+            DockerUiSettings? settings)
         {
             var services = containers
                 .Select(container => new AppServiceDto(
@@ -105,8 +107,8 @@ namespace Api.Features.Apps
                     ? AppState.Stopped
                     : AppState.Partial;
 
-            var perApp = userSettings?.Apps is { } apps && apps.TryGetValue(name, out var settings)
-                ? settings
+            var perApp = settings?.Apps is { } apps && apps.TryGetValue(name, out var appSettings)
+                ? appSettings
                 : null;
 
             var icon = !string.IsNullOrWhiteSpace(perApp?.Icon)
@@ -114,6 +116,7 @@ namespace Api.Features.Apps
                 : containers
                     .Select(GetIcon)
                     .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
+                    ?? GetCatalogIcon(containers, liveIconCatalog)
                     ?? GetCatalogIcon(containers, iconCatalog);
 
             return new AppDto(name, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp), services);
@@ -162,17 +165,17 @@ namespace Api.Features.Apps
             };
         }
 
-        static void RemoveHidden(List<AppDto> apps, DockerUiUserSettings? userSettings)
+        static void RemoveHidden(List<AppDto> apps, DockerUiSettings? settings)
         {
-            if (userSettings?.Apps is not { } appSettings)
+            if (settings?.Apps is not { } appSettings)
                 return;
 
-            apps.RemoveAll(app => appSettings.TryGetValue(app.Name, out var settings) && settings.Hidden);
+            apps.RemoveAll(app => appSettings.TryGetValue(app.Name, out var perApp) && perApp.Hidden);
         }
 
-        static List<AppDto> OrderApps(List<AppDto> apps, DockerUiUserSettings? userSettings)
+        static List<AppDto> OrderApps(List<AppDto> apps, DockerUiSettings? settings)
         {
-            var order = userSettings?.Order;
+            var order = settings?.Order;
 
             if (order is null || order.Count == 0)
                 return [.. apps.OrderBy(app => app.Name, StringComparer.OrdinalIgnoreCase)];

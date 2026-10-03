@@ -8,15 +8,11 @@ services:
     container_name: docker-ui
     ports:
       - "5000:8080"
-    environment:
-      DockerUi__DockerSocketPath: /var/run/docker.sock
-      DockerUi__PollIntervalSeconds: "5"
-      # Optional: single JSON settings file (baseUrl, icon mappings, per-app
-      # url/icon/hidden, app order). See README, "Settings file".
-      # The file may not exist; defaults are used.
-      DockerUi__SettingsFile: /app/config/settings.json
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      # Optional local config (settings.json). Created if missing.
-      - ./config:/app/config:ro
+      # Optional: all settings live in a single appsettings.json. Copy
+      # appsettings.example.json next to this file as appsettings.json, edit
+      # it, and uncomment this line (the file replaces the packaged defaults,
+      # so it must keep 'DockerUi:DockerSocketPath').
+      # - ./appsettings.json:/app/appsettings.json:ro
     restart: unless-stopped

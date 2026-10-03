@@ -411,3 +411,6 @@ yarn-error.log*
 
 # Docker
 docker-compose.override.yml
+
+# Local operator settings (see appsettings.example.json)
+/appsettings.json

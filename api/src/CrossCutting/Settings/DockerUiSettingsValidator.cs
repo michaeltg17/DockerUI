@@ -17,6 +17,12 @@ namespace CrossCutting.Settings
             if (settings.PollIntervalSeconds < 1)
                 validationErrors.Add($"The '{nameof(DockerUiSettings.PollIntervalSeconds)}' setting must be at least 1");
 
+            if (!string.IsNullOrWhiteSpace(settings.BaseUrl) &&
+                !Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
+            {
+                validationErrors.Add($"The '{nameof(DockerUiSettings.BaseUrl)}' setting must be an absolute URL, e.g. 'http://192.168.1.46:5000'");
+            }
+
             return validationErrors.Count > 0 ? ValidateOptionsResult.Fail(validationErrors) : ValidateOptionsResult.Success;
         }
     }

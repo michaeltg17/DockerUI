@@ -79,7 +79,6 @@ export const AppCard = ({ app }: AppCardProps) => {
       <button
         type="button"
         onClick={openApp}
-        title={app.url ?? undefined}
         className="flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div className="relative">

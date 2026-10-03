@@ -1,4 +1,5 @@
 using Api.Features.Apps;
+using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
 using AwesomeAssertions;
 using Xunit;
@@ -13,6 +14,7 @@ namespace UnitTests.Features.Apps
             string? project = null,
             string? service = null,
             string? icon = null,
+            string image = "nginx:latest",
             IReadOnlyList<PortMapping> ports = null)
         {
             var labels = new Dictionary<string, string>();
@@ -28,7 +30,7 @@ namespace UnitTests.Features.Apps
                 $"{name}-id",
                 name,
                 state,
-                "nginx:latest",
+                image,
                 labels,
                 ports ?? Array.Empty<PortMapping>());
         }
@@ -111,6 +113,81 @@ namespace UnitTests.Features.Apps
         {
             //When
             var apps = AppCatalog.BuildApps(new[] { Container("web", project: "stack1", service: "web") });
+
+            //Then
+            apps[0].Icon.Should().BeNull();
+        }
+
+        [Fact]
+        public void BuildApps_ImageInCatalog_ResolvesCatalogIcon()
+        {
+            //Given
+            var iconCatalog = new AppIconCatalog([new AppIconMapping("linuxserver/jellyfin", "jellyfin.svg")]);
+
+            //When
+            var apps = AppCatalog.BuildApps(
+                new[]
+                {
+                    Container("server", project: "media", service: "server", image: "linuxserver/jellyfin:10.9"),
+                },
+                iconCatalog);
+
+            //Then
+            apps[0].Icon.Should().Be("/icons/jellyfin.svg");
+        }
+
+        [Fact]
+        public void BuildApps_CatalogIcon_FromAnyServiceInStack()
+        {
+            //Given
+            var iconCatalog = new AppIconCatalog([new AppIconMapping("pihole/pihole", "pi-hole.svg")]);
+
+            //When
+            var apps = AppCatalog.BuildApps(
+                new[]
+                {
+                    Container("dnsmasq", project: "dns", service: "dnsmasq", image: "alpine/helm:3"),
+                    Container("ftl", project: "dns", service: "pihole", image: "pihole/pihole:2024"),
+                },
+                iconCatalog);
+
+            //Then
+            apps[0].Icon.Should().Be("/icons/pi-hole.svg");
+        }
+
+        [Fact]
+        public void BuildApps_IconLabel_TakesPrecedenceOverCatalogIcon()
+        {
+            //Given
+            var iconCatalog = new AppIconCatalog([new AppIconMapping("nginx:latest", "nginx.svg")]);
+
+            //When
+            var apps = AppCatalog.BuildApps(
+                new[]
+                {
+                    Container(
+                        "web",
+                        project: "stack1",
+                        service: "web",
+                        icon: "https://example.com/custom.png",
+                        image: "nginx:latest"),
+                },
+                iconCatalog);
+
+            //Then
+            apps[0].Icon.Should().Be("https://example.com/custom.png");
+        }
+
+        [Fact]
+        public void BuildApps_ImageNotInCatalog_ReturnsNullIcon()
+        {
+            //Given
+            var iconCatalog = new AppIconCatalog([new AppIconMapping("postgres", "postgres.svg")]);
+
+            //When
+            var apps = AppCatalog.BuildApps(
+                new[] { Container("web", project: "stack1", service: "web") },
+                iconCatalog);
 
             //Then
             apps[0].Icon.Should().BeNull();

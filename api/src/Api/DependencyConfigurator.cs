@@ -2,6 +2,7 @@ using Api.Extensions;
 using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Hubs;
+using Api.Features.Apps.Icons;
 using Api.Features.Health;
 using CrossCutting;
 using CrossCutting.Settings;
@@ -23,7 +24,8 @@ namespace Api
             builder.Services
                 .AddCrossCuttingDependencies()
                 .AddDockerClient(builder.Configuration.GetSection(IDockerUiSettings.Section))
-                .AddAppsDependencies();
+                .AddAppsDependencies()
+                .AddAppIconCatalog(builder.Environment.ContentRootPath);
 
             builder.Services.AddSignalR();
             builder.Services.AddHealthCheckDependencies();
@@ -69,6 +71,19 @@ namespace Api
             services.AddSingleton<AppStateMonitor>();
             services.AddSingleton<IAppStateMonitor>(sp => sp.GetRequiredService<AppStateMonitor>());
             services.AddHostedService(sp => sp.GetRequiredService<AppStateMonitor>());
+
+            return services;
+        }
+
+        public static IServiceCollection AddAppIconCatalog(this IServiceCollection services, string contentRootPath)
+        {
+            services.AddSingleton<IAppIconCatalog>(serviceProvider =>
+            {
+                var settings = serviceProvider.GetRequiredService<IDockerUiSettings>();
+                var mappings = new List<AppIconMapping>(IconMappingLoader.LoadBuiltIn());
+                mappings.AddRange(IconMappingLoader.LoadOverrides(settings.IconsOverrideFile, contentRootPath));
+                return new AppIconCatalog(mappings);
+            });
 
             return services;
         }

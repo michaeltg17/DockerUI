@@ -5,5 +5,6 @@ namespace CrossCutting.Settings
         public const string Section = "DockerUi";
         public string DockerSocketPath { get; }
         public int PollIntervalSeconds { get; }
+        public string? IconsOverrideFile { get; }
     }
 }

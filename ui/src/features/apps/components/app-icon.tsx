@@ -1,4 +1,5 @@
 import { Boxes } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { cn } from '@/utils/cn';
 
@@ -23,11 +24,18 @@ const getHue = (name: string) =>
   ) % 360;
 
 export const AppIcon = ({ icon, name, className }: AppIconProps) => {
-  if (icon) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [icon]);
+
+  if (icon && !failed) {
     return (
       <img
         src={icon}
         alt=""
+        onError={() => setFailed(true)}
         className={cn('rounded-2xl object-cover', className)}
       />
     );

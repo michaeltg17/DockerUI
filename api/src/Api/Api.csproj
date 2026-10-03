@@ -15,4 +15,8 @@
     <ProjectReference Include="..\CrossCutting\CrossCutting.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Features\Apps\Icons\app-icons.json" LogicalName="app-icons.json" />
+  </ItemGroup>
+
 </Project>

@@ -11,11 +11,12 @@ services:
     environment:
       DockerUi__DockerSocketPath: /var/run/docker.sock
       DockerUi__PollIntervalSeconds: "5"
-      # Optional: JSON file with icon mappings that override the built-in catalog
-      # (see README, "App icons"). The file may not exist; a warning is logged.
-      DockerUi__IconsOverrideFile: /app/config/icons.json
+      # Optional: single JSON settings file (baseUrl, icon mappings, per-app
+      # url/icon/hidden, app order). See README, "Settings file".
+      # The file may not exist; defaults are used.
+      DockerUi__SettingsFile: /app/config/settings.json
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      # Optional local config (icon overrides, future settings). Created if missing.
+      # Optional local config (settings.json). Created if missing.
       - ./config:/app/config:ro
     restart: unless-stopped

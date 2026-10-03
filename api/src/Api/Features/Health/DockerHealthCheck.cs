@@ -12,10 +12,13 @@ namespace Api.Features.Health
                 await systemClient.PingAsync(cancellationToken);
                 return HealthCheckResult.Healthy("Docker daemon reachable");
             }
+            //Any failure to reach the daemon must surface as unhealthy, so the catch is intentionally broad.
+#pragma warning disable CA1031
             catch (Exception ex)
             {
                 return HealthCheckResult.Unhealthy("Docker daemon unreachable", ex);
             }
+#pragma warning restore CA1031
         }
     }
 }

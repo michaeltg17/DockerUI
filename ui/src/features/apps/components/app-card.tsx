@@ -85,7 +85,10 @@ export const AppCard = ({ app }: AppCardProps) => {
           <AppIcon
             icon={app.icon}
             name={app.name}
-            className="size-24 text-3xl"
+            className={cn(
+              'size-24 text-3xl transition-opacity',
+              app.state === 'stopped' && 'opacity-50 grayscale',
+            )}
           />
           {isRunning && (
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center">

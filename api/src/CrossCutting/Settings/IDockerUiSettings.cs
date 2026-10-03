@@ -6,5 +6,6 @@ namespace CrossCutting.Settings
         public string DockerSocketPath { get; }
         public int PollIntervalSeconds { get; }
         public string? IconsOverrideFile { get; }
+        public string? SettingsFile { get; }
     }
 }

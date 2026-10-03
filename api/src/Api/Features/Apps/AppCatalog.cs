@@ -1,5 +1,7 @@
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
+using Api.Features.Apps.Settings;
+using Serilog;
 
 namespace Api.Features.Apps
 {
@@ -21,7 +23,9 @@ namespace Api.Features.Apps
 
         public static IReadOnlyList<AppDto> BuildApps(
             IEnumerable<ContainerSnapshot> containers,
-            IAppIconCatalog? iconCatalog = null)
+            IAppIconCatalog? iconCatalog = null,
+            Uri? baseUrl = null,
+            DockerUiUserSettings? userSettings = null)
         {
             var apps = new List<AppDto>();
 
@@ -33,7 +37,7 @@ namespace Api.Features.Apps
                 .Where(group => group.Key is not null)
                 .OrderBy(group => group.Key, StringComparer.Ordinal))
             {
-                apps.Add(BuildApp(group.Key!, group.ToList(), iconCatalog));
+                apps.Add(BuildApp(group.Key!, [.. group], iconCatalog, baseUrl, userSettings));
             }
 
             var standalone = groups.FirstOrDefault(group => group.Key is null);
@@ -41,30 +45,34 @@ namespace Api.Features.Apps
             {
                 foreach (var container in standalone)
                 {
-                    apps.Add(BuildApp(container.Name, new[] { container }, iconCatalog));
+                    apps.Add(BuildApp(container.Name, [container], iconCatalog, baseUrl, userSettings));
                 }
             }
 
-            return apps.OrderBy(app => app.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            RemoveHidden(apps, userSettings);
+
+            return OrderApps(apps, userSettings);
         }
 
         /// <summary>Resolves the containers that make up the given app, or an empty list if it doesn't exist.</summary>
         public static IReadOnlyList<ContainerSnapshot> ResolveApp(IEnumerable<ContainerSnapshot> containers, string appName)
         {
-            var group = containers
+            var list = containers.ToList();
+
+            var group = list
                 .GroupBy(GetProject)
                 .FirstOrDefault(group => group.Key == appName);
 
             if (group is not null)
-                return group.ToList();
+                return [.. group];
 
-            var standalone = containers.FirstOrDefault(container =>
+            var standalone = list.FirstOrDefault(container =>
                 GetProject(container) is null &&
                 string.Equals(container.Name, appName, StringComparison.Ordinal));
 
             return standalone is null
-                ? Array.Empty<ContainerSnapshot>()
-                : new[] { standalone };
+                ? []
+                : [standalone];
         }
 
         public static bool IsRunningState(string state) => state is "running" or "restarting";
@@ -74,7 +82,12 @@ namespace Api.Features.Apps
                 ? project
                 : null;
 
-        static AppDto BuildApp(string name, IReadOnlyList<ContainerSnapshot> containers, IAppIconCatalog? iconCatalog)
+        static AppDto BuildApp(
+            string name,
+            IReadOnlyList<ContainerSnapshot> containers,
+            IAppIconCatalog? iconCatalog,
+            Uri? baseUrl,
+            DockerUiUserSettings? userSettings)
         {
             var services = containers
                 .Select(container => new AppServiceDto(
@@ -92,16 +105,39 @@ namespace Api.Features.Apps
                     ? AppState.Stopped
                     : AppState.Partial;
 
-            var icon = containers
-                .Select(GetIcon)
-                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
-                ?? GetCatalogIcon(containers, iconCatalog);
+            var perApp = userSettings?.Apps is { } apps && apps.TryGetValue(name, out var settings)
+                ? settings
+                : null;
 
-            return new AppDto(name, icon, state, ResolveUrl(containers), services);
+            var icon = !string.IsNullOrWhiteSpace(perApp?.Icon)
+                ? perApp.Icon
+                : containers
+                    .Select(GetIcon)
+                    .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
+                    ?? GetCatalogIcon(containers, iconCatalog);
+
+            return new AppDto(name, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp), services);
         }
 
-        /// <summary>Best-effort URL of the app, derived from its running containers' published ports.</summary>
-        public static Uri? ResolveUrl(IReadOnlyList<ContainerSnapshot> containers)
+        static Uri? ResolveAppUrl(string appName, IReadOnlyList<ContainerSnapshot> containers, Uri? baseUrl, AppUserSettings? perApp)
+        {
+            if (perApp?.Url is { Length: > 0 } && Uri.TryCreate(perApp.Url, UriKind.Absolute, out var url))
+            {
+                return url;
+            }
+
+            if (perApp?.Url is { Length: > 0 })
+                Log.Warning("The url override '{Url}' for app '{App}' is not a valid absolute URL; ignoring it.", perApp.Url, appName);
+
+            return ResolveUrl(containers, baseUrl);
+        }
+
+        /// <summary>
+        /// Best-effort URL of the app, derived from its running containers' published ports.
+        /// The host comes from <paramref name="baseUrl"/> (the base URL of the dashboard
+        /// itself), so the link works for whoever is browsing the dashboard.
+        /// </summary>
+        public static Uri? ResolveUrl(IReadOnlyList<ContainerSnapshot> containers, Uri? baseUrl = null)
         {
             var publishedPorts = containers
                 .Where(container => IsRunningState(container.State))
@@ -115,14 +151,49 @@ namespace Api.Features.Apps
 
             var preferred = PreferredWebPorts.FirstOrDefault(publishedPorts.Contains);
             var port = preferred != 0 ? preferred : publishedPorts.Min();
+            var host = baseUrl?.Host ?? "localhost";
 
             return port switch
             {
-                80 => new Uri("http://localhost"),
-                443 => new Uri("https://localhost"),
-                8443 => new Uri("https://localhost:8443"),
-                _ => new Uri($"http://localhost:{port}"),
+                80 => new Uri($"http://{host}"),
+                443 => new Uri($"https://{host}"),
+                8443 => new Uri($"https://{host}:8443"),
+                _ => new Uri($"http://{host}:{port}"),
             };
+        }
+
+        static void RemoveHidden(List<AppDto> apps, DockerUiUserSettings? userSettings)
+        {
+            if (userSettings?.Apps is not { } appSettings)
+                return;
+
+            apps.RemoveAll(app => appSettings.TryGetValue(app.Name, out var settings) && settings.Hidden);
+        }
+
+        static List<AppDto> OrderApps(List<AppDto> apps, DockerUiUserSettings? userSettings)
+        {
+            var order = userSettings?.Order;
+
+            if (order is null || order.Count == 0)
+                return [.. apps.OrderBy(app => app.Name, StringComparer.OrdinalIgnoreCase)];
+
+            var remaining = new List<AppDto>(apps);
+            var ordered = new List<AppDto>();
+
+            foreach (var name in order.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var index = remaining.FindIndex(app => string.Equals(app.Name, name, StringComparison.OrdinalIgnoreCase));
+
+                if (index >= 0)
+                {
+                    ordered.Add(remaining[index]);
+                    remaining.RemoveAt(index);
+                }
+            }
+
+            ordered.AddRange(remaining.OrderBy(app => app.Name, StringComparer.OrdinalIgnoreCase));
+
+            return ordered;
         }
 
         static string GetServiceName(ContainerSnapshot container) =>
@@ -136,14 +207,11 @@ namespace Api.Features.Apps
                 : null;
 
         /// <summary>Falls back to the first container image that the icon catalog recognizes.</summary>
-        static string? GetCatalogIcon(IReadOnlyList<ContainerSnapshot> containers, IAppIconCatalog? iconCatalog)
-        {
-            if (iconCatalog is null)
-                return null;
-
-            return containers
-                .Select(container => iconCatalog.TryGetIcon(container.Image, out var icon) ? icon : null)
-                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-        }
+        static string? GetCatalogIcon(IReadOnlyList<ContainerSnapshot> containers, IAppIconCatalog? iconCatalog) =>
+            iconCatalog is null
+                ? null
+                : containers
+                    .Select(container => iconCatalog.TryGetIcon(container.Image, out var icon) ? icon : null)
+                    .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
     }
 }

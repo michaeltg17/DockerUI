@@ -109,7 +109,7 @@ jobs:
           PR_BODY=$(echo "$PR_JSON" | jq -r '.body')
           echo "::endgroup::"
           echo "PR title: $PR_TITLE"
-          pr_title="$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
           echo "$PR_BODY" > release-notes.txt
           cat release-notes.txt
 

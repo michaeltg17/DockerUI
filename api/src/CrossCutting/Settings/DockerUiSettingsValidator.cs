@@ -1,8 +1,11 @@
 using Microsoft.Extensions.Options;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CrossCutting.Settings
 {
-    internal class DockerUiSettingsValidator : IValidateOptions<DockerUiSettings>
+    /// <summary>Instantiated by DI as <see cref="IValidateOptions{TOptions}"/>; the analyzer cannot see that.</summary>
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "Registered in the dependency container.")]
+    internal sealed class DockerUiSettingsValidator : IValidateOptions<DockerUiSettings>
     {
         public ValidateOptionsResult Validate(string? name, DockerUiSettings settings)
         {

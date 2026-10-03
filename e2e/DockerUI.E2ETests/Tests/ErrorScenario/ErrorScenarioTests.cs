@@ -22,7 +22,7 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
 
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
-        (await apps.RetryButton.IsVisibleAsync()).Should().BeTrue();
+        await apps.RetryButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs, State = WaitForSelectorState.Visible });
     }
 
     [Fact]
@@ -33,9 +33,19 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-        await apps.RetryButton.ClickAsync();
+        // The click is dispatched before React unmounts the error state for the
+        // refetch, so arm the request waiter first; it only matches requests
+        // fired from now on, proving the click triggered a new fetch.
+        var refetch = apps.Page.WaitForRequestAsync(
+            "**/api/apps",
+            new PageWaitForRequestOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
+        await apps.RetryButton.ClickAsync();
+        await refetch;
+
+        // The refetch fails against the unreachable daemon, so the error state
+        // and the Retry button must be re-established.
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
-        (await apps.RetryButton.IsVisibleAsync()).Should().BeTrue();
+        await apps.RetryButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs, State = WaitForSelectorState.Visible });
     }
 }

@@ -165,6 +165,12 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         (await AppsPage.MenuItem(menu, "Start").IsDisabledAsync()).Should().BeFalse();
         await AppsPage.MenuItem(menu, "Start").ClickAsync();
         await apps.WaitForStateAsync("start-stack", AppsPage.RunningState);
+
+        // Stop the app again so tests that expect its initial (stopped) state pass
+        // regardless of execution order.
+        menu = await apps.OpenCardMenuAsync("start-stack");
+        await AppsPage.MenuItem(menu, "Stop").ClickAsync();
+        await apps.WaitForStateAsync("start-stack", AppsPage.StoppedState);
     }
 
     [Fact]

@@ -19,10 +19,8 @@ through its socket.
 - `ui/` — Vite + React SPA. `src/features/apps` holds the single feature
   (types, api, hooks, components); `src/app` is the shell; `src/components/ui`
   is the shared UI kit (button, spinner, notifications).
-- `api/tests/UnitTests` — pure logic (`AppCatalog`).
-- `api/tests/IntegrationTests` — endpoint behavior via `WebApplicationFactory`,
-  pointed at a nonexistent socket (no Docker daemon required).
-- `e2e/` — separate xunit v3 + Playwright solution (`docker-ui.e2e.slnx`).
+- `e2e/` — the only tests in the repo; separate xunit v3 + Playwright
+  solution (`docker-ui.e2e.slnx`).
   Each scenario under `e2e/scenarios` is its own docker-ui instance (own port,
   own `appsettings.json`) plus demo stacks; `Environments/` orchestrates the
   compose environments, `Playwright/` holds the browser fixture and the
@@ -46,15 +44,12 @@ through its socket.
 ```bash
 # API
 dotnet run --project api/src/Api            # dev on :5000
-dotnet test api/tests/UnitTests
-dotnet test api/tests/IntegrationTests
 
 # UI (from ui/)
 yarn install
 yarn dev                                    # :3000, proxies /api -> :5000 (ws)
 yarn check-types
 yarn lint
-yarn test --run
 yarn build                                  # tsc + vite build (base=/)
 
 # Product
@@ -83,12 +78,14 @@ dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
   `MapFallbackToFile("index.html")` serves the SPA for all non-`/api` routes.
 - E2E: the browser fixture launches the locally installed Chrome
   (`Channel = "chrome"`) so Playwright never downloads browsers (the Playwright
-  CDN stalls on some networks; in CI, use an image with preinstalled browsers,
-  e.g. `mcr.microsoft.com/playwright`). The suite must be run via the built
-  test dll (xunit v3 in-process runner): `dotnet test` fails to discover
-  xunit v3 tests on this machine's SDK. The dashboard lists every compose
-  project on the machine, so scenarios assert on their own apps, not the full
-  card list.
+  CDN stalls on some networks; `Dockerfile.ci` therefore installs
+  `google-chrome-stable` and the Docker CLI instead). The suite must be run via
+  the built test dll (xunit v3 in-process runner): `dotnet test` fails to
+  discover xunit v3 tests on this machine's SDK. CI runs the suite inside the
+  `Dockerfile.ci` container with the runner's Docker socket mounted and
+  `--network host` (the scenarios publish ports on the runner's localhost,
+  5010-5012). The dashboard lists every compose project on the machine, so
+  scenarios assert on their own apps, not the full card list.
 
 ## Workflow
 Commit on `dev` → push `dev` → open (or update) the `dev` → `main` PR.

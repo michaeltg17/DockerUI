@@ -33,10 +33,7 @@ module.exports = {
         'plugin:react-hooks/recommended',
         'plugin:jsx-a11y/recommended',
         'plugin:prettier/recommended',
-        'plugin:testing-library/react',
-        'plugin:jest-dom/recommended',
         'plugin:tailwindcss/recommended',
-        'plugin:vitest/legacy-recommended',
       ],
       rules: {
         'import/no-restricted-paths': [
@@ -106,7 +103,7 @@ module.exports = {
     },
     {
       plugins: ['check-file'],
-      files: ['src/**/!(__tests__)/*'],
+      files: ['src/**/*'],
       rules: {
         'check-file/folder-naming-convention': [
           'error',

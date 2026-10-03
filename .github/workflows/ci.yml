@@ -33,7 +33,9 @@ jobs:
           cache-to: type=gha,mode=max,scope=docker-ui-ci
 
       - name: Run CI checks
-        run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock docker-ui-ci:latest
+        # Host networking: the e2e scenarios publish ports on the runner's
+        # localhost (5010-5012), which the container must be able to reach.
+        run: docker run --rm --network host -v /var/run/docker.sock:/var/run/docker.sock docker-ui-ci:latest
 
       - name: Validate Docker image builds
         uses: docker/build-push-action@v7

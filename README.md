@@ -1,6 +1,8 @@
 [![ci](https://github.com/michaeltg17/docker-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/michaeltg17/docker-ui/actions/workflows/ci.yml)
 # Docker UI
 
+<img width="2203" height="848" alt="image" src="https://github.com/user-attachments/assets/9ccbbce7-9587-411e-94be-622dd9bf7343" />
+
 A lightweight, Umbrel-style dashboard for your Docker stacks. It shows every
 Docker Compose stack (and standalone container) on your machine as an icon +
 name card with a live state badge, and lets you **start**, **stop**, and

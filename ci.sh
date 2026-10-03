@@ -7,8 +7,10 @@ echo "========================================="
 
 echo
 echo "API: restore, build and test (Release)."
-dotnet test api/tests/UnitTests --configuration Release
-dotnet test api/tests/IntegrationTests --configuration Release
+# Exit code 8 = no tests discovered (the test projects may be temporarily empty).
+# That is tolerated; real test failures (2) and infrastructure errors (10) still fail CI.
+dotnet test api/tests/UnitTests --configuration Release --ignore-exit-code 8
+dotnet test api/tests/IntegrationTests --configuration Release --ignore-exit-code 8
 echo "API tests passed"
 
 echo

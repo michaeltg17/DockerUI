@@ -1,0 +1,2102 @@
+[
+  {
+    "image": "0xf0xx0/pogolo",
+    "icon": "pogolo.svg"
+  },
+  {
+    "image": "0xf0xx0/pogolo-umbrel-webui",
+    "icon": "pogolo.svg"
+  },
+  {
+    "image": "1dev/server",
+    "icon": "onedev.svg"
+  },
+  {
+    "image": "a4004/onlyoffice-nextcloud-web",
+    "icon": "onlyoffice-nextcloud.svg"
+  },
+  {
+    "image": "aceberg/watchyourlan",
+    "icon": "watch-your-lan.svg"
+  },
+  {
+    "image": "adguard/adguardhome",
+    "icon": "adguard-home.svg"
+  },
+  {
+    "image": "agent0ai/agent-zero",
+    "icon": "agent-zero.svg"
+  },
+  {
+    "image": "akaunting/akaunting",
+    "icon": "akaunting.svg"
+  },
+  {
+    "image": "alex71btc/bolt12-pay",
+    "icon": "bolt12-pay.svg"
+  },
+  {
+    "image": "alex71btc/lndk",
+    "icon": "bolt12-pay.svg"
+  },
+  {
+    "image": "alexlack/mattermost-app",
+    "icon": "mattermost.svg"
+  },
+  {
+    "image": "alexlack/mattermost-db",
+    "icon": "mattermost.svg"
+  },
+  {
+    "image": "alpine",
+    "icon": "bassin.svg"
+  },
+  {
+    "image": "alpine/minio",
+    "icon": "plane.svg"
+  },
+  {
+    "image": "anirdev/slink",
+    "icon": "slink.svg"
+  },
+  {
+    "image": "ankane/pgvector",
+    "icon": "librechat.svg"
+  },
+  {
+    "image": "apache/tika",
+    "icon": "paperless.svg"
+  },
+  {
+    "image": "apotdevin/thunderhub",
+    "icon": "thunderhub.svg"
+  },
+  {
+    "image": "appsmith/appsmith-ce",
+    "icon": "appsmith.svg"
+  },
+  {
+    "image": "archivebox/archivebox",
+    "icon": "archivebox.svg"
+  },
+  {
+    "image": "awinterstein/habitica-server",
+    "icon": "habitica.svg"
+  },
+  {
+    "image": "balzack/databag",
+    "icon": "databag.svg"
+  },
+  {
+    "image": "bbilly1/tubearchivist",
+    "icon": "tubearchivist.svg"
+  },
+  {
+    "image": "bellamy/wallos",
+    "icon": "wallos.svg"
+  },
+  {
+    "image": "benbusby/whoogle-search",
+    "icon": "whoogle-search.svg"
+  },
+  {
+    "image": "binwiederhier/ntfy",
+    "icon": "ntfy.svg"
+  },
+  {
+    "image": "bitcoinscala/bitcoin-s-oracle-server",
+    "icon": "krystal-bull.svg"
+  },
+  {
+    "image": "bitcoinscala/bitcoin-s-server",
+    "icon": "suredbits-wallet.svg"
+  },
+  {
+    "image": "bitcoinscala/oracle-server-ui",
+    "icon": "krystal-bull.svg"
+  },
+  {
+    "image": "bitcoinscala/wallet-server-ui",
+    "icon": "suredbits-wallet.svg"
+  },
+  {
+    "image": "bleskomat/bleskomat-server",
+    "icon": "bleskomat-server.svg"
+  },
+  {
+    "image": "blinkospace/blinko",
+    "icon": "blinko.svg"
+  },
+  {
+    "image": "bluewalletorganization/lndhub",
+    "icon": "bluewallet.svg"
+  },
+  {
+    "image": "bochaco/formicaio",
+    "icon": "formicaio.svg"
+  },
+  {
+    "image": "bochaco/formicaio_proxy",
+    "icon": "formicaio.svg"
+  },
+  {
+    "image": "boltz/boltz-client",
+    "icon": "core-lightning-rtl.svg"
+  },
+  {
+    "image": "boypt/cloud-torrent",
+    "icon": "simple-torrent.svg"
+  },
+  {
+    "image": "btcpayserver/btcpayserver",
+    "icon": "btcpay-server.svg"
+  },
+  {
+    "image": "btcpayserver/postgres",
+    "icon": "btcpay-server.svg"
+  },
+  {
+    "image": "budibase/budibase",
+    "icon": "budibase.svg"
+  },
+  {
+    "image": "c4illin/convertx",
+    "icon": "convertx.svg"
+  },
+  {
+    "image": "caddy",
+    "icon": "tdex.svg"
+  },
+  {
+    "image": "calvadev/shopstr",
+    "icon": "shopstr.svg"
+  },
+  {
+    "image": "cculianu/fulcrum",
+    "icon": "fulcrum.svg"
+  },
+  {
+    "image": "ceramicwhite/invidious",
+    "icon": "invidious.svg"
+  },
+  {
+    "image": "ceramicwhite/libreddit",
+    "icon": "libreddit.svg"
+  },
+  {
+    "image": "ceramicwhite/nitter",
+    "icon": "nitter.svg"
+  },
+  {
+    "image": "chaincase/nolooking",
+    "icon": "nolooking.svg"
+  },
+  {
+    "image": "chronograf",
+    "icon": "influxdb.svg"
+  },
+  {
+    "image": "clickhouse/clickhouse-server",
+    "icon": "plausible.svg"
+  },
+  {
+    "image": "codeberg.org/forgejo/forgejo",
+    "icon": "forgejo.svg"
+  },
+  {
+    "image": "codeberg.org/highghlow/just-download",
+    "icon": "just-download.svg"
+  },
+  {
+    "image": "codeberg.org/readeck/readeck",
+    "icon": "readeck.svg"
+  },
+  {
+    "image": "codercom/code-server",
+    "icon": "code-server.svg"
+  },
+  {
+    "image": "corentinth/enclosed",
+    "icon": "enclosed.svg"
+  },
+  {
+    "image": "corentinth/it-tools",
+    "icon": "ittools.svg"
+  },
+  {
+    "image": "coreylphillips/bitcoin-regtest-dashboard",
+    "icon": "bitcoin-regtest-dashboard.svg"
+  },
+  {
+    "image": "datarhei/restreamer",
+    "icon": "restreamer.svg"
+  },
+  {
+    "image": "dcbert/minersentinel-backend",
+    "icon": "miner-sentinel.svg"
+  },
+  {
+    "image": "dcbert/minersentinel-data-service",
+    "icon": "miner-sentinel.svg"
+  },
+  {
+    "image": "dcbert/minersentinel-frontend",
+    "icon": "miner-sentinel.svg"
+  },
+  {
+    "image": "decred/dcrdex",
+    "icon": "dcrdex.svg"
+  },
+  {
+    "image": "dedicatedcode/reitti",
+    "icon": "reitti.svg"
+  },
+  {
+    "image": "dedicatedcode/reitti-tile-cache",
+    "icon": "reitti.svg"
+  },
+  {
+    "image": "deluan/navidrome",
+    "icon": "navidrome.svg"
+  },
+  {
+    "image": "dennysubke/cobalt",
+    "icon": "cobalt.svg"
+  },
+  {
+    "image": "dennysubke/seedtool",
+    "icon": "seedtool.svg"
+  },
+  {
+    "image": "dennysubke/threema-web",
+    "icon": "threema.svg"
+  },
+  {
+    "image": "dennysubke/torbrowser",
+    "icon": "torbrowser.svg"
+  },
+  {
+    "image": "deverickapollo/umbrel-monero",
+    "icon": "monero.svg"
+  },
+  {
+    "image": "dexidp/dex",
+    "icon": "outline.svg"
+  },
+  {
+    "image": "dirtmcgrit/chainforensics",
+    "icon": "chainforensics.svg"
+  },
+  {
+    "image": "dirtmcgrit/chainforensics-web",
+    "icon": "chainforensics.svg"
+  },
+  {
+    "image": "djbooth007/tallycoin_connect",
+    "icon": "tallycoin-connect.svg"
+  },
+  {
+    "image": "docker",
+    "icon": "arcane.svg"
+  },
+  {
+    "image": "docker.io/gotenberg/gotenberg",
+    "icon": "paperless.svg"
+  },
+  {
+    "image": "docker.io/library/postgres",
+    "icon": "paperless.svg"
+  },
+  {
+    "image": "docker.io/library/redis",
+    "icon": "paperless.svg"
+  },
+  {
+    "image": "docker.io/sipeed/picoclaw",
+    "icon": "picoclaw.svg"
+  },
+  {
+    "image": "dockurr/samba",
+    "icon": "samba.svg"
+  },
+  {
+    "image": "docmost/docmost",
+    "icon": "docmost.svg"
+  },
+  {
+    "image": "docuseal/docuseal",
+    "icon": "docuseal.svg"
+  },
+  {
+    "image": "donetick/donetick",
+    "icon": "donetick.svg"
+  },
+  {
+    "image": "dullage/flatnotes",
+    "icon": "flatnotes.svg"
+  },
+  {
+    "image": "dumbwareio/dumbpad",
+    "icon": "dumbpad.svg"
+  },
+  {
+    "image": "duplicati/duplicati",
+    "icon": "duplicati.svg"
+  },
+  {
+    "image": "eclipse-mosquitto",
+    "icon": "mosquitto.svg"
+  },
+  {
+    "image": "eduard256/strix",
+    "icon": "strix.svg"
+  },
+  {
+    "image": "elasticsearch",
+    "icon": "tubearchivist.svg"
+  },
+  {
+    "image": "elementsproject/lightningd",
+    "icon": "core-lightning.svg"
+  },
+  {
+    "image": "elldee/kaspa-frontend",
+    "icon": "rusty-kaspad.svg"
+  },
+  {
+    "image": "emqx/mqttx-web",
+    "icon": "mqttx-web.svg"
+  },
+  {
+    "image": "encryptedenergy/ee-gateway-ui",
+    "icon": "ee-gateway.svg"
+  },
+  {
+    "image": "encryptedenergy/ee-gateway-worker",
+    "icon": "ee-gateway.svg"
+  },
+  {
+    "image": "esphome/esphome",
+    "icon": "esphome.svg"
+  },
+  {
+    "image": "etherpad/etherpad",
+    "icon": "etherpad.svg"
+  },
+  {
+    "image": "fedimint/fedimintd",
+    "icon": "fedimintd.svg"
+  },
+  {
+    "image": "fedimint/gatewayd",
+    "icon": "fedimint-gateway.svg"
+  },
+  {
+    "image": "filebrowser/filebrowser",
+    "icon": "agora.svg"
+  },
+  {
+    "image": "fireflyiii/core",
+    "icon": "firefly-iii.svg"
+  },
+  {
+    "image": "fireflyiii/data-importer",
+    "icon": "firefly-iii-importer.svg"
+  },
+  {
+    "image": "flaresolverr/flaresolverr",
+    "icon": "prowlarr.svg"
+  },
+  {
+    "image": "flomp/wanderer-db",
+    "icon": "wanderer.svg"
+  },
+  {
+    "image": "flomp/wanderer-web",
+    "icon": "wanderer.svg"
+  },
+  {
+    "image": "germannewsmaker/myspeed",
+    "icon": "myspeed.svg"
+  },
+  {
+    "image": "getmeili/meilisearch",
+    "icon": "karakeep.svg"
+  },
+  {
+    "image": "getumbrel/btc-rpc-explorer",
+    "icon": "btc-rpc-explorer.svg"
+  },
+  {
+    "image": "getumbrel/electrs",
+    "icon": "bitcoin-regtest-dashboard.svg"
+  },
+  {
+    "image": "getumbrel/media-app-configurator",
+    "icon": "lidarr.svg"
+  },
+  {
+    "image": "getumbrel/nostr-rs-relay",
+    "icon": "nostr-relay.svg"
+  },
+  {
+    "image": "getumbrel/umbrel-back-that-mac-up",
+    "icon": "back-that-mac-up.svg"
+  },
+  {
+    "image": "getumbrel/umbrel-electrs",
+    "icon": "electrs.svg"
+  },
+  {
+    "image": "getumbrel/umbrel-lightning",
+    "icon": "lightning.svg"
+  },
+  {
+    "image": "getumbrel/umbrel-mempool-widget-server",
+    "icon": "mempool.svg"
+  },
+  {
+    "image": "getumbrel/umbrel-nostr-relay",
+    "icon": "nostr-relay.svg"
+  },
+  {
+    "image": "getumbrel/umbrel-nostr-relay-proxy",
+    "icon": "nostr-relay.svg"
+  },
+  {
+    "image": "getumbrel/umbrel-transmission-widget-server",
+    "icon": "transmission.svg"
+  },
+  {
+    "image": "ghcr.io/1440000bytes/joinstr-web",
+    "icon": "joinstr.svg"
+  },
+  {
+    "image": "ghcr.io/9001/copyparty-ac",
+    "icon": "copyparty.svg"
+  },
+  {
+    "image": "ghcr.io/aalmenar/baikal",
+    "icon": "baikal.svg"
+  },
+  {
+    "image": "ghcr.io/activepieces/activepieces",
+    "icon": "activepieces.svg"
+  },
+  {
+    "image": "ghcr.io/actualbudget/actual",
+    "icon": "actual.svg"
+  },
+  {
+    "image": "ghcr.io/advplyr/audiobookshelf",
+    "icon": "audiobookshelf.svg"
+  },
+  {
+    "image": "ghcr.io/agora-org/agora",
+    "icon": "agora.svg"
+  },
+  {
+    "image": "ghcr.io/aivm23/valorgrid",
+    "icon": "valorgrid.svg"
+  },
+  {
+    "image": "ghcr.io/alam00000/bentopdf",
+    "icon": "bentopdf.svg"
+  },
+  {
+    "image": "ghcr.io/alexta69/metube",
+    "icon": "metube.svg"
+  },
+  {
+    "image": "ghcr.io/andrijdavid/umbrel-zerotier-web",
+    "icon": "zerotier.svg"
+  },
+  {
+    "image": "ghcr.io/anomalyco/opencode",
+    "icon": "opencode.svg"
+  },
+  {
+    "image": "ghcr.io/athombv/homey-shs",
+    "icon": "homey.svg"
+  },
+  {
+    "image": "ghcr.io/autobrr/autobrr",
+    "icon": "autobrr.svg"
+  },
+  {
+    "image": "ghcr.io/baosystems/postgis",
+    "icon": "adventurelog.svg"
+  },
+  {
+    "image": "ghcr.io/basecamp/once-campfire",
+    "icon": "campfire.svg"
+  },
+  {
+    "image": "ghcr.io/benjamin-wilson/public-pool",
+    "icon": "public-pool.svg"
+  },
+  {
+    "image": "ghcr.io/benjamin-wilson/public-pool-ui",
+    "icon": "public-pool.svg"
+  },
+  {
+    "image": "ghcr.io/besoeasy/file-drop",
+    "icon": "file-drop.svg"
+  },
+  {
+    "image": "ghcr.io/besoeasy/gupt",
+    "icon": "gupt.svg"
+  },
+  {
+    "image": "ghcr.io/besoeasy/l-town",
+    "icon": "l-town.svg"
+  },
+  {
+    "image": "ghcr.io/besoeasy/originless",
+    "icon": "originless.svg"
+  },
+  {
+    "image": "ghcr.io/besoeasy/zeronote",
+    "icon": "zeronote.svg"
+  },
+  {
+    "image": "ghcr.io/bffless/ce-backend",
+    "icon": "bffless.svg"
+  },
+  {
+    "image": "ghcr.io/bffless/ce-frontend",
+    "icon": "bffless.svg"
+  },
+  {
+    "image": "ghcr.io/bffless/ce-nginx",
+    "icon": "bffless.svg"
+  },
+  {
+    "image": "ghcr.io/bisq-network/bisq2-api",
+    "icon": "bisq2-node.svg"
+  },
+  {
+    "image": "ghcr.io/bisq-network/bisq2-api-web-ui",
+    "icon": "bisq2-node.svg"
+  },
+  {
+    "image": "ghcr.io/bitfeed-project/bitfeed-client",
+    "icon": "bitfeed.svg"
+  },
+  {
+    "image": "ghcr.io/bitfeed-project/bitfeed-server",
+    "icon": "bitfeed.svg"
+  },
+  {
+    "image": "ghcr.io/bitmagnet-io/bitmagnet",
+    "icon": "bitmagnet.svg"
+  },
+  {
+    "image": "ghcr.io/blakeblackshear/frigate",
+    "icon": "frigate.svg"
+  },
+  {
+    "image": "ghcr.io/blockdyor/bassin-ui",
+    "icon": "bassin.svg"
+  },
+  {
+    "image": "ghcr.io/blockdyor/umbrel-bassin-widget",
+    "icon": "bassin.svg"
+  },
+  {
+    "image": "ghcr.io/booklore-app/booklore",
+    "icon": "booklore.svg"
+  },
+  {
+    "image": "ghcr.io/caramelfur/picsur",
+    "icon": "picsur.svg"
+  },
+  {
+    "image": "ghcr.io/civilblur/mazanoke",
+    "icon": "mazanoke.svg"
+  },
+  {
+    "image": "ghcr.io/coderamp-labs/gitingest",
+    "icon": "gitingest.svg"
+  },
+  {
+    "image": "ghcr.io/copexit/am-i-exposed-tor-proxy",
+    "icon": "am-i-exposed.svg"
+  },
+  {
+    "image": "ghcr.io/copexit/am-i-exposed-umbrel",
+    "icon": "am-i-exposed.svg"
+  },
+  {
+    "image": "ghcr.io/cryptoadvance/specter-desktop",
+    "icon": "specter-desktop.svg"
+  },
+  {
+    "image": "ghcr.io/cryptosharks131/lndg",
+    "icon": "lndg.svg"
+  },
+  {
+    "image": "ghcr.io/danhaus93-ops/bchn-dashboard",
+    "icon": "bitcoin-cash-node.svg"
+  },
+  {
+    "image": "ghcr.io/danielbrendel/hortusfox-web",
+    "icon": "hortusfox.svg"
+  },
+  {
+    "image": "ghcr.io/danny-avila/librechat",
+    "icon": "librechat.svg"
+  },
+  {
+    "image": "ghcr.io/danny-avila/librechat-rag-api-dev-lite",
+    "icon": "librechat.svg"
+  },
+  {
+    "image": "ghcr.io/danvergara/morphos-server",
+    "icon": "morphos.svg"
+  },
+  {
+    "image": "ghcr.io/deiucanta/chatpad",
+    "icon": "chatpad-ai.svg"
+  },
+  {
+    "image": "ghcr.io/dgtlmoon/changedetection.io",
+    "icon": "changedetection-io.svg"
+  },
+  {
+    "image": "ghcr.io/dotcoocoo/hermitstash",
+    "icon": "hermitstash.svg"
+  },
+  {
+    "image": "ghcr.io/egzola/bitbalance",
+    "icon": "bitbalance.svg"
+  },
+  {
+    "image": "ghcr.io/egzola/bitboard",
+    "icon": "bitboard.svg"
+  },
+  {
+    "image": "ghcr.io/egzola/telegrapho",
+    "icon": "telegrapho.svg"
+  },
+  {
+    "image": "ghcr.io/elementsproject/cln-application",
+    "icon": "core-lightning.svg"
+  },
+  {
+    "image": "ghcr.io/endurain-project/endurain",
+    "icon": "endurain.svg"
+  },
+  {
+    "image": "ghcr.io/ersatztv/legacy",
+    "icon": "ersatztv-legacy.svg"
+  },
+  {
+    "image": "ghcr.io/fccview/jotty",
+    "icon": "jotty.svg"
+  },
+  {
+    "image": "ghcr.io/fedibtc/manifold-fman",
+    "icon": "manifold-fedimint-guardian.svg"
+  },
+  {
+    "image": "ghcr.io/ferretdb/ferretdb",
+    "icon": "komodo.svg"
+  },
+  {
+    "image": "ghcr.io/ferretdb/postgres-documentdb",
+    "icon": "komodo.svg"
+  },
+  {
+    "image": "ghcr.io/flaresolverr/flaresolverr",
+    "icon": "flaresolverr.svg"
+  },
+  {
+    "image": "ghcr.io/foldergram/foldergram",
+    "icon": "foldergram.svg"
+  },
+  {
+    "image": "ghcr.io/fuzzygrim/yamtrack",
+    "icon": "yamtrack.svg"
+  },
+  {
+    "image": "ghcr.io/gamosoft/notediscovery",
+    "icon": "notediscovery.svg"
+  },
+  {
+    "image": "ghcr.io/gandlafbtc/nutstash-wallet",
+    "icon": "nutstash-wallet.svg"
+  },
+  {
+    "image": "ghcr.io/get10101/itchysats/taker",
+    "icon": "itchysats.svg"
+  },
+  {
+    "image": "ghcr.io/getalby/hub",
+    "icon": "albyhub.svg"
+  },
+  {
+    "image": "ghcr.io/getalby/nostr-wallet-connect",
+    "icon": "alby-nostr-wallet-connect.svg"
+  },
+  {
+    "image": "ghcr.io/getarcaneapp/arcane",
+    "icon": "arcane.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/docker-bitcoind",
+    "icon": "bitcoin-regtest-dashboard.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/docker-ckpool-solo",
+    "icon": "bassin.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/hermes-agent-umbrel",
+    "icon": "hermes-agent.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/llama-gpt-api",
+    "icon": "llama-gpt.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/llama-gpt-ui",
+    "icon": "llama-gpt.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/openclaw-umbrel",
+    "icon": "openclaw.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/tor",
+    "icon": "bitcoin.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/umbrel-bitcoin",
+    "icon": "bitcoin.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/umbrel-electrumx",
+    "icon": "electrumx.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/umbrel-public-pool-widget",
+    "icon": "public-pool.svg"
+  },
+  {
+    "image": "ghcr.io/glasshome/dash",
+    "icon": "glasshome.svg"
+  },
+  {
+    "image": "ghcr.io/gobrrrme/gobrrr-ckpool",
+    "icon": "gobrrr-pool.svg"
+  },
+  {
+    "image": "ghcr.io/gobrrrme/gobrrr-pool-webui",
+    "icon": "gobrrr-pool.svg"
+  },
+  {
+    "image": "ghcr.io/hargata/lubelogger",
+    "icon": "lubelogger.svg"
+  },
+  {
+    "image": "ghcr.io/henriquesebastiao/downtify",
+    "icon": "downtify.svg"
+  },
+  {
+    "image": "ghcr.io/homarr-labs/homarr",
+    "icon": "homarr.svg"
+  },
+  {
+    "image": "ghcr.io/hotio/qbittorrent",
+    "icon": "qbittorrent.svg"
+  },
+  {
+    "image": "ghcr.io/hzrd149/docker-cors-anywhere",
+    "icon": "nostrudel.svg"
+  },
+  {
+    "image": "ghcr.io/hzrd149/nostrudel",
+    "icon": "nostrudel.svg"
+  },
+  {
+    "image": "ghcr.io/ibz/lightning-shell",
+    "icon": "lightning-shell.svg"
+  },
+  {
+    "image": "ghcr.io/ibz/usocial",
+    "icon": "usocial.svg"
+  },
+  {
+    "image": "ghcr.io/immich-app/immich-machine-learning",
+    "icon": "immich.svg"
+  },
+  {
+    "image": "ghcr.io/immich-app/immich-server",
+    "icon": "immich.svg"
+  },
+  {
+    "image": "ghcr.io/immich-app/postgres",
+    "icon": "immich.svg"
+  },
+  {
+    "image": "ghcr.io/impa10r/elements",
+    "icon": "elements.svg"
+  },
+  {
+    "image": "ghcr.io/impa10r/peerswap-web",
+    "icon": "peerswap.svg"
+  },
+  {
+    "image": "ghcr.io/itskovacs/trip",
+    "icon": "trip.svg"
+  },
+  {
+    "image": "ghcr.io/itskovacs/wingfit",
+    "icon": "wingfit.svg"
+  },
+  {
+    "image": "ghcr.io/joinmarket-webui/jam-standalone",
+    "icon": "jam.svg"
+  },
+  {
+    "image": "ghcr.io/jpcummins/sat.watch",
+    "icon": "satwatch.svg"
+  },
+  {
+    "image": "ghcr.io/kanbn/kan",
+    "icon": "kan.svg"
+  },
+  {
+    "image": "ghcr.io/kanbn/kan-migrate",
+    "icon": "kan.svg"
+  },
+  {
+    "image": "ghcr.io/karakeep-app/karakeep",
+    "icon": "karakeep.svg"
+  },
+  {
+    "image": "ghcr.io/karakeep-app/karakeep-chrome",
+    "icon": "karakeep.svg"
+  },
+  {
+    "image": "ghcr.io/karamble/dcrpulse-dashboard",
+    "icon": "dcrpulse.svg"
+  },
+  {
+    "image": "ghcr.io/karamble/dcrpulse-dcrd",
+    "icon": "dcrpulse.svg"
+  },
+  {
+    "image": "ghcr.io/karamble/dcrpulse-dcrwallet",
+    "icon": "dcrpulse.svg"
+  },
+  {
+    "image": "ghcr.io/kieraneglin/pinchflat",
+    "icon": "pinchflat.svg"
+  },
+  {
+    "image": "ghcr.io/kittendevv/invio-backend",
+    "icon": "invio.svg"
+  },
+  {
+    "image": "ghcr.io/kittendevv/invio-frontend",
+    "icon": "invio.svg"
+  },
+  {
+    "image": "ghcr.io/kiwix/kiwix-serve",
+    "icon": "kiwix.svg"
+  },
+  {
+    "image": "ghcr.io/librespeed/speedtest",
+    "icon": "librespeed.svg"
+  },
+  {
+    "image": "ghcr.io/lightningequipment/circuitbreaker",
+    "icon": "circuitbreaker.svg"
+  },
+  {
+    "image": "ghcr.io/linkwarden/linkwarden",
+    "icon": "linkwarden.svg"
+  },
+  {
+    "image": "ghcr.io/linuxserver/chromium",
+    "icon": "chromium.svg"
+  },
+  {
+    "image": "ghcr.io/lissy93/networking-toolbox",
+    "icon": "networkingtoolbox.svg"
+  },
+  {
+    "image": "ghcr.io/lissy93/web-check",
+    "icon": "webcheck.svg"
+  },
+  {
+    "image": "ghcr.io/ln-markets/umbrel",
+    "icon": "lnmarkets.svg"
+  },
+  {
+    "image": "ghcr.io/lukegus/termix",
+    "icon": "termix.svg"
+  },
+  {
+    "image": "ghcr.io/m1k1o/neko/firefox",
+    "icon": "neko.svg"
+  },
+  {
+    "image": "ghcr.io/maathimself/mailflow-backend",
+    "icon": "mailflow.svg"
+  },
+  {
+    "image": "ghcr.io/maathimself/mailflow-frontend",
+    "icon": "mailflow.svg"
+  },
+  {
+    "image": "ghcr.io/mainsail-crew/mainsail",
+    "icon": "mainsail.svg"
+  },
+  {
+    "image": "ghcr.io/matiasdesuu/thinkdashboard",
+    "icon": "thinkdashboard.svg"
+  },
+  {
+    "image": "ghcr.io/matt8707/ha-fusion",
+    "icon": "home-assistant-fusion-ui.svg"
+  },
+  {
+    "image": "ghcr.io/matter-js/python-matter-server",
+    "icon": "matter-server.svg"
+  },
+  {
+    "image": "ghcr.io/mauricewipf/fizzy-umbrel",
+    "icon": "fizzy.svg"
+  },
+  {
+    "image": "ghcr.io/maybe-finance/maybe",
+    "icon": "maybe.svg"
+  },
+  {
+    "image": "ghcr.io/mckaywrigley/chatbot-ui",
+    "icon": "chatbot-ui.svg"
+  },
+  {
+    "image": "ghcr.io/mealie-recipes/mealie",
+    "icon": "mealie.svg"
+  },
+  {
+    "image": "ghcr.io/mmalmi/nostr-vpn-umbrel",
+    "icon": "nostr-vpn.svg"
+  },
+  {
+    "image": "ghcr.io/moghtech/komodo-core",
+    "icon": "komodo.svg"
+  },
+  {
+    "image": "ghcr.io/moghtech/komodo-periphery",
+    "icon": "komodo.svg"
+  },
+  {
+    "image": "ghcr.io/monetr/monetr",
+    "icon": "monetr.svg"
+  },
+  {
+    "image": "ghcr.io/muchobien/pocketbase",
+    "icon": "pocketbase.svg"
+  },
+  {
+    "image": "ghcr.io/music-assistant/server",
+    "icon": "music-assistant.svg"
+  },
+  {
+    "image": "ghcr.io/netbirdio/netbird",
+    "icon": "netbird.svg"
+  },
+  {
+    "image": "ghcr.io/open-webui/open-webui",
+    "icon": "open-webui.svg"
+  },
+  {
+    "image": "ghcr.io/openhands/openhands",
+    "icon": "openhands.svg"
+  },
+  {
+    "image": "ghcr.io/opensourceminers/lightningmate",
+    "icon": "lightningmate.svg"
+  },
+  {
+    "image": "ghcr.io/ownbee/hass-otbr-docker",
+    "icon": "openthread-border-router.svg"
+  },
+  {
+    "image": "ghcr.io/ozencb/excalidraw-persist",
+    "icon": "excalidraw.svg"
+  },
+  {
+    "image": "ghcr.io/paperclipai/paperclip",
+    "icon": "paperclip.svg"
+  },
+  {
+    "image": "ghcr.io/paperless-ngx/paperless-ngx",
+    "icon": "paperless.svg"
+  },
+  {
+    "image": "ghcr.io/papra-hq/papra",
+    "icon": "papra.svg"
+  },
+  {
+    "image": "ghcr.io/peerloomllc/pearcircle-seeder",
+    "icon": "pearcircle-seeder.svg"
+  },
+  {
+    "image": "ghcr.io/perber/leafwiki",
+    "icon": "leafwiki.svg"
+  },
+  {
+    "image": "ghcr.io/petertodd/bitcoin",
+    "icon": "libre-relay.svg"
+  },
+  {
+    "image": "ghcr.io/petertodd/umbrel-bitcoin-libre-relay",
+    "icon": "libre-relay.svg"
+  },
+  {
+    "image": "ghcr.io/plankanban/planka",
+    "icon": "planka.svg"
+  },
+  {
+    "image": "ghcr.io/plausible/community-edition",
+    "icon": "plausible.svg"
+  },
+  {
+    "image": "ghcr.io/quad4-software/meshchatx",
+    "icon": "meshchatx.svg"
+  },
+  {
+    "image": "ghcr.io/radiokot/umbrel-cloudflared",
+    "icon": "cloudflared.svg"
+  },
+  {
+    "image": "ghcr.io/radiokot/umbrel-cloudflared-connector",
+    "icon": "cloudflared.svg"
+  },
+  {
+    "image": "ghcr.io/raylabshq/gitea-mirror",
+    "icon": "gitea-mirror.svg"
+  },
+  {
+    "image": "ghcr.io/rdouma/hashrate-autopilot",
+    "icon": "hashrate-autopilot.svg"
+  },
+  {
+    "image": "ghcr.io/readur/readur",
+    "icon": "readur.svg"
+  },
+  {
+    "image": "ghcr.io/remsky/kokoro-fastapi-cpu",
+    "icon": "kokoro.svg"
+  },
+  {
+    "image": "ghcr.io/retropex/custom-dashboard-ocean",
+    "icon": "deepsea.svg"
+  },
+  {
+    "image": "ghcr.io/retropex/datum",
+    "icon": "datum.svg"
+  },
+  {
+    "image": "ghcr.io/retropex/umbrel-bitcoin-knots",
+    "icon": "bitcoin-knots.svg"
+  },
+  {
+    "image": "ghcr.io/richardr1126/openreader",
+    "icon": "openreader.svg"
+  },
+  {
+    "image": "ghcr.io/ryleastark/lnswitchboard",
+    "icon": "lnswitchboard.svg"
+  },
+  {
+    "image": "ghcr.io/s1t5/mailarchiver",
+    "icon": "mailarchiver.svg"
+  },
+  {
+    "image": "ghcr.io/satoshi-dashboard/main",
+    "icon": "satoshi-dashboard.svg"
+  },
+  {
+    "image": "ghcr.io/satsbook/satsbook",
+    "icon": "satsbook.svg"
+  },
+  {
+    "image": "ghcr.io/seanmorley15/adventurelog-backend",
+    "icon": "adventurelog.svg"
+  },
+  {
+    "image": "ghcr.io/seanmorley15/adventurelog-frontend",
+    "icon": "adventurelog.svg"
+  },
+  {
+    "image": "ghcr.io/searxng/searxng",
+    "icon": "lobe-chat.svg"
+  },
+  {
+    "image": "ghcr.io/seerr-team/seerr",
+    "icon": "jellyseerr.svg"
+  },
+  {
+    "image": "ghcr.io/sethforprivacy/simple-monerod",
+    "icon": "monero.svg"
+  },
+  {
+    "image": "ghcr.io/sheshbabu/zen/zen",
+    "icon": "zen.svg"
+  },
+  {
+    "image": "ghcr.io/sikkalabs/sikka",
+    "icon": "sikka.svg"
+  },
+  {
+    "image": "ghcr.io/spacedriveapp/spacebot",
+    "icon": "spacebot.svg"
+  },
+  {
+    "image": "ghcr.io/squeaknode/squeaknode",
+    "icon": "squeaknode.svg"
+  },
+  {
+    "image": "ghcr.io/surajverma/homehub",
+    "icon": "homehub.svg"
+  },
+  {
+    "image": "ghcr.io/swingmx/swingmusic",
+    "icon": "swingmusic.svg"
+  },
+  {
+    "image": "ghcr.io/sysadminsmedia/homebox",
+    "icon": "homebox.svg"
+  },
+  {
+    "image": "ghcr.io/tdex-network/dashboard",
+    "icon": "tdex.svg"
+  },
+  {
+    "image": "ghcr.io/tdex-network/tdexd",
+    "icon": "tdex.svg"
+  },
+  {
+    "image": "ghcr.io/thelounge/thelounge",
+    "icon": "thelounge.svg"
+  },
+  {
+    "image": "ghcr.io/thomiceli/opengist",
+    "icon": "opengist.svg"
+  },
+  {
+    "image": "ghcr.io/tiero/elements-web",
+    "icon": "elements.svg"
+  },
+  {
+    "image": "ghcr.io/timothepoznanski/poznote",
+    "icon": "poznote.svg"
+  },
+  {
+    "image": "ghcr.io/timothepoznanski/poznote-mcp",
+    "icon": "poznote.svg"
+  },
+  {
+    "image": "ghcr.io/toeverything/affine",
+    "icon": "affine.svg"
+  },
+  {
+    "image": "ghcr.io/transmute-app/transmute",
+    "icon": "transmute.svg"
+  },
+  {
+    "image": "ghcr.io/ulsklyc/yuvomi",
+    "icon": "yuvomi.svg"
+  },
+  {
+    "image": "ghcr.io/umami-software/umami",
+    "icon": "umami.svg"
+  },
+  {
+    "image": "ghcr.io/vert-sh/vert",
+    "icon": "vert.svg"
+  },
+  {
+    "image": "ghcr.io/vulpemventures/oceand",
+    "icon": "tdex.svg"
+  },
+  {
+    "image": "ghcr.io/wavelog/wavelog",
+    "icon": "wavelog.svg"
+  },
+  {
+    "image": "ghcr.io/we-promise/sure",
+    "icon": "sure.svg"
+  },
+  {
+    "image": "ghcr.io/wg-easy/wg-easy",
+    "icon": "wireguard.svg"
+  },
+  {
+    "image": "ghcr.io/wizarrrr/wizarr",
+    "icon": "wizarr.svg"
+  },
+  {
+    "image": "ghcr.io/yzernik/squeakroad",
+    "icon": "squeakroad.svg"
+  },
+  {
+    "image": "ghcr.io/zapomatic/bitwatch",
+    "icon": "bitwatch.svg"
+  },
+  {
+    "image": "ghost",
+    "icon": "ghost.svg"
+  },
+  {
+    "image": "ghostfolio/ghostfolio",
+    "icon": "ghostfolio.svg"
+  },
+  {
+    "image": "gitea/gitea",
+    "icon": "gitea.svg"
+  },
+  {
+    "image": "gitlab/gitlab-ce",
+    "icon": "gitlab.svg"
+  },
+  {
+    "image": "gotenberg/gotenberg",
+    "icon": "solidtime.svg"
+  },
+  {
+    "image": "grafana/grafana",
+    "icon": "grafana.svg"
+  },
+  {
+    "image": "guacamole/guacd",
+    "icon": "termix.svg"
+  },
+  {
+    "image": "guggero/chantools",
+    "icon": "chantools.svg"
+  },
+  {
+    "image": "halverneus/static-file-server",
+    "icon": "bassin.svg"
+  },
+  {
+    "image": "homeassistant/home-assistant",
+    "icon": "home-assistant.svg"
+  },
+  {
+    "image": "homebridge/homebridge",
+    "icon": "homebridge.svg"
+  },
+  {
+    "image": "iib0011/omni-tools",
+    "icon": "omnitools.svg"
+  },
+  {
+    "image": "imresamu/postgis",
+    "icon": "reitti.svg"
+  },
+  {
+    "image": "influxdb",
+    "icon": "influxdb.svg"
+  },
+  {
+    "image": "interaapps/pastefy",
+    "icon": "pastefy.svg"
+  },
+  {
+    "image": "invoiceninja/invoiceninja-debian",
+    "icon": "invoice-ninja.svg"
+  },
+  {
+    "image": "ipfspodcasting/podcastnode",
+    "icon": "ipfs-podcasting.svg"
+  },
+  {
+    "image": "itzcrazykns1337/vane",
+    "icon": "perplexica.svg"
+  },
+  {
+    "image": "jc21/nginx-proxy-manager",
+    "icon": "nginx-proxy-manager.svg"
+  },
+  {
+    "image": "jensgertsen/sparkkiosk",
+    "icon": "sparkkiosk.svg"
+  },
+  {
+    "image": "johannesjo/super-productivity",
+    "icon": "super-productivity.svg"
+  },
+  {
+    "image": "johly/airtrail",
+    "icon": "airtrail.svg"
+  },
+  {
+    "image": "joni1802/ts3-manager",
+    "icon": "teamspeak.svg"
+  },
+  {
+    "image": "journeyapps/powersync-service",
+    "icon": "wger.svg"
+  },
+  {
+    "image": "kaspanet/rusty-kaspad",
+    "icon": "rusty-kaspad.svg"
+  },
+  {
+    "image": "kimai/kimai2",
+    "icon": "kimai.svg"
+  },
+  {
+    "image": "koenkk/zigbee2mqtt",
+    "icon": "zigbee2mqtt.svg"
+  },
+  {
+    "image": "kolliderhq/kollider-lite-app",
+    "icon": "kollider.svg"
+  },
+  {
+    "image": "kolliderhq/kollider-lite-backend",
+    "icon": "kollider.svg"
+  },
+  {
+    "image": "kolliderhq/kollider-ws-client",
+    "icon": "kollider.svg"
+  },
+  {
+    "image": "ksjaay/lunalytics",
+    "icon": "lunalytics.svg"
+  },
+  {
+    "image": "kyantech/palmr",
+    "icon": "palmr.svg"
+  },
+  {
+    "image": "langflowai/langflow",
+    "icon": "langflow.svg"
+  },
+  {
+    "image": "libretranslate/libretranslate",
+    "icon": "libretranslate.svg"
+  },
+  {
+    "image": "lightninglabs/lightning-terminal",
+    "icon": "lightning-terminal.svg"
+  },
+  {
+    "image": "lightninglabs/lnd",
+    "icon": "lightning.svg"
+  },
+  {
+    "image": "lightningnetworkplus/lnpclient",
+    "icon": "lnplus.svg"
+  },
+  {
+    "image": "linkstackorg/linkstack",
+    "icon": "linkstack.svg"
+  },
+  {
+    "image": "linuxserver/bazarr",
+    "icon": "bazarr.svg"
+  },
+  {
+    "image": "linuxserver/bookstack",
+    "icon": "bookstack.svg"
+  },
+  {
+    "image": "linuxserver/calibre-web",
+    "icon": "calibre-web.svg"
+  },
+  {
+    "image": "linuxserver/emby",
+    "icon": "emby.svg"
+  },
+  {
+    "image": "linuxserver/firefox",
+    "icon": "firefox.svg"
+  },
+  {
+    "image": "linuxserver/freshrss",
+    "icon": "freshrss.svg"
+  },
+  {
+    "image": "linuxserver/grocy",
+    "icon": "grocy.svg"
+  },
+  {
+    "image": "linuxserver/heimdall",
+    "icon": "heimdall.svg"
+  },
+  {
+    "image": "linuxserver/jackett",
+    "icon": "jackett.svg"
+  },
+  {
+    "image": "linuxserver/jellyfin",
+    "icon": "jellyfin.svg"
+  },
+  {
+    "image": "linuxserver/libreoffice",
+    "icon": "libreoffice.svg"
+  },
+  {
+    "image": "linuxserver/lidarr",
+    "icon": "lidarr.svg"
+  },
+  {
+    "image": "linuxserver/mstream",
+    "icon": "mstream.svg"
+  },
+  {
+    "image": "linuxserver/obsidian",
+    "icon": "obsidian.svg"
+  },
+  {
+    "image": "linuxserver/overseerr",
+    "icon": "overseerr.svg"
+  },
+  {
+    "image": "linuxserver/plex",
+    "icon": "plex.svg"
+  },
+  {
+    "image": "linuxserver/prowlarr",
+    "icon": "prowlarr.svg"
+  },
+  {
+    "image": "linuxserver/pyload-ng",
+    "icon": "pyload-ng.svg"
+  },
+  {
+    "image": "linuxserver/radarr",
+    "icon": "radarr.svg"
+  },
+  {
+    "image": "linuxserver/readarr",
+    "icon": "readarr.svg"
+  },
+  {
+    "image": "linuxserver/remmina",
+    "icon": "remmina.svg"
+  },
+  {
+    "image": "linuxserver/sabnzbd",
+    "icon": "sabnzbd.svg"
+  },
+  {
+    "image": "linuxserver/snapdrop",
+    "icon": "snapdrop.svg"
+  },
+  {
+    "image": "linuxserver/sonarr",
+    "icon": "sonarr.svg"
+  },
+  {
+    "image": "linuxserver/sqlitebrowser",
+    "icon": "sqlitebrowser.svg"
+  },
+  {
+    "image": "linuxserver/syslog-ng",
+    "icon": "syslog-ng.svg"
+  },
+  {
+    "image": "linuxserver/tautulli",
+    "icon": "tautulli.svg"
+  },
+  {
+    "image": "linuxserver/transmission",
+    "icon": "transmission.svg"
+  },
+  {
+    "image": "linuxserver/wikijs",
+    "icon": "wikijs.svg"
+  },
+  {
+    "image": "lissy93/domain-locker",
+    "icon": "domain-locker.svg"
+  },
+  {
+    "image": "lnbits/lnbits",
+    "icon": "lnbits.svg"
+  },
+  {
+    "image": "lncapital/torq",
+    "icon": "torq.svg"
+  },
+  {
+    "image": "lobehub/lobehub",
+    "icon": "lobe-chat.svg"
+  },
+  {
+    "image": "localai/localai",
+    "icon": "localai.svg"
+  },
+  {
+    "image": "loficafe/static-web-server-samba",
+    "icon": "samba.svg"
+  },
+  {
+    "image": "louislam/dockge",
+    "icon": "dockge.svg"
+  },
+  {
+    "image": "louislam/uptime-kuma",
+    "icon": "uptime-kuma.svg"
+  },
+  {
+    "image": "louneskmt/dojo-db",
+    "icon": "samourai-server.svg"
+  },
+  {
+    "image": "louneskmt/whirlpool",
+    "icon": "samourai-server.svg"
+  },
+  {
+    "image": "lukechilds/electrumx",
+    "icon": "electrumx.svg"
+  },
+  {
+    "image": "mainnet/bitcoin-cash-node",
+    "icon": "bitcoin-cash-node.svg"
+  },
+  {
+    "image": "makeplane/plane-admin",
+    "icon": "plane.svg"
+  },
+  {
+    "image": "makeplane/plane-backend",
+    "icon": "plane.svg"
+  },
+  {
+    "image": "makeplane/plane-frontend",
+    "icon": "plane.svg"
+  },
+  {
+    "image": "makeplane/plane-live",
+    "icon": "plane.svg"
+  },
+  {
+    "image": "makeplane/plane-space",
+    "icon": "plane.svg"
+  },
+  {
+    "image": "mariadb",
+    "icon": "akaunting.svg"
+  },
+  {
+    "image": "martinbarilik/public-pool-web",
+    "icon": "public-pool-web.svg"
+  },
+  {
+    "image": "matrixdotorg/synapse",
+    "icon": "synapse.svg"
+  },
+  {
+    "image": "matwet/urbit-btc-node",
+    "icon": "urbit-bitcoin-connector.svg"
+  },
+  {
+    "image": "maxkotlan/ln-visualizer-api",
+    "icon": "ln-visualizer.svg"
+  },
+  {
+    "image": "maxkotlan/ln-visualizer-web",
+    "icon": "ln-visualizer.svg"
+  },
+  {
+    "image": "mbentley/timemachine",
+    "icon": "back-that-mac-up.svg"
+  },
+  {
+    "image": "memcached",
+    "icon": "seafile.svg"
+  },
+  {
+    "image": "mempool/backend",
+    "icon": "mempool.svg"
+  },
+  {
+    "image": "mempool/frontend",
+    "icon": "mempool.svg"
+  },
+  {
+    "image": "mintplexlabs/anythingllm",
+    "icon": "anything-llm.svg"
+  },
+  {
+    "image": "mongo",
+    "icon": "habitica.svg"
+  },
+  {
+    "image": "mopfelwinrux/urbit-umbrel",
+    "icon": "urbit.svg"
+  },
+  {
+    "image": "mrsunglasses/flaresolverr-status",
+    "icon": "flaresolverr.svg"
+  },
+  {
+    "image": "mysql",
+    "icon": "ghost.svg"
+  },
+  {
+    "image": "n8nio/n8n",
+    "icon": "n8n.svg"
+  },
+  {
+    "image": "neosmemo/memos",
+    "icon": "memos.svg"
+  },
+  {
+    "image": "nextcloud",
+    "icon": "nextcloud.svg"
+  },
+  {
+    "image": "nginx",
+    "icon": "agora.svg"
+  },
+  {
+    "image": "nicolasdorier/nbxplorer",
+    "icon": "btcpay-server.svg"
+  },
+  {
+    "image": "niteshbalusu/lndboss",
+    "icon": "lndboss.svg"
+  },
+  {
+    "image": "nmfretz/dojo-nodejs",
+    "icon": "samourai-server.svg"
+  },
+  {
+    "image": "nmfretz/ord",
+    "icon": "ordinals.svg"
+  },
+  {
+    "image": "nmfretz/umbrel-fulcrum",
+    "icon": "fulcrum.svg"
+  },
+  {
+    "image": "nocodb/nocodb",
+    "icon": "nocodb.svg"
+  },
+  {
+    "image": "nodered/node-red",
+    "icon": "node-red.svg"
+  },
+  {
+    "image": "oak-node.net/oak",
+    "icon": "oak-node.svg"
+  },
+  {
+    "image": "octoprint/octoprint",
+    "icon": "octoprint.svg"
+  },
+  {
+    "image": "ollama/ollama",
+    "icon": "ollama.svg"
+  },
+  {
+    "image": "onlyoffice/documentserver",
+    "icon": "onlyoffice-nextcloud.svg"
+  },
+  {
+    "image": "orenz0/holesail-server-manager",
+    "icon": "lnbits-holesail-proxy.svg"
+  },
+  {
+    "image": "orenz0/holesail-switchboard",
+    "icon": "holesail-switchboard.svg"
+  },
+  {
+    "image": "outlinewiki/outline",
+    "icon": "outline.svg"
+  },
+  {
+    "image": "owncloud/server",
+    "icon": "owncloud.svg"
+  },
+  {
+    "image": "paradedb/paradedb",
+    "icon": "lobe-chat.svg"
+  },
+  {
+    "image": "patranakamo/saifa-be",
+    "icon": "saifa.svg"
+  },
+  {
+    "image": "patranakamo/saifa-fe",
+    "icon": "saifa.svg"
+  },
+  {
+    "image": "penpotapp/backend",
+    "icon": "penpot.svg"
+  },
+  {
+    "image": "penpotapp/exporter",
+    "icon": "penpot.svg"
+  },
+  {
+    "image": "penpotapp/frontend",
+    "icon": "penpot.svg"
+  },
+  {
+    "image": "penpotapp/mcp",
+    "icon": "penpot.svg"
+  },
+  {
+    "image": "pgautoupgrade/pgautoupgrade",
+    "icon": "librephotos.svg"
+  },
+  {
+    "image": "pgvector/pgvector",
+    "icon": "bffless.svg"
+  },
+  {
+    "image": "photoprism/photoprism",
+    "icon": "photoprism.svg"
+  },
+  {
+    "image": "pihole/pihole",
+    "icon": "pi-hole.svg"
+  },
+  {
+    "image": "podcastindexorg/podcasting20-helipad",
+    "icon": "helipad.svg"
+  },
+  {
+    "image": "portainer/portainer-ce",
+    "icon": "portainer.svg"
+  },
+  {
+    "image": "postgres",
+    "icon": "activepieces.svg"
+  },
+  {
+    "image": "privatebin/nginx-fpm-alpine",
+    "icon": "privatebin.svg"
+  },
+  {
+    "image": "purplei2p/i2pd",
+    "icon": "bitcoin.svg"
+  },
+  {
+    "image": "python",
+    "icon": "openthread-border-router.svg"
+  },
+  {
+    "image": "qoomon/docker-host",
+    "icon": "nginx-proxy-manager.svg"
+  },
+  {
+    "image": "quay.io/invidious/invidious-companion",
+    "icon": "invidious.svg"
+  },
+  {
+    "image": "quay.io/jupyter/base-notebook",
+    "icon": "jupyterlab.svg"
+  },
+  {
+    "image": "quay.io/minio/mc",
+    "icon": "lobe-chat.svg"
+  },
+  {
+    "image": "quay.io/minio/minio",
+    "icon": "minio.svg"
+  },
+  {
+    "image": "rabbitcompany/passky-client",
+    "icon": "passky-client.svg"
+  },
+  {
+    "image": "rabbitcompany/passky-server",
+    "icon": "passky-server.svg"
+  },
+  {
+    "image": "rabbitmq",
+    "icon": "plane.svg"
+  },
+  {
+    "image": "reallibrephotos/librephotos",
+    "icon": "librephotos.svg"
+  },
+  {
+    "image": "reallibrephotos/librephotos-frontend",
+    "icon": "librephotos.svg"
+  },
+  {
+    "image": "reallibrephotos/librephotos-proxy",
+    "icon": "librephotos.svg"
+  },
+  {
+    "image": "recksato/robosats-client",
+    "icon": "robosats.svg"
+  },
+  {
+    "image": "redis",
+    "icon": "activepieces.svg"
+  },
+  {
+    "image": "rickraven/logdy",
+    "icon": "syslog-ng.svg"
+  },
+  {
+    "image": "rodb2008com/gobrrr-pool-api-etl",
+    "icon": "gobrrr-pool.svg"
+  },
+  {
+    "image": "rommapp/romm",
+    "icon": "romm.svg"
+  },
+  {
+    "image": "rotki/rotki",
+    "icon": "rotki.svg"
+  },
+  {
+    "image": "rstmsn/cashu-me",
+    "icon": "cashu-me.svg"
+  },
+  {
+    "image": "rustdesk/rustdesk-server",
+    "icon": "rustdesk-server.svg"
+  },
+  {
+    "image": "rustfs/rustfs",
+    "icon": "lobe-chat.svg"
+  },
+  {
+    "image": "satsale/satsale",
+    "icon": "satsale.svg"
+  },
+  {
+    "image": "savewithstash/stash",
+    "icon": "stash.svg"
+  },
+  {
+    "image": "sbs20/scanservjs",
+    "icon": "scanservjs.svg"
+  },
+  {
+    "image": "schjonhaug/canary-backend",
+    "icon": "canary.svg"
+  },
+  {
+    "image": "schjonhaug/canary-frontend",
+    "icon": "canary.svg"
+  },
+  {
+    "image": "seafileltd/sdoc-server",
+    "icon": "seafile.svg"
+  },
+  {
+    "image": "seafileltd/seafile-mc",
+    "icon": "seafile.svg"
+  },
+  {
+    "image": "secondark/bark",
+    "icon": "bark-wallet.svg"
+  },
+  {
+    "image": "secondark/bark-web",
+    "icon": "bark-wallet.svg"
+  },
+  {
+    "image": "secondark/bark-web-api",
+    "icon": "bark-wallet.svg"
+  },
+  {
+    "image": "shahanafarooqui/rtl",
+    "icon": "core-lightning-rtl.svg"
+  },
+  {
+    "image": "solidtime/solidtime",
+    "icon": "solidtime.svg"
+  },
+  {
+    "image": "sorenisanerd/gotty",
+    "icon": "snowflake.svg"
+  },
+  {
+    "image": "sphinxlightning/sphinx-relay",
+    "icon": "sphinx-relay.svg"
+  },
+  {
+    "image": "stalwartlabs/stalwart",
+    "icon": "stalwart.svg"
+  },
+  {
+    "image": "stirlingtools/stirling-pdf",
+    "icon": "stirling-pdf.svg"
+  },
+  {
+    "image": "stnsmith/fossflow",
+    "icon": "fossflow.svg"
+  },
+  {
+    "image": "stonith404/pingvin-share",
+    "icon": "pingvin-share.svg"
+  },
+  {
+    "image": "stratumv2/sv2-ui",
+    "icon": "sv2-ui.svg"
+  },
+  {
+    "image": "supertokens/supertokens-postgresql",
+    "icon": "bffless.svg"
+  },
+  {
+    "image": "syncthing/syncthing",
+    "icon": "syncthing.svg"
+  },
+  {
+    "image": "tailscale/tailscale",
+    "icon": "tailscale.svg"
+  },
+  {
+    "image": "teamspeak",
+    "icon": "teamspeak.svg"
+  },
+  {
+    "image": "technitium/dns-server",
+    "icon": "technitium-dns.svg"
+  },
+  {
+    "image": "thetorproject/snowflake-proxy",
+    "icon": "snowflake.svg"
+  },
+  {
+    "image": "thewilqq/btc-tracker",
+    "icon": "btctracker.svg"
+  },
+  {
+    "image": "timescale/timescaledb",
+    "icon": "torq.svg"
+  },
+  {
+    "image": "tombursch/kitchenowl",
+    "icon": "kitchenowl.svg"
+  },
+  {
+    "image": "toshimoto821/toshi-moto",
+    "icon": "toshi-moto.svg"
+  },
+  {
+    "image": "toshimoto821/toshi-moto-api",
+    "icon": "toshi-moto.svg"
+  },
+  {
+    "image": "triliumnext/trilium",
+    "icon": "trilium-notes.svg"
+  },
+  {
+    "image": "tulipan81/blind_pin_server",
+    "icon": "blockstream-blind-oracle.svg"
+  },
+  {
+    "image": "tulipan81/pinserver_web",
+    "icon": "blockstream-blind-oracle.svg"
+  },
+  {
+    "image": "twentycrm/twenty",
+    "icon": "twenty.svg"
+  },
+  {
+    "image": "uusec/openresty-manager",
+    "icon": "openresty-manager.svg"
+  },
+  {
+    "image": "vabene1111/recipes",
+    "icon": "tandoor.svg"
+  },
+  {
+    "image": "valkey/valkey",
+    "icon": "immich.svg"
+  },
+  {
+    "image": "vaultwarden/server",
+    "icon": "vaultwarden.svg"
+  },
+  {
+    "image": "vectorim/element-web",
+    "icon": "element.svg"
+  },
+  {
+    "image": "vikunja/vikunja",
+    "icon": "vikunja.svg"
+  },
+  {
+    "image": "voidic/dtan-server",
+    "icon": "dtan-server.svg"
+  },
+  {
+    "image": "voidic/route96",
+    "icon": "route96.svg"
+  },
+  {
+    "image": "voidic/snort",
+    "icon": "snort.svg"
+  },
+  {
+    "image": "wealthfolio/wealthfolio",
+    "icon": "wealthfolio.svg"
+  },
+  {
+    "image": "wger/server",
+    "icon": "wger.svg"
+  },
+  {
+    "image": "willtda/dropgate-server",
+    "icon": "dropgate-server.svg"
+  },
+  {
+    "image": "woofbot/woofbot",
+    "icon": "woofbot.svg"
+  },
+  {
+    "image": "wordpress",
+    "icon": "wordpress.svg"
+  },
+  {
+    "image": "xdeekay/skybro-dashboard",
+    "icon": "skybro.svg"
+  },
+  {
+    "image": "xdeekay/skybro-tracker",
+    "icon": "skybro.svg"
+  },
+  {
+    "image": "yuccastream/yucca",
+    "icon": "yucca.svg"
+  },
+  {
+    "image": "zabbix/zabbix-agent2",
+    "icon": "zabbix.svg"
+  },
+  {
+    "image": "zabbix/zabbix-server-pgsql",
+    "icon": "zabbix.svg"
+  },
+  {
+    "image": "zabbix/zabbix-web-nginx-pgsql",
+    "icon": "zabbix.svg"
+  },
+  {
+    "image": "zachprice105/bitaxe-sentry",
+    "icon": "bitaxe-sentry.svg"
+  },
+  {
+    "image": "zerotier/zerotier",
+    "icon": "zerotier.svg"
+  },
+  {
+    "image": "zoraxydocker/zoraxy",
+    "icon": "zoraxy.svg"
+  }
+]

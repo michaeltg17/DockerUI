@@ -8,6 +8,7 @@
     "build": "tsc && vite build --base=/",
     "preview": "vite preview",
     "test": "vitest",
+    "icons:sync": "node scripts/sync-icons.mjs",
     "lint": "eslint src --ignore-path .gitignore",
     "check-types": "tsc --project tsconfig.json --pretty --noEmit"
   },
@@ -64,7 +65,8 @@
     "typescript": "^5.4.5",
     "vite": "^5.2.10",
     "vite-tsconfig-paths": "^4.3.2",
-    "vitest": "^2.1.4"
+    "vitest": "^2.1.4",
+    "yaml": "^2.9.1"
   },
   "lint-staged": {
     "*.+(ts|tsx)": [

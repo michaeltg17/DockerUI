@@ -1,4 +1,5 @@
 using Api.Exceptions;
+using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
 using Docker.DotNet;
 using Docker.DotNet.Models;
@@ -6,14 +7,14 @@ using Docker.DotNet.Models;
 namespace Api.Features.Apps
 {
     /// <summary>Wraps the Docker daemon client to list apps and control their containers.</summary>
-    public sealed class AppService(IContainerOperations containers)
+    public sealed class AppService(IContainerOperations containers, IAppIconCatalog iconCatalog)
     {
         const uint StopGracePeriodSeconds = 10;
 
         public async Task<IReadOnlyList<AppDto>> GetAppsAsync(CancellationToken cancellationToken = default)
         {
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
-            return AppCatalog.BuildApps(snapshots);
+            return AppCatalog.BuildApps(snapshots, iconCatalog);
         }
 
         public async Task<AppDto> StartAppAsync(string appName, CancellationToken cancellationToken = default)

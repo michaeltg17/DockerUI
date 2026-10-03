@@ -1,3 +1,4 @@
+using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
 
 namespace Api.Features.Apps
@@ -18,7 +19,9 @@ namespace Api.Features.Apps
             80, 8080, 3000, 8000, 5000, 8888, 9000, 9090, 5173, 4200, 443, 8443,
         ];
 
-        public static IReadOnlyList<AppDto> BuildApps(IEnumerable<ContainerSnapshot> containers)
+        public static IReadOnlyList<AppDto> BuildApps(
+            IEnumerable<ContainerSnapshot> containers,
+            IAppIconCatalog? iconCatalog = null)
         {
             var apps = new List<AppDto>();
 
@@ -30,7 +33,7 @@ namespace Api.Features.Apps
                 .Where(group => group.Key is not null)
                 .OrderBy(group => group.Key, StringComparer.Ordinal))
             {
-                apps.Add(BuildApp(group.Key!, group.ToList()));
+                apps.Add(BuildApp(group.Key!, group.ToList(), iconCatalog));
             }
 
             var standalone = groups.FirstOrDefault(group => group.Key is null);
@@ -38,7 +41,7 @@ namespace Api.Features.Apps
             {
                 foreach (var container in standalone)
                 {
-                    apps.Add(BuildApp(container.Name, new[] { container }));
+                    apps.Add(BuildApp(container.Name, new[] { container }, iconCatalog));
                 }
             }
 
@@ -71,7 +74,7 @@ namespace Api.Features.Apps
                 ? project
                 : null;
 
-        static AppDto BuildApp(string name, IReadOnlyList<ContainerSnapshot> containers)
+        static AppDto BuildApp(string name, IReadOnlyList<ContainerSnapshot> containers, IAppIconCatalog? iconCatalog)
         {
             var services = containers
                 .Select(container => new AppServiceDto(
@@ -91,7 +94,8 @@ namespace Api.Features.Apps
 
             var icon = containers
                 .Select(GetIcon)
-                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
+                ?? GetCatalogIcon(containers, iconCatalog);
 
             return new AppDto(name, icon, state, ResolveUrl(containers), services);
         }
@@ -130,5 +134,16 @@ namespace Api.Features.Apps
             container.Labels.TryGetValue(IconLabel, out var icon) && !string.IsNullOrWhiteSpace(icon)
                 ? icon
                 : null;
+
+        /// <summary>Falls back to the first container image that the icon catalog recognizes.</summary>
+        static string? GetCatalogIcon(IReadOnlyList<ContainerSnapshot> containers, IAppIconCatalog? iconCatalog)
+        {
+            if (iconCatalog is null)
+                return null;
+
+            return containers
+                .Select(container => iconCatalog.TryGetIcon(container.Image, out var icon) ? icon : null)
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        }
     }
 }

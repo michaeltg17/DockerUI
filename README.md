@@ -45,21 +45,45 @@ different host port, change the `"5000:8080"` mapping in `docker-compose.yml`.
 | --- | --- | --- | --- |
 | `DockerUi:DockerSocketPath` | `DockerUi__DockerSocketPath` | `/var/run/docker.sock` | Path to the Docker socket (or a Windows named pipe such as `\\.\pipe\docker_engine`) |
 | `DockerUi:PollIntervalSeconds` | `DockerUi__PollIntervalSeconds` | `5` | How often the daemon is polled for state changes |
+| `DockerUi:IconsOverrideFile` | `DockerUi__IconsOverrideFile` | *(none)* | Optional path to a JSON file with icon mappings that override the built-in catalog (see below) |
 
 ### App icons
 
-Give a stack a custom icon by adding a label to its compose file:
+Icons are resolved in this order (first match wins):
 
-```yaml
-services:
-  my-service:
-    image: ...
-    labels:
-      dockerui.icon: "https://example.com/icon.png"
+1. **The `dockerui.icon` label** on any container of the stack — any URL or
+   data URI:
+
+   ```yaml
+   services:
+     my-service:
+       image: ...
+       labels:
+         dockerui.icon: "https://example.com/icon.png"
+   ```
+
+2. **The built-in icon catalog**: each container's image (e.g.
+   `linuxserver/jellyfin:10.9`) is matched against a mapping of images to
+   icons that is synced from the
+   [Umbrel app store](https://github.com/getumbrel/umbrel-apps-gallery)
+   (`ui/public/icons/`, served at `/icons/`).
+3. **The initials fallback**: the app's initials on a colored background.
+
+To remap images to different icons without rebuilding, drop a file at
+`./config/icons.json` (the volume is already mounted in `docker-compose.yml`):
+
+```json
+[
+  { "image": "myregistry/whatever", "icon": "jellyfin.svg" },
+  { "image": "postgres", "icon": "pi-hole.svg" }
+]
 ```
 
-Any URL or data URI works. Without the label, the app shows the stack name
-initials instead.
+`image` is matched against the normalized image name (tags and digests are
+ignored), falling back to the last path segment; `icon` must be a file that
+exists in `ui/public/icons/`. To refresh the catalog after new apps land in
+the Umbrel store, run `yarn --cwd ui icons:sync` and commit the generated
+files.
 
 ## Development
 

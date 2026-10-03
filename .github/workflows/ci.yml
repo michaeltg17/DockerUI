@@ -35,7 +35,10 @@ jobs:
       - name: Run CI checks
         # Host networking: the e2e scenarios publish ports on the runner's
         # localhost (5010-5012), which the container must be able to reach.
-        run: docker run --rm --network host -v /var/run/docker.sock:/var/run/docker.sock docker-ui-ci:latest
+        # The checkout is mounted onto its own path so the compose file
+        # volume sources the docker client sends resolve on the host daemon
+        # (the client and the daemon must see identical paths).
+        run: docker run --rm --network host -w "${{ github.workspace }}" -v "${{ github.workspace }}:${{ github.workspace }}" -v /var/run/docker.sock:/var/run/docker.sock docker-ui-ci:latest
 
       - name: Validate Docker image builds
         uses: docker/build-push-action@v7

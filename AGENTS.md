@@ -84,8 +84,12 @@ dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
   discover xunit v3 tests on this machine's SDK. CI runs the suite inside the
   `Dockerfile.ci` container with the runner's Docker socket mounted and
   `--network host` (the scenarios publish ports on the runner's localhost,
-  5010-5012). The dashboard lists every compose project on the machine, so
-  scenarios assert on their own apps, not the full card list.
+  5010-5012). The checkout is mounted onto its own path (`-w` +
+  `-v ws:ws`): the scenario compose files bind-mount `./appsettings.json`,
+  and the daemon resolves that source on its own host, so the client's and
+  the daemon's view of the path must be identical. The dashboard lists every
+  compose project on the machine, so scenarios assert on their own apps, not
+  the full card list.
 
 ## Workflow
 Commit on `dev` → push `dev` → open (or update) the `dev` → `main` PR.

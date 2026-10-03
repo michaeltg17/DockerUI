@@ -12,7 +12,7 @@ namespace Api.Features.Apps.Background
     }
 
     /// <summary>Polls the Docker daemon and pushes the app list to all clients whenever it changes.</summary>
-    public sealed class AppStateMonitor(
+    public sealed partial class AppStateMonitor(
         AppService appService,
         IHubContext<AppAppsHub> hubContext,
         IDockerUiSettings settings,
@@ -21,7 +21,7 @@ namespace Api.Features.Apps.Background
         static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
         string? _lastSnapshot;
-        readonly object _gate = new();
+        readonly Lock _gate = new();
 
         public void ForgetLastSnapshot()
         {
@@ -46,10 +46,13 @@ namespace Api.Features.Apps.Background
                 {
                     throw;
                 }
+                //A transient daemon error must never kill the poll loop, so the catch is intentionally broad.
+#pragma warning disable CA1031
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Failed to poll Docker state; will retry on the next cycle");
+                    LogPollFailed(logger, ex);
                 }
+#pragma warning restore CA1031
 
                 await Task.Delay(TimeSpan.FromSeconds(settings.PollIntervalSeconds), stoppingToken);
             }
@@ -72,5 +75,10 @@ namespace Api.Features.Apps.Background
 
             await hubContext.Clients.All.SendAsync("appsUpdated", apps, cancellationToken);
         }
+
+        [LoggerMessage(
+            Level = LogLevel.Warning,
+            Message = "Failed to poll Docker state; will retry on the next cycle")]
+        static partial void LogPollFailed(ILogger logger, Exception? exception);
     }
 }

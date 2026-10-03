@@ -1,7 +1,6 @@
 ﻿using Api.Features.Apps.Endpoints;
 using Api.Features.Apps.Hubs;
 using Api.Features.Health;
-using Microsoft.AspNetCore.SignalR;
 
 namespace Api.Extensions;
 

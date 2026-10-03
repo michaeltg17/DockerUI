@@ -13,12 +13,14 @@ namespace IntegrationTests.Tests.Api.Endpoints.Apps
         [Fact]
         public async Task GetApps_DockerUnreachable_ReturnsServiceUnavailable()
         {
+            var cancellationToken = TestContext.Current.CancellationToken;
+
             //When
-            var response = await _client.GetAsync("/api/apps");
+            var response = await _client.GetAsync(new Uri("/api/apps", UriKind.Relative), cancellationToken);
 
             //Then
             response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
-            var body = await response.Content.ReadAsStringAsync();
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
             body.Should().Contain("Docker daemon");
         }
     }
@@ -31,8 +33,10 @@ namespace IntegrationTests.Tests.Api.Endpoints.Apps
         [Fact]
         public async Task StartApp_InvalidName_ReturnsBadRequest()
         {
+            var cancellationToken = TestContext.Current.CancellationToken;
+
             //When
-            var response = await _client.PostAsync("/api/apps/a..b/start", null);
+            var response = await _client.PostAsync(new Uri("/api/apps/a..b/start", UriKind.Relative), null, cancellationToken);
 
             //Then
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -41,8 +45,10 @@ namespace IntegrationTests.Tests.Api.Endpoints.Apps
         [Fact]
         public async Task StopApp_InvalidName_ReturnsBadRequest()
         {
+            var cancellationToken = TestContext.Current.CancellationToken;
+
             //When
-            var response = await _client.PostAsync("/api/apps/a..b/stop", null);
+            var response = await _client.PostAsync(new Uri("/api/apps/a..b/stop", UriKind.Relative), null, cancellationToken);
 
             //Then
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -51,8 +57,10 @@ namespace IntegrationTests.Tests.Api.Endpoints.Apps
         [Fact]
         public async Task RestartApp_InvalidName_ReturnsBadRequest()
         {
+            var cancellationToken = TestContext.Current.CancellationToken;
+
             //When
-            var response = await _client.PostAsync("/api/apps/a..b/restart", null);
+            var response = await _client.PostAsync(new Uri("/api/apps/a..b/restart", UriKind.Relative), null, cancellationToken);
 
             //Then
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -67,8 +75,10 @@ namespace IntegrationTests.Tests.Api.Endpoints.Apps
         [Fact]
         public async Task HealthLive_ReturnsOk()
         {
+            var cancellationToken = TestContext.Current.CancellationToken;
+
             //When
-            var response = await _client.GetAsync("/health/live");
+            var response = await _client.GetAsync(new Uri("/health/live", UriKind.Relative), cancellationToken);
 
             //Then
             response.StatusCode.Should().Be(HttpStatusCode.OK);

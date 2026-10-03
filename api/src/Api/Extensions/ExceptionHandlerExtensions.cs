@@ -36,17 +36,17 @@ namespace Api.Extensions
 
         static ProblemDetailsContext BuildProblemDetailsContext(Exception exception, HttpContext httpContext)
         {
-                var isInternalServerError = httpContext.Response.StatusCode == (int)HttpStatusCode.InternalServerError;
-                var isDevelopment = httpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
+            var isInternalServerError = httpContext.Response.StatusCode == (int)HttpStatusCode.InternalServerError;
+            var isDevelopment = httpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
 
-                var detail = exception switch
-                {
-                    BadHttpRequestException { InnerException: JsonException jsonEx } =>
-                        string.JoinNonEmpty(exception.Message, jsonEx.Message, jsonEx.InnerException?.Message),
-                    BadHttpRequestException => exception.Message,
-                    _ when isInternalServerError && !isDevelopment => "Internal server error. Please contact the API support.",
-                    _ => exception.Message
-                };
+            var detail = exception switch
+            {
+                BadHttpRequestException { InnerException: JsonException jsonEx } =>
+                    string.JoinNonEmpty(exception.Message, jsonEx.Message, jsonEx.InnerException?.Message),
+                BadHttpRequestException => exception.Message,
+                _ when isInternalServerError && !isDevelopment => "Internal server error. Please contact the API support.",
+                _ => exception.Message
+            };
 
             var typeUri = httpContext.Response.StatusCode switch
             {

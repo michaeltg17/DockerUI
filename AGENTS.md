@@ -22,6 +22,11 @@ through its socket.
 - `api/tests/UnitTests` — pure logic (`AppCatalog`).
 - `api/tests/IntegrationTests` — endpoint behavior via `WebApplicationFactory`,
   pointed at a nonexistent socket (no Docker daemon required).
+- `e2e/` — separate xunit v3 + Playwright solution (`docker-ui.e2e.slnx`).
+  Each scenario under `e2e/scenarios` is its own docker-ui instance (own port,
+  own `appsettings.json`) plus demo stacks; `Environments/` orchestrates the
+  compose environments, `Playwright/` holds the browser fixture and the
+  `AppsPage` locators.
 
 ## Conventions
 
@@ -54,6 +59,12 @@ yarn build                                  # tsc + vite build (base=/)
 
 # Product
 docker compose up -d --build                # http://localhost:5000
+
+# E2E (Docker Desktop must be running)
+dotnet build e2e/docker-ui.e2e.slnx
+dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
+# Builds the docker-ui image once, then brings up the basic/settings/error
+# scenarios (ports 5010-5012) and tears them all down afterwards.
 ```
 
 ## Gotchas
@@ -70,6 +81,14 @@ docker compose up -d --build                # http://localhost:5000
   web sockets (`ws: true`) for live updates in development.
 - UI build output (`ui/dist`) is copied into the API image's `wwwroot`;
   `MapFallbackToFile("index.html")` serves the SPA for all non-`/api` routes.
+- E2E: the browser fixture launches the locally installed Chrome
+  (`Channel = "chrome"`) so Playwright never downloads browsers (the Playwright
+  CDN stalls on some networks; in CI, use an image with preinstalled browsers,
+  e.g. `mcr.microsoft.com/playwright`). The suite must be run via the built
+  test dll (xunit v3 in-process runner): `dotnet test` fails to discover
+  xunit v3 tests on this machine's SDK. The dashboard lists every compose
+  project on the machine, so scenarios assert on their own apps, not the full
+  card list.
 
 ## Workflow
 Commit on `dev` → push `dev` → open (or update) the `dev` → `main` PR.

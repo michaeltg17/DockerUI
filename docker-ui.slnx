@@ -4,8 +4,4 @@
     <Project Path="api/src/Core/Core.csproj" />
     <Project Path="api/src/CrossCutting/CrossCutting.csproj" />
   </Folder>
-  <Folder Name="/tests/">
-    <Project Path="api/tests/UnitTests/UnitTests.csproj" />
-    <Project Path="api/tests/IntegrationTests/IntegrationTests.csproj" />
-  </Folder>
 </Solution>

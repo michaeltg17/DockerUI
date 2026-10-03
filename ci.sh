@@ -6,12 +6,9 @@ echo "  CI - docker-ui"
 echo "========================================="
 
 echo
-echo "API: restore, build and test (Release)."
-# Exit code 8 = no tests discovered (the test projects may be temporarily empty).
-# That is tolerated; real test failures (2) and infrastructure errors (10) still fail CI.
-dotnet test api/tests/UnitTests --configuration Release --ignore-exit-code 8
-dotnet test api/tests/IntegrationTests --configuration Release --ignore-exit-code 8
-echo "API tests passed"
+echo "API: building (Release)."
+dotnet build docker-ui.slnx --configuration Release
+echo "API build passed"
 
 echo
 echo "UI: installing dependencies."
@@ -27,12 +24,17 @@ echo "UI: type check."
 yarn check-types
 
 echo
-echo "UI: unit tests."
-yarn test --run
-
-echo
 echo "UI: production build."
 yarn build
+cd ..
+
+echo
+echo "E2E: building the test project (Release)."
+dotnet build e2e/docker-ui.e2e.slnx --configuration Release
+
+echo
+echo "E2E: running scenarios (docker daemon required)."
+dotnet e2e/DockerUI.E2ETests/bin/Release/net10.0/DockerUI.E2ETests.dll
 
 echo
 echo "========================================="

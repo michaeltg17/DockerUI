@@ -158,16 +158,15 @@ cd ui && yarn && yarn dev
 ### Tests
 
 ```bash
-# API (unit + integration; integration tests use a nonexistent socket, no daemon needed)
-dotnet test api/tests/UnitTests
-dotnet test api/tests/IntegrationTests
-
-# UI (type check, lint, unit tests, build)
+# UI (type check, lint, build)
 cd ui
 yarn check-types
 yarn lint
-yarn test --run
 yarn build
+
+# E2E (Docker Desktop must be running)
+dotnet build e2e/docker-ui.e2e.slnx
+dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
 ```
 
 ## API
@@ -191,10 +190,9 @@ every connected client whenever the daemon state changes.
 │   └── src/
 │       ├── Api/               # Minimal API: features, endpoints, hub, DI, Program
 │       ├── Core/              # Small shared helpers
-│       ├── CrossCutting/      # Settings + DI configurator
-│       ├── UnitTests/         # AppCatalog grouping logic
-│       └── IntegrationTests/  # Endpoints against WebApplicationFactory
+│       └── CrossCutting/      # Settings + DI configurator
 ├── ui/                        # Vite + React SPA (served by the API in prod)
+├── e2e/                       # xunit v3 + Playwright scenarios (run in CI)
 ├── docker-ui.slnx
 ├── Directory.Build.props      # net10.0, central package management, analysis
 ├── Directory.Packages.props

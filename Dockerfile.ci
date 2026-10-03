@@ -9,5 +9,26 @@ RUN apt-get update \
     && corepack enable \
     && corepack prepare yarn@1.22.22 --activate
 
-COPY . .
+# Docker CLI + compose plugin (the daemon socket is mounted by CI).
+# The dotnet SDK image is Ubuntu-based, so the distro comes from /etc/os-release.
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && . /etc/os-release \
+    && curl -fsSL "https://download.docker.com/linux/${ID}/gpg" -o /etc/apt/keyrings/docker.asc \
+    && chmod a+r /etc/apt/keyrings/docker.asc \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends docker-cli docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/*
+
+# Google Chrome (Playwright launches it via Channel="chrome", so no browser download is needed).
+RUN curl -fsSL -o /tmp/google-chrome-stable.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends /tmp/google-chrome-stable.deb \
+    && rm -f /tmp/google-chrome-stable.deb \
+    && rm -rf /var/lib/apt/lists/*
+
+# The repository is bind-mounted onto its own checkout path at run time
+# (see ci.yml, -w + -v <workspace>:<workspace>), so the compose file volume
+# sources the docker client sends resolve to the same paths on the host
+# daemon when it starts the e2e scenario containers.
 CMD ["bash", "ci.sh"]

@@ -1,3 +1,4 @@
+[![ci](https://github.com/michaeltg17/docker-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/michaeltg17/docker-ui/actions/workflows/ci.yml)
 # Docker UI
 
 A lightweight, Umbrel-style dashboard for your Docker stacks. It shows every

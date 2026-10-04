@@ -3,10 +3,10 @@
 # ---- Stage 1: build the React UI -------------------------------------------------
 FROM node:24-alpine AS ui-build
 WORKDIR /app
-COPY ui/package.json ui/yarn.lock ./
-RUN yarn install --frozen-lockfile --non-interactive
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY ui/ ./
-RUN yarn build
+RUN npm run build
 
 # ---- Stage 2: build the .NET API --------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api-build

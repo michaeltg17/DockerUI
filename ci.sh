@@ -13,19 +13,19 @@ echo "API build passed"
 echo
 echo "UI: installing dependencies."
 cd ui
-yarn install --frozen-lockfile --non-interactive
+npm ci --no-audit --no-fund
 
 echo
 echo "UI: lint."
-yarn lint
+npm run lint
 
 echo
 echo "UI: type check."
-yarn check-types
+npm run check-types
 
 echo
 echo "UI: production build."
-yarn build
+npm run build
 cd ..
 
 echo

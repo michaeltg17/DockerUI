@@ -5,9 +5,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates curl \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/* \
-    && corepack enable \
-    && corepack prepare yarn@1.22.22 --activate
+    && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI + compose plugin (the daemon socket is mounted by CI).
 # The dotnet SDK image is Ubuntu-based, so the distro comes from /etc/os-release.

@@ -46,11 +46,11 @@ through its socket.
 dotnet run --project api/src/Api            # dev on :5000
 
 # UI (from ui/)
-yarn install
-yarn dev                                    # :3000, proxies /api -> :5000 (ws)
-yarn check-types
-yarn lint
-yarn build                                  # tsc + vite build (base=/)
+npm install
+npm run dev                                 # :3000, proxies /api -> :5000 (ws)
+npm run check-types
+npm run lint
+npm run build                               # tsc + vite build (base=/)
 
 # Product
 docker compose up -d --build                # http://localhost:5000

@@ -27,7 +27,7 @@ namespace Api
 
             builder.Services
                 .AddCrossCuttingDependencies()
-                .AddDockerClient(builder.Configuration.GetSection(DockerUiSettings.Section))
+                .AddDockerClient(builder.Configuration.GetSection(DockerUISettings.Section))
                 .AddAppsDependencies();
 
             builder.Services.AddSignalR();
@@ -50,10 +50,10 @@ namespace Api
         {
             ArgumentNullException.ThrowIfNull(section);
 
-            var socketPath = section[nameof(DockerUiSettings.DockerSocketPath)];
+            var socketPath = section[nameof(DockerUISettings.DockerSocketPath)];
 
             if (string.IsNullOrWhiteSpace(socketPath))
-                throw new InvalidOperationException("The 'DockerUi:DockerSocketPath' setting must be configured.");
+                throw new InvalidOperationException("The 'DockerUI:DockerSocketPath' setting must be configured.");
 
             const string WindowsPipePrefix = @"\\.\pipe\";
 
@@ -82,7 +82,7 @@ namespace Api
 
         public static IServiceCollection AddAppsDependencies(this IServiceCollection services)
         {
-            //Live icon mappings come from 'DockerUi:Icons' and are merged per request in AppCatalog;
+            //Live icon mappings come from 'DockerUI:Icons' and are merged per request in AppCatalog;
             //only the built-in catalog (embedded in the assembly) is registered here.
             services.AddSingleton<IAppIconCatalog>(new AppIconCatalog(IconMappingLoader.LoadBuiltIn()));
 

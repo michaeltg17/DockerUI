@@ -2,7 +2,7 @@ export const themes = ['light', 'dark', 'docker'] as const;
 
 export type Theme = (typeof themes)[number];
 
-const THEME_STORAGE_KEY = 'docker-ui:theme';
+const THEME_STORAGE_KEY = 'DockerUI:theme';
 
 export const isTheme = (value: unknown): value is Theme =>
   typeof value === 'string' && (themes as readonly string[]).includes(value);

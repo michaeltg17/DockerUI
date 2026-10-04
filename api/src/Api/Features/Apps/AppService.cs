@@ -50,8 +50,8 @@ namespace Api.Features.Apps
         /// Binds the current settings from the configuration on every call, so a
         /// configuration reload (settings file edited) is picked up immediately.
         /// </summary>
-        DockerUiSettings? CurrentSettings =>
-            configuration.GetSection(DockerUiSettings.Section).Get<DockerUiSettings>();
+        DockerUISettings? CurrentSettings =>
+            configuration.GetSection(DockerUISettings.Section).Get<DockerUISettings>();
 
         public async Task<AppDto> StartAppAsync(string appName, CancellationToken cancellationToken = default)
         {
@@ -106,7 +106,7 @@ namespace Api.Features.Apps
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                throw new DockerUiException(
+                throw new DockerUIException(
                     "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
             }
 
@@ -121,12 +121,12 @@ namespace Api.Features.Apps
         }
 
         /// <summary>
-        /// Resolves the base URL used to build app links: 'DockerUi:BaseUrl' wins;
+        /// Resolves the base URL used to build app links: 'DockerUI:BaseUrl' wins;
         /// otherwise the current client request is used (and remembered); otherwise
         /// the last client seen (used by background broadcasts). With none of those,
         /// URLs fall back to 'localhost'.
         /// </summary>
-        Uri? ResolveBaseUrl(DockerUiSettings? settings)
+        Uri? ResolveBaseUrl(DockerUISettings? settings)
         {
             var baseUrl = settings?.BaseUrl;
 
@@ -185,7 +185,7 @@ namespace Api.Features.Apps
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                throw new DockerUiException(
+                throw new DockerUIException(
                     "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
             }
         }

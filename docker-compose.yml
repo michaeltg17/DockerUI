@@ -13,6 +13,6 @@ services:
       # Optional: all settings live in a single appsettings.json. Copy
       # appsettings.example.json next to this file as appsettings.json, edit
       # it, and uncomment this line (the file replaces the packaged defaults,
-      # so it must keep 'DockerUi:DockerSocketPath').
+      # so it must keep 'DockerUI:DockerSocketPath').
       # - ./appsettings.json:/app/appsettings.json:ro
     restart: unless-stopped

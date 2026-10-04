@@ -7,7 +7,7 @@ using Xunit;
 namespace DockerUI.E2ETests.Tests.Basic;
 
 /// <summary>
-/// End-to-end tests against a docker-ui instance with default settings: one per app state,
+/// End-to-end tests against a DockerUI instance with default settings: one per app state,
 /// search, the right-click action menu, state transitions, and opening apps.
 /// </summary>
 [Trait("Scenario", "basic")]

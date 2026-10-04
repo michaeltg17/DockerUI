@@ -1,13 +1,13 @@
 namespace CrossCutting.Settings
 {
     /// <summary>
-    /// All dashboard configuration, bound from the 'DockerUi' section of
+    /// All dashboard configuration, bound from the 'DockerUI' section of
     /// appsettings.json (hot-reloaded via IOptionsMonitor; see the README).
     /// </summary>
 #pragma warning disable CA1056 // URL-like members stay strings so one bad value degrades gracefully instead of invalidating the whole settings
-    public record DockerUiSettings
+    public record DockerUISettings
     {
-        public const string Section = "DockerUi";
+        public const string Section = "DockerUI";
 
         public required string DockerSocketPath { get; set; }
         public required int PollIntervalSeconds { get; set; }

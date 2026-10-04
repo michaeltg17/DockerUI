@@ -7,7 +7,7 @@ using Xunit;
 namespace DockerUI.E2ETests.Tests.ErrorScenario;
 
 /// <summary>
-/// End-to-end tests against a docker-ui instance whose Docker socket is unreachable:
+/// End-to-end tests against a DockerUI instance whose Docker socket is unreachable:
 /// the UI must show its error state instead of crashing.
 /// </summary>
 [Trait("Scenario", "error")]

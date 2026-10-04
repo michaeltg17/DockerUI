@@ -5,7 +5,7 @@ using Xunit;
 namespace DockerUI.E2ETests.Environments;
 
 /// <summary>
-/// Brings a scenario's environment up (building the docker-ui image on first use, starting
+/// Brings a scenario's environment up (building the DockerUI image on first use, starting
 /// the demo stacks and the dashboard, applying the per-scenario tweaks) and tears it down
 /// afterwards. Safe to construct in parallel: bring-up and tear-down are serialized per
 /// scenario, and the image build is serialized globally.

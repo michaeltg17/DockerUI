@@ -24,7 +24,7 @@ namespace Api.Extensions
                 {
                     BadHttpRequestException => (int)HttpStatusCode.BadRequest,
                     NotFoundException => (int)HttpStatusCode.NotFound,
-                    DockerUiException => (int)HttpStatusCode.ServiceUnavailable,
+                    DockerUIException => (int)HttpStatusCode.ServiceUnavailable,
                     _ => (int)HttpStatusCode.InternalServerError,
                 };
 

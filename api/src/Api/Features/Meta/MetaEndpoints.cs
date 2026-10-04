@@ -9,11 +9,11 @@ namespace Api.Features.Meta
 
         public static void Map(IEndpointRouteBuilder app)
         {
-            app.MapGet(Path, (IOptionsMonitor<DockerUiSettings> settings) =>
+            app.MapGet(Path, (IOptionsMonitor<DockerUISettings> settings) =>
                 Results.Ok(new MetaDto(ResolveName(settings.CurrentValue))));
         }
 
-        static string ResolveName(DockerUiSettings settings) =>
+        static string ResolveName(DockerUISettings settings) =>
             string.IsNullOrWhiteSpace(settings.Name)
                 ? MetaDto.DefaultName
                 : settings.Name.Trim();

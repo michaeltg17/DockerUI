@@ -70,8 +70,8 @@ namespace Api.Features.Apps.Background
             }
         }
 
-        DockerUiSettings? CurrentSettings =>
-            configuration.GetSection(DockerUiSettings.Section).Get<DockerUiSettings>();
+        DockerUISettings? CurrentSettings =>
+            configuration.GetSection(DockerUISettings.Section).Get<DockerUISettings>();
 
         async Task PollAndBroadcastAsync(CancellationToken cancellationToken)
         {

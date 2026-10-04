@@ -143,7 +143,7 @@ function writeMapping(images, iconFiles) {
 }
 
 function main() {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docker-ui-icons-'))
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'DockerUI-icons-'))
 
   try {
     const appsRepoDir = cloneAppsRepo(tempDir)

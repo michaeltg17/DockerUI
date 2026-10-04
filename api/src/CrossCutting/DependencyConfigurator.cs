@@ -9,10 +9,10 @@ namespace CrossCutting
         public static IServiceCollection AddCrossCuttingDependencies(this IServiceCollection services)
         {
             services
-                .AddOptionsWithValidateOnStart<DockerUiSettings>()
-                .BindConfiguration(DockerUiSettings.Section);
+                .AddOptionsWithValidateOnStart<DockerUISettings>()
+                .BindConfiguration(DockerUISettings.Section);
 
-            services.AddSingleton<IValidateOptions<DockerUiSettings>, DockerUiSettingsValidator>();
+            services.AddSingleton<IValidateOptions<DockerUISettings>, DockerUISettingsValidator>();
 
             return services;
         }

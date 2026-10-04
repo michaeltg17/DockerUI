@@ -1,4 +1,4 @@
-[![ci](https://github.com/michaeltg17/docker-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/michaeltg17/docker-ui/actions/workflows/ci.yml)
+[![ci](https://github.com/michaeltg17/DockerUI/actions/workflows/ci.yml/badge.svg)](https://github.com/michaeltg17/DockerUI/actions/workflows/ci.yml)
 # Docker UI
 
 <img width="2203" height="848" alt="image" src="https://github.com/user-attachments/assets/9ccbbce7-9587-411e-94be-622dd9bf7343" />
@@ -44,16 +44,16 @@ different host port, change the `"5000:8080"` mapping in `docker-compose.yml`.
 
 ### Configuration
 
-Everything lives in `appsettings.json`, under the `DockerUi` section:
+Everything lives in `appsettings.json`, under the `DockerUI` section:
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `DockerUi:DockerSocketPath` | `/var/run/docker.sock` | Path to the Docker socket (or a Windows named pipe such as `\\.\pipe\docker_engine`) |
-| `DockerUi:PollIntervalSeconds` | `5` | How often the daemon is polled for state changes |
-| `DockerUi:BaseUrl` | *(none)* | Base URL (scheme + host) used for the auto-detected app web URLs. When omitted, the host the dashboard is being browsed from is used |
-| `DockerUi:Icons` | *(none)* | Image-to-icon mappings that extend or override the built-in catalog (see [App icons](#app-icons)) |
-| `DockerUi:Apps` | *(none)* | Per-app overrides, keyed by stack name: `Url`, `Icon`, `Hidden` |
-| `DockerUi:Order` | *(none)* | Apps listed here come first, in this order; everything else follows alphabetically |
+| `DockerUI:DockerSocketPath` | `/var/run/docker.sock` | Path to the Docker socket (or a Windows named pipe such as `\\.\pipe\docker_engine`) |
+| `DockerUI:PollIntervalSeconds` | `5` | How often the daemon is polled for state changes |
+| `DockerUI:BaseUrl` | *(none)* | Base URL (scheme + host) used for the auto-detected app web URLs. When omitted, the host the dashboard is being browsed from is used |
+| `DockerUI:Icons` | *(none)* | Image-to-icon mappings that extend or override the built-in catalog (see [App icons](#app-icons)) |
+| `DockerUI:Apps` | *(none)* | Per-app overrides, keyed by stack name: `Url`, `Icon`, `Hidden` |
+| `DockerUI:Order` | *(none)* | Apps listed here come first, in this order; everything else follows alphabetically |
 
 The container ships with working defaults (`/var/run/docker.sock`, 5 s
 poll). To customize, copy `appsettings.example.json` to `appsettings.json`
@@ -63,7 +63,7 @@ volume mount in `docker-compose.yml`:
 ```json
 {
   "AllowedHosts": "*",
-  "DockerUi": {
+  "DockerUI": {
     "DockerSocketPath": "/var/run/docker.sock",
     "PollIntervalSeconds": 5,
     "BaseUrl": "http://192.168.1.46:5000",
@@ -87,20 +87,20 @@ one, so keep the socket path in it.
 `Order` are picked up live — the dashboard detects settings-file changes on
 every poll and applies them from the next cycle; changing
 `DockerSocketPath` requires a container restart. Standard .NET config
-precedence still applies — `DockerUi__*` environment variables override the
-file (e.g. `DockerUi__PollIntervalSeconds=10`).
+precedence still applies — `DockerUI__*` environment variables override the
+file (e.g. `DockerUI__PollIntervalSeconds=10`).
 
 ### App web URLs
 
 Each card links to the app's web UI when one can be determined:
 
-1. **`DockerUi:Apps.<name>.Url`** in appsettings.json, if configured.
+1. **`DockerUI:Apps.<name>.Url`** in appsettings.json, if configured.
 2. **Auto-detected**: when one of the stack's running containers publishes a
    TCP port, the link uses the first published port from the common web
    ports (80, 8080, 3000, 8000, 5000, 8888, 9000, 9090, 5173, 4200, 443,
    8443) or the smallest one otherwise. The **host** is the one the
    dashboard itself is served under (the host of the current request, or
-   `DockerUi:BaseUrl`), so the link works for whoever is browsing — port 80
+   `DockerUI:BaseUrl`), so the link works for whoever is browsing — port 80
    becomes `http://host`, 443/8443 become `https://…`.
 3. **No link**: when nothing is published, the card is not clickable.
 
@@ -108,7 +108,7 @@ Each card links to the app's web UI when one can be determined:
 
 Icons are resolved in this order (first match wins):
 
-1. **`DockerUi:Apps.<name>.Icon`** in appsettings.json (see above).
+1. **`DockerUI:Apps.<name>.Icon`** in appsettings.json (see above).
 2. **The `dockerui.icon` label** on any container of the stack — any URL or
    data URI:
 
@@ -120,14 +120,14 @@ Icons are resolved in this order (first match wins):
          dockerui.icon: "https://example.com/icon.png"
    ```
 
-3. **`DockerUi:Icons` mappings** from appsettings.json, then **the built-in
+3. **`DockerUI:Icons` mappings** from appsettings.json, then **the built-in
    icon catalog**: each container's image (e.g. `linuxserver/jellyfin:10.9`)
    is matched against a mapping of images to icons that is synced from the
    [Umbrel app store](https://github.com/getumbrel/umbrel-apps-gallery)
    (`ui/public/icons/`, served at `/icons/`).
 4. **The initials fallback**: the app's initials on a colored background.
 
-To remap images to different icons, add entries to `DockerUi:Icons` in
+To remap images to different icons, add entries to `DockerUI:Icons` in
 appsettings.json:
 
 ```json
@@ -148,7 +148,7 @@ files.
 Two terminals:
 
 ```bash
-# 1. API on http://localhost:5000 (uses DockerUi:DockerSocketPath from appsettings.Development.json)
+# 1. API on http://localhost:5000 (uses DockerUI:DockerSocketPath from appsettings.Development.json)
 dotnet run --project api/src/Api
 
 # 2. UI on http://localhost:3000 (proxies /api to the API, including the SignalR web socket)
@@ -165,7 +165,7 @@ yarn lint
 yarn build
 
 # E2E (Docker Desktop must be running)
-dotnet build e2e/docker-ui.e2e.slnx
+dotnet build e2e/DockerUI.e2e.slnx
 dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
 ```
 
@@ -193,7 +193,7 @@ every connected client whenever the daemon state changes.
 │       └── CrossCutting/      # Settings + DI configurator
 ├── ui/                        # Vite + React SPA (served by the API in prod)
 ├── e2e/                       # xunit v3 + Playwright scenarios (run in CI)
-├── docker-ui.slnx
+├── DockerUI.slnx
 ├── Directory.Build.props      # net10.0, central package management, analysis
 ├── Directory.Packages.props
 ├── Dockerfile                 # Multi-stage: UI build → API publish → runtime

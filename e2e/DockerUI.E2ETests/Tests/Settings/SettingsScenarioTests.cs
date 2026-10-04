@@ -7,7 +7,7 @@ using Xunit;
 namespace DockerUI.E2ETests.Tests.Settings;
 
 /// <summary>
-/// End-to-end tests against a docker-ui instance configured with per-app settings:
+/// End-to-end tests against a DockerUI instance configured with per-app settings:
 /// hidden apps, custom order, the Icons image mapping, the dockerui.icon label, and
 /// per-app Url/Icon overrides.
 /// </summary>

@@ -26,7 +26,7 @@ namespace Api.Features.Logging
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    throw new DockerUiException(
+                    throw new DockerUIException(
                         "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
                 }
             });

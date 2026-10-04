@@ -6,14 +6,14 @@ namespace DockerUI.E2ETests.Environments;
 /// </summary>
 public static class Paths
 {
-    /// <summary>Tag of the docker-ui image the scenarios run against (built from the repo root).</summary>
+    /// <summary>Tag of the DockerUI image the scenarios run against (built from the repo root).</summary>
     public const string DashboardImageTag = "docker-ui-e2e:latest";
 
     public static string E2eDirectory { get; } = FindDirectoryContaining("scenarios")
         ?? throw new InvalidOperationException("Could not locate the e2e directory (no 'scenarios' folder found).");
 
-    public static string RepoRoot { get; } = FindDirectoryContaining("docker-ui.slnx")
-        ?? throw new InvalidOperationException("Could not locate the repository root (no 'docker-ui.slnx' found).");
+    public static string RepoRoot { get; } = FindDirectoryContaining("DockerUI.slnx")
+        ?? throw new InvalidOperationException("Could not locate the repository root (no 'DockerUI.slnx' found).");
 
     /// <summary>Joins segments under the e2e directory and resolves to an absolute path.</summary>
     public static string CombineE2e(params string[] segments) => Path.GetFullPath(Path.Combine([E2eDirectory, .. segments]));

@@ -12,16 +12,16 @@ through its socket.
   `Features/Health`. `DependencyConfigurator` composes DI; `Configure()` adds
   the exception handler, static files, and the SPA fallback.
 - `api/src/Core` — tiny shared helpers (string/type extensions).
-- `api/src/CrossCutting` — `DockerUiSettings` (all settings, bound from the
-  `DockerUi` appsettings section; the app-state monitor reloads the
+- `api/src/CrossCutting` — `DockerUISettings` (all settings, bound from the
+  `DockerUI` appsettings section; the app-state monitor reloads the
   configuration when a settings file changes) + validator and DI
   configurator.
 - `ui/` — Vite + React SPA. `src/features/apps` holds the single feature
   (types, api, hooks, components); `src/app` is the shell; `src/components/ui`
   is the shared UI kit (button, spinner, notifications).
 - `e2e/` — the only tests in the repo; separate xunit v3 + Playwright
-  solution (`docker-ui.e2e.slnx`).
-  Each scenario under `e2e/scenarios` is its own docker-ui instance (own port,
+  solution (`DockerUI.e2e.slnx`).
+  Each scenario under `e2e/scenarios` is its own DockerUI instance (own port,
   own `appsettings.json`) plus demo stacks; `Environments/` orchestrates the
   compose environments, `Playwright/` holds the browser fixture and the
   `AppsPage` locators.
@@ -56,9 +56,9 @@ npm run build                               # tsc + vite build (base=/)
 docker compose up -d --build                # http://localhost:5000
 
 # E2E (Docker Desktop must be running)
-dotnet build e2e/docker-ui.e2e.slnx
+dotnet build e2e/DockerUI.e2e.slnx
 dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
-# Builds the docker-ui image once, then brings up the basic/settings/error
+# Builds the DockerUI image once, then brings up the basic/settings/error
 # scenarios (ports 5010-5012) and tears them all down afterwards.
 ```
 
@@ -69,7 +69,7 @@ dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
   with `unix:///path/to.sock` or `npipe://./pipe/docker_engine` URIs.
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
-- `DockerUiException` → 503, `NotFoundException` → 404 (mapped in
+- `DockerUIException` → 503, `NotFoundException` → 404 (mapped in
   `Api/Extensions/ExceptionHandlerExtensions.cs`); problems are RFC 9457
   `application/problem+json` with the human message in `detail`.
 - The SignalR hub is at `/api/apps/hub`; the vite dev proxy must forward

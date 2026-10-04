@@ -1,4 +1,4 @@
-export type AppState = 'running' | 'partial' | 'stopped';
+export type AppState = 'running' | 'stopped';
 
 export interface AppService {
   name: string;
@@ -13,4 +13,11 @@ export interface App {
   state: AppState;
   url: string | null;
   services: AppService[];
+  isShortcut: boolean;
+}
+
+export interface Shortcut {
+  name: string;
+  icon: string | null;
+  url: string;
 }

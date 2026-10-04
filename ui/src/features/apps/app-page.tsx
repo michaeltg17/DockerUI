@@ -1,17 +1,26 @@
-import { Search, Ship } from 'lucide-react';
+import { Plus, ScrollText, Search, Ship } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { ThemePicker } from '@/components/ui/theme-picker';
 
+import { getLogs } from './api/get-logs';
 import { AppsGrid } from './components/apps-grid';
+import { LogsDialog } from './components/logs-dialog';
+import { ShortcutDialog } from './components/shortcut-dialog';
 import { filterApps } from './filter-apps';
 import { useApps } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
+import { useMeta } from './hooks/use-meta';
 
 export const AppsPage = () => {
   const { data, isPending, isError, refetch } = useApps();
+  const { data: meta } = useMeta();
   const [query, setQuery] = useState('');
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [shortcutOpen, setShortcutOpen] = useState(false);
 
   useAppsHub();
 
@@ -19,25 +28,19 @@ export const AppsPage = () => {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Docker UI</title>
+        <title>{meta?.name ?? 'Docker UI'}</title>
         <meta name="description" content="Your Docker stacks at a glance" />
       </Helmet>
 
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-6 py-4">
-          <Ship className="size-7 text-sky-600" aria-hidden="true" />
-          <div className="mr-auto">
-            <h1 className="text-lg font-semibold leading-tight">Docker UI</h1>
-            <p className="text-xs text-slate-500">
-              Your Docker stacks at a glance
-            </p>
-          </div>
+      <header className="border-b border-border bg-header text-header-foreground">
+        <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-6 py-4">
+          <div aria-hidden="true" />
           <label className="relative block">
             <span className="sr-only">Search apps</span>
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
             />
             <input
@@ -45,11 +48,42 @@ export const AppsPage = () => {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search apps…"
-              className="w-56 rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 shadow-sm transition-colors placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 sm:w-64"
+              className="h-9 w-56 rounded-md border border-input bg-background pl-9 pr-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-64"
             />
           </label>
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShortcutOpen(true)}
+              icon={<Plus className="size-4" aria-hidden="true" />}
+            >
+              Add
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setLogsOpen(true)}
+              icon={<ScrollText className="size-4" aria-hidden="true" />}
+            >
+              Logs
+            </Button>
+            <ThemePicker />
+          </div>
         </div>
       </header>
+
+      <LogsDialog
+        open={logsOpen}
+        title="Docker UI logs"
+        scope="dashboard"
+        fetchLogs={getLogs}
+        onClose={() => setLogsOpen(false)}
+      />
+
+      <ShortcutDialog
+        open={shortcutOpen}
+        initial={null}
+        onClose={() => setShortcutOpen(false)}
+      />
 
       <main className="mx-auto max-w-7xl px-6 py-8">
         {isPending ? (
@@ -58,20 +92,23 @@ export const AppsPage = () => {
           </div>
         ) : isError ? (
           <div className="flex flex-col items-center gap-4 py-24 text-center">
-            <Ship className="size-10 text-slate-400" aria-hidden="true" />
-            <p className="text-sm text-slate-600">
+            <Ship
+              className="size-10 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <p className="text-sm text-muted-foreground">
               Could not load apps. Is the Docker daemon reachable?
             </p>
             <button
               type="button"
               onClick={() => void refetch()}
-              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Retry
             </button>
           </div>
         ) : apps.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-24 text-center text-slate-500">
+          <div className="flex flex-col items-center gap-2 py-24 text-center text-muted-foreground">
             <Ship className="size-10" aria-hidden="true" />
             {hasQuery ? (
               <p className="text-sm">

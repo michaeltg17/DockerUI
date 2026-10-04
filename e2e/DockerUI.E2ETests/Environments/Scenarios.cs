@@ -1,13 +1,13 @@
 namespace DockerUI.E2ETests.Environments;
 
 /// <summary>
-/// The environments the suite runs against. Each scenario brings up its own docker-ui
+/// The environments the suite runs against. Each scenario brings up its own DockerUI
 /// instance (different settings, different port) plus the demo stacks it should display.
 /// </summary>
 public static class Scenarios
 {
     /// <summary>
-    /// Default settings. Covers every app state (running, partial, stopped), a standalone
+    /// Default settings. Covers every app state (running, stopped), a standalone
     /// container, search, the right-click action menu, state transitions, and opening apps.
     /// </summary>
     public static readonly Scenario Basic = new()

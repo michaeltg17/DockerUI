@@ -3,18 +3,16 @@
 # ---- Stage 1: build the React UI -------------------------------------------------
 FROM node:24-alpine AS ui-build
 WORKDIR /app
-COPY ui/package.json ui/yarn.lock ./
-RUN yarn install --frozen-lockfile --non-interactive
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY ui/ ./
-RUN yarn build
+RUN npm run build
 
 # ---- Stage 2: build the .NET API --------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api-build
 WORKDIR /src
-COPY Directory.Build.props Directory.Packages.props global.json ./
+COPY api/Directory.Build.props api/Directory.Packages.props api/global.json api/
 COPY api/src/Api/Api.csproj api/src/Api/
-COPY api/src/Core/Core.csproj api/src/Core/
-COPY api/src/CrossCutting/CrossCutting.csproj api/src/CrossCutting/
 RUN dotnet restore api/src/Api/Api.csproj
 COPY api/src/ ./api/src/
 RUN dotnet publish api/src/Api/Api.csproj -c Release -o /app/api /p:UseAppHost=false

@@ -407,7 +407,7 @@ dist/
 .env
 .env.local
 .env.*.local
-yarn-error.log*
+npm-debug.log*
 
 # Docker
 docker-compose.override.yml

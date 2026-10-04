@@ -1,5 +1,5 @@
 {
-  "name": "docker-ui",
+  "name": "DockerUI",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -61,8 +61,8 @@
   },
   "lint-staged": {
     "*.+(ts|tsx)": [
-      "yarn lint",
-      "bash -c 'yarn check-types'"
+      "npm run lint",
+      "bash -c 'npm run check-types'"
     ]
   }
 }

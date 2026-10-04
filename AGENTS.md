@@ -7,29 +7,31 @@ through its socket.
 
 ## Layout
 
+- `api/` — the .NET solution (`DockerUI.slnx`) and its build/SDK config
+  (`Directory.Build.props`, `Directory.Packages.props`, `global.json`);
+  projects live under `api/src/`.
 - `api/src/Api` — ASP.NET Core minimal API. Feature-based: `Features/Apps`
   (endpoints, `AppService`, `AppCatalog`, SignalR hub, background monitor),
-  `Features/Health`. `DependencyConfigurator` composes DI; `Configure()` adds
-  the exception handler, static files, and the SPA fallback.
-- `api/src/Core` — tiny shared helpers (string/type extensions).
-- `api/src/CrossCutting` — `DockerUiSettings` (all settings, bound from the
-  `DockerUi` appsettings section; the app-state monitor reloads the
-  configuration when a settings file changes) + validator and DI
-  configurator.
+  `Features/Health`. `Settings/` holds `DockerUISettings` (all settings, bound
+  from the `DockerUI` appsettings section; the app-state monitor reloads the
+  configuration when a settings file changes) and its startup validator.
+  `DependencyConfigurator` composes DI; `Configure()` adds the exception
+  handler, static files, and the SPA fallback.
 - `ui/` — Vite + React SPA. `src/features/apps` holds the single feature
   (types, api, hooks, components); `src/app` is the shell; `src/components/ui`
   is the shared UI kit (button, spinner, notifications).
 - `e2e/` — the only tests in the repo; separate xunit v3 + Playwright
-  solution (`docker-ui.e2e.slnx`).
-  Each scenario under `e2e/scenarios` is its own docker-ui instance (own port,
+  solution (`DockerUI.e2e.slnx`).
+  Each scenario under `e2e/scenarios` is its own DockerUI instance (own port,
   own `appsettings.json`) plus demo stacks; `Environments/` orchestrates the
   compose environments, `Playwright/` holds the browser fixture and the
   `AppsPage` locators.
 
 ## Conventions
 
-- Central package management: add package versions in
-  `Directory.Packages.props` (root), references in csproj files.
+- Central package management: add package versions in the solution's
+  `Directory.Packages.props` (`api/` for the API, `e2e/` for tests),
+  references in csproj files.
 - C# style: file-scoped namespaces, primary constructors, expression bodies
   where short. Analysis rules are enforced (`AnalysisMode=AllEnabledByDefault`),
   keep the build warning-free when practical.
@@ -46,19 +48,19 @@ through its socket.
 dotnet run --project api/src/Api            # dev on :5000
 
 # UI (from ui/)
-yarn install
-yarn dev                                    # :3000, proxies /api -> :5000 (ws)
-yarn check-types
-yarn lint
-yarn build                                  # tsc + vite build (base=/)
+npm install
+npm run dev                                 # :3000, proxies /api -> :5000 (ws)
+npm run check-types
+npm run lint
+npm run build                               # tsc + vite build (base=/)
 
 # Product
 docker compose up -d --build                # http://localhost:5000
 
 # E2E (Docker Desktop must be running)
-dotnet build e2e/docker-ui.e2e.slnx
+dotnet build e2e/DockerUI.e2e.slnx
 dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
-# Builds the docker-ui image once, then brings up the basic/settings/error
+# Builds the DockerUI image once, then brings up the basic/settings/error
 # scenarios (ports 5010-5012) and tears them all down afterwards.
 ```
 
@@ -69,7 +71,7 @@ dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
   with `unix:///path/to.sock` or `npipe://./pipe/docker_engine` URIs.
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
-- `DockerUiException` → 503, `NotFoundException` → 404 (mapped in
+- `DockerUIException` → 503, `NotFoundException` → 404 (mapped in
   `Api/Extensions/ExceptionHandlerExtensions.cs`); problems are RFC 9457
   `application/problem+json` with the human message in `detail`.
 - The SignalR hub is at `/api/apps/hub`; the vite dev proxy must forward
@@ -100,3 +102,23 @@ When creating or updating the `dev` → `main` PR:
 3. Check if a PR already exists (use `github_list_pull_requests`).
 4. If none exists, create one with title and description summarizing the changes.
 5. If one exists, update its title and description to reflect the actual current diff.
+
+## Automatic dev cycle
+
+Applies only when the user asks to start the automatic dev cycle.
+
+- The task board is
+  https://github.com/users/michaeltg17/projects/8/views/1.
+- Tasks ready for start developing are the ones in the `ready` column;
+  never pick ones in the backlog. Ignore any task assigned to
+  `michaeltg17`. Only pick unassigned tasks not in the backlog column.
+- When picking a task, move its card to `in progress`.
+- Do the work, then commit and push on `dev` and open/update the
+  `dev` → `main` PR, following the `## Workflow` instructions above.
+- A task counts as finished when it is committed, pushed, the PR is
+  updated, and the e2e tests pass in CI.
+- On finish, move the card to `done`. If the work needs user review,
+  move it to `review` instead, assign it to `michaeltg17`, and leave a
+  comment on the task describing what was done and what to review.
+- Then pick the next eligible task from the `ready` column and repeat;
+  stop and report a summary when no eligible tasks remain.

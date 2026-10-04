@@ -7,7 +7,7 @@ using Xunit;
 namespace DockerUI.E2ETests.Tests.ErrorScenario;
 
 /// <summary>
-/// End-to-end tests against a docker-ui instance whose Docker socket is unreachable:
+/// End-to-end tests against a DockerUI instance whose Docker socket is unreachable:
 /// the UI must show its error state instead of crashing.
 /// </summary>
 [Trait("Scenario", "error")]
@@ -23,6 +23,23 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
 
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         await apps.RetryButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs, State = WaitForSelectorState.Visible });
+    }
+
+    [Fact]
+    public async Task Logs_dialog_shows_error_when_daemon_unreachable()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await apps.LogsButton.ClickAsync();
+        var dialog = apps.LogsDialog("Docker UI logs");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await dialog
+            .GetByText("Could not reach the Docker daemon")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
     }
 
     [Fact]

@@ -1,7 +1,9 @@
+using System.Text;
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
-using CrossCutting.Settings;
+using Api.Features.Shortcuts;
+using Api.Settings;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 
@@ -12,8 +14,9 @@ namespace Api.Features.Apps
         IContainerOperations containers,
         IAppIconCatalog iconCatalog,
         IConfiguration configuration,
-        AppBaseUrlTracker baseUrlTracker,
-        IHttpContextAccessor httpContextAccessor)
+    AppBaseUrlTracker baseUrlTracker,
+    IHttpContextAccessor httpContextAccessor,
+    ShortcutStore shortcutStore)
     {
         const uint StopGracePeriodSeconds = 10;
 
@@ -21,15 +24,65 @@ namespace Api.Features.Apps
         {
             var settings = CurrentSettings;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
-            return AppCatalog.BuildApps(snapshots, iconCatalog, ResolveBaseUrl(settings), settings);
+            var apps = AppCatalog
+                .BuildApps(snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots))
+                .ToList();
+
+            apps.AddRange(BuildShortcutApps());
+
+            return apps;
+        }
+
+        /// <summary>User-defined shortcuts, surfaced as always-available apps after the docker stacks.</summary>
+        List<AppDto> BuildShortcutApps()
+        {
+            var apps = new List<AppDto>();
+
+            foreach (var shortcut in shortcutStore.Load())
+            {
+                if (!Uri.TryCreate(shortcut.Url, UriKind.Absolute, out var url))
+                    continue;
+
+                apps.Add(new AppDto(
+                    shortcut.Name,
+                    string.IsNullOrWhiteSpace(shortcut.Icon) ? null : shortcut.Icon,
+                    AppState.Running,
+                    url,
+                    [])
+                {
+                    IsShortcut = true,
+                });
+            }
+
+            return apps;
+        }
+
+        /// <summary>
+        /// The compose project this dashboard itself runs in, so it can be hidden by
+        /// default. A container's hostname is its short container ID, so the dashboard
+        /// matches its own hostname against the listed container IDs and reads that
+        /// container's compose project label. Returns null when not running in a container.
+        /// </summary>
+        static string? ResolveSelfProject(IReadOnlyList<ContainerSnapshot> snapshots)
+        {
+            var selfId = OwnContainer.FindId(snapshots.Select(snapshot => snapshot.Id));
+
+            if (selfId is null)
+                return null;
+
+            var self = snapshots.FirstOrDefault(snapshot => snapshot.Id == selfId);
+
+            return self is { } && self.Labels.TryGetValue(AppCatalog.ComposeProjectLabel, out var project)
+                ? project
+                : null;
         }
 
         /// <summary>
         /// Binds the current settings from the configuration on every call, so a
         /// configuration reload (settings file edited) is picked up immediately.
         /// </summary>
-        DockerUiSettings? CurrentSettings =>
-            configuration.GetSection(DockerUiSettings.Section).Get<DockerUiSettings>();
+        DockerUISettings? CurrentSettings =>
+            configuration.GetSection(DockerUISettings.Section).Get<DockerUISettings>();
 
         public async Task<AppDto> StartAppAsync(string appName, CancellationToken cancellationToken = default)
         {
@@ -67,6 +120,30 @@ namespace Api.Features.Apps
             return await GetAppAsync(appName, cancellationToken);
         }
 
+        /// <summary>The recent logs of every container in the given app, headed by a per-container name.</summary>
+        public async Task<string> GetAppLogsAsync(string appName, CancellationToken cancellationToken = default)
+        {
+            var targets = await ResolveAppContainersAsync(appName, cancellationToken);
+            var logs = new StringBuilder();
+
+            try
+            {
+                foreach (var container in targets)
+                {
+                    var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, container.Id, cancellationToken);
+                    logs.AppendLine("=== " + container.Name + " ===");
+                    logs.Append(stdout).AppendLine().Append(stderr);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                throw new DockerUIException(
+                    "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
+            }
+
+            return logs.ToString().TrimEnd();
+        }
+
         async Task<AppDto> GetAppAsync(string appName, CancellationToken cancellationToken)
         {
             var apps = await GetAppsAsync(cancellationToken);
@@ -75,12 +152,12 @@ namespace Api.Features.Apps
         }
 
         /// <summary>
-        /// Resolves the base URL used to build app links: 'DockerUi:BaseUrl' wins;
+        /// Resolves the base URL used to build app links: 'DockerUI:BaseUrl' wins;
         /// otherwise the current client request is used (and remembered); otherwise
         /// the last client seen (used by background broadcasts). With none of those,
         /// URLs fall back to 'localhost'.
         /// </summary>
-        Uri? ResolveBaseUrl(DockerUiSettings? settings)
+        Uri? ResolveBaseUrl(DockerUISettings? settings)
         {
             var baseUrl = settings?.BaseUrl;
 
@@ -139,7 +216,7 @@ namespace Api.Features.Apps
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                throw new DockerUiException(
+                throw new DockerUIException(
                     "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
             }
         }

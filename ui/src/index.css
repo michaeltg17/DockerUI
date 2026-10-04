@@ -3,9 +3,13 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  [data-theme='light'] {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
+
+    --header: 0 0% 100%;
+    --header-foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -35,14 +39,17 @@
     --radius: 0.5rem;
   }
 
-  .dark {
+  [data-theme='dark'] {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
+
+    --header: 217.2 32.6% 10.2%;
+    --header-foreground: 210 40% 98%;
 
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 217.2 32.6% 12.2%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 210 40% 98%;
@@ -63,6 +70,39 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+  }
+
+  [data-theme='docker'] {
+    --background: 213 20% 8%;
+    --foreground: 210 40% 98%;
+
+    --header: 221 55% 16%;
+    --header-foreground: 210 40% 98%;
+
+    --card: 215 25% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 215 25% 14%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 204 84% 53%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 216 25% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 216 25% 14%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 216 30% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 22% 24%;
+    --input: 215 22% 24%;
+    --ring: 204 84% 53%;
   }
 }
 

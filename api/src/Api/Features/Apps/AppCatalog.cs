@@ -1,6 +1,6 @@
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
-using CrossCutting.Settings;
+using Api.Settings;
 using Serilog;
 
 namespace Api.Features.Apps
@@ -25,7 +25,8 @@ namespace Api.Features.Apps
             IEnumerable<ContainerSnapshot> containers,
             IAppIconCatalog? iconCatalog = null,
             Uri? baseUrl = null,
-            DockerUiSettings? settings = null)
+            DockerUISettings? settings = null,
+            string? selfProject = null)
         {
             var apps = new List<AppDto>();
             var liveIconCatalog = settings?.Icons is { Count: > 0 } icons ? new AppIconCatalog(icons) : null;
@@ -50,7 +51,7 @@ namespace Api.Features.Apps
                 }
             }
 
-            RemoveHidden(apps, settings);
+            RemoveHidden(apps, settings, selfProject);
 
             return OrderApps(apps, settings);
         }
@@ -89,7 +90,7 @@ namespace Api.Features.Apps
             IAppIconCatalog? iconCatalog,
             IAppIconCatalog? liveIconCatalog,
             Uri? baseUrl,
-            DockerUiSettings? settings)
+            DockerUISettings? settings)
         {
             var services = containers
                 .Select(container => new AppServiceDto(
@@ -100,12 +101,9 @@ namespace Api.Features.Apps
                 .OrderBy(service => service.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var runningCount = services.Count(service => service.IsRunning);
-            var state = runningCount == services.Count
+            var state = services.Any(service => service.IsRunning)
                 ? AppState.Running
-                : runningCount == 0
-                    ? AppState.Stopped
-                    : AppState.Partial;
+                : AppState.Stopped;
 
             var perApp = settings?.Apps is { } apps && apps.TryGetValue(name, out var appSettings)
                 ? appSettings
@@ -165,15 +163,17 @@ namespace Api.Features.Apps
             };
         }
 
-        static void RemoveHidden(List<AppDto> apps, DockerUiSettings? settings)
+        static void RemoveHidden(List<AppDto> apps, DockerUISettings? settings, string? selfProject)
         {
-            if (settings?.Apps is not { } appSettings)
-                return;
+            var appSettings = settings?.Apps;
 
-            apps.RemoveAll(app => appSettings.TryGetValue(app.Name, out var perApp) && perApp.Hidden);
+            apps.RemoveAll(app =>
+                appSettings is not null && appSettings.TryGetValue(app.Name, out var perApp)
+                    ? perApp.Hidden
+                    : selfProject is not null && string.Equals(app.Name, selfProject, StringComparison.Ordinal));
         }
 
-        static List<AppDto> OrderApps(List<AppDto> apps, DockerUiSettings? settings)
+        static List<AppDto> OrderApps(List<AppDto> apps, DockerUISettings? settings)
         {
             var order = settings?.Order;
 

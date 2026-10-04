@@ -22,7 +22,7 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
   - `Endpoints/` — `GET /api/apps`, `POST /api/apps/{name}/start|stop|restart`.
     Route values are validated by `AppNameValidator` (400 on garbage).
   - `AppService` — the only class that talks to Docker. Wraps every call in
-    `DockerUiException` (→ 503) so daemon problems surface as a clean
+    `DockerUIException` (→ 503) so daemon problems surface as a clean
     problem-details response.
   - `AppCatalog` — pure function: container snapshots → `AppDto[]`. Groups by
     the `com.docker.compose.project` label, resolves the `dockerui.icon`
@@ -41,20 +41,22 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
 - **Features/Health** — `/health/live` (no checks) and `/health/ready`
   (pings the daemon via `ISystemOperations`).
 - **DependencyConfigurator** — all DI. `AddDockerClient` builds the client
-  from `DockerUi:DockerSocketPath` (unix socket or Windows named pipe).
+  from `DockerUI:DockerSocketPath` (unix socket or Windows named pipe).
   `Configure()` adds the exception handler, static files, endpoint mapping,
   and the SPA fallback.
 - **Extensions/ExceptionHandlerExtensions** — global exception middleware
   mapping exceptions to RFC 9457 problem details:
-  `DockerUiException` → 503, `NotFoundException` → 404,
+  `DockerUIException` → 503, `NotFoundException` → 404,
   `BadHttpRequestException` → 400, else 500.
+- **Extensions/StringExtensions** and **Extensions/TypeExtensions** — small
+  pure helpers (e.g. `string.JoinNonEmpty`, `Type.GetNameWithoutGenericArity`).
+- **Builders/** — a small generic builder hierarchy (`IBuilder<T>`,
+  `Builder<T>`, `BuilderWithValues<TBuilder,T>`, `BuilderWithInstance<TBuilder,T>`).
 
-## api/src/Core, api/src/CrossCutting
-
-- `Core` — small pure helpers (e.g. `string.JoinNonEmpty`).
-- `CrossCutting` — `DockerUiSettings` (all settings, bound from the
-  `DockerUi` appsettings section, validated at startup) and
-  `AddCrossCuttingDependencies`.
+Settings (`DockerUISettings` and its validator, plus `AppUserSettings` /
+`AppIconMapping`) live in the API project's `Settings/` folder, bound from the
+`DockerUI` appsettings section and validated at startup via
+`DependencyConfigurator.AddSettingsDependencies`.
 
 ## ui/
 
@@ -79,6 +81,6 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
 `dotnet/sdk:10.0` publishes the API, `dotnet/aspnet:10.0` runs it with the
 UI in `wwwroot`. `docker-compose.yml` mounts the host Docker socket
 read-only and exposes `5000:8080`. All configuration lives in
-`appsettings.json` under the `DockerUi` section; an optionally mounted
+`appsettings.json` under the `DockerUI` section; an optionally mounted
 `appsettings.json` replaces the packaged defaults (see the README) and is
 hot-reloaded for everything except `DockerSocketPath`.

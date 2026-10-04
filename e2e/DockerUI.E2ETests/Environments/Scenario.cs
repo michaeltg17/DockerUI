@@ -1,7 +1,7 @@
 namespace DockerUI.E2ETests.Environments;
 
 /// <summary>
-/// Describes one end-to-end environment: a docker-ui instance (with its own settings and
+/// Describes one end-to-end environment: a DockerUI instance (with its own settings and
 /// port) plus the demo stacks running on the same Docker daemon that it should display.
 /// </summary>
 public sealed record Scenario
@@ -10,7 +10,7 @@ public sealed record Scenario
 
     public required Uri BaseUrl { get; init; }
 
-    /// <summary>Directory under e2e/ holding the docker-ui compose file and appsettings.json.</summary>
+    /// <summary>Directory under e2e/ holding the DockerUI compose file and appsettings.json.</summary>
     public required string Dashboard { get; init; }
 
     /// <summary>Directories under e2e/ holding the demo stacks' compose files.</summary>

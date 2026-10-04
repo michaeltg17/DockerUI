@@ -1,5 +1,5 @@
 using System.Text.Json;
-using CrossCutting.Settings;
+using Api.Settings;
 
 namespace Api.Features.Apps.Icons
 {

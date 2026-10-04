@@ -1,6 +1,6 @@
 namespace Api.Exceptions
 {
-    public class NotFoundException(string message) : DockerUiException(message)
+    public class NotFoundException(string message) : DockerUIException(message)
     {
     }
 }

@@ -1,12 +1,13 @@
-using Api.Extensions;
 using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
 using Api.Features.Health;
-using CrossCutting;
-using CrossCutting.Settings;
+using Api.Features.Shortcuts;
+using Api.Settings;
+using Api.Setup;
 using Docker.DotNet;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Api
@@ -26,8 +27,8 @@ namespace Api
             builder.AddSerilog();
 
             builder.Services
-                .AddCrossCuttingDependencies()
-                .AddDockerClient(builder.Configuration.GetSection(DockerUiSettings.Section))
+                .AddSettingsDependencies()
+                .AddDockerClient(builder.Configuration.GetSection(DockerUISettings.Section))
                 .AddAppsDependencies();
 
             builder.Services.AddSignalR();
@@ -50,10 +51,10 @@ namespace Api
         {
             ArgumentNullException.ThrowIfNull(section);
 
-            var socketPath = section[nameof(DockerUiSettings.DockerSocketPath)];
+            var socketPath = section[nameof(DockerUISettings.DockerSocketPath)];
 
             if (string.IsNullOrWhiteSpace(socketPath))
-                throw new InvalidOperationException("The 'DockerUi:DockerSocketPath' setting must be configured.");
+                throw new InvalidOperationException("The 'DockerUI:DockerSocketPath' setting must be configured.");
 
             const string WindowsPipePrefix = @"\\.\pipe\";
 
@@ -80,11 +81,23 @@ namespace Api
             return services;
         }
 
+        public static IServiceCollection AddSettingsDependencies(this IServiceCollection services)
+        {
+            services
+                .AddOptionsWithValidateOnStart<DockerUISettings>()
+                .BindConfiguration(DockerUISettings.Section);
+
+            services.AddSingleton<IValidateOptions<DockerUISettings>, DockerUISettingsValidator>();
+
+            return services;
+        }
+
         public static IServiceCollection AddAppsDependencies(this IServiceCollection services)
         {
-            //Live icon mappings come from 'DockerUi:Icons' and are merged per request in AppCatalog;
+            //Live icon mappings come from 'DockerUI:Icons' and are merged per request in AppCatalog;
             //only the built-in catalog (embedded in the assembly) is registered here.
             services.AddSingleton<IAppIconCatalog>(new AppIconCatalog(IconMappingLoader.LoadBuiltIn()));
+            services.AddSingleton<ShortcutStore>();
 
             services.AddSingleton<AppBaseUrlTracker>();
             services.AddSingleton<AppService>();
@@ -132,11 +145,10 @@ namespace Api
 
         public static WebApplication Configure(this WebApplication app)
         {
-            //Exception middleware first to catch exceptions
-            app.UseExceptionHandler().UseStatusCodePages();
-
-            app.UseDefaultFiles();
-            app.UseStaticFiles();
+            //Exception handler middleware first to catch exceptions
+            app.AddExceptionHandlerMiddleware()
+                .UseDefaultFiles()
+                .UseStaticFiles();
 
             app.MapEndpoints();
 
@@ -144,6 +156,11 @@ namespace Api
             app.MapFallbackToFile("index.html");
 
             return app;
+        }
+
+        public static IApplicationBuilder AddExceptionHandlerMiddleware(this WebApplication app)
+        {
+            return app.ConfigureExceptionHandler().UseStatusCodePages();
         }
     }
 }

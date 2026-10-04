@@ -7,7 +7,7 @@ using Xunit;
 namespace DockerUI.E2ETests.Tests.Settings;
 
 /// <summary>
-/// End-to-end tests against a docker-ui instance configured with per-app settings:
+/// End-to-end tests against a DockerUI instance configured with per-app settings:
 /// hidden apps, custom order, the Icons image mapping, the dockerui.icon label, and
 /// per-app Url/Icon overrides.
 /// </summary>
@@ -24,7 +24,7 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
         await apps.WaitForAppAsync("alpha");
 
         (await apps.Card("vault").CountAsync()).Should().Be(0, "because 'vault' is hidden in the settings");
-        (await apps.Card("settings").CountAsync()).Should().Be(0, "because the dashboard's own stack is hidden in the settings");
+        (await apps.Card("settings").CountAsync()).Should().Be(0, "because the dashboard's own stack is hidden by default");
     }
 
     [Fact]
@@ -70,6 +70,29 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
         // 'beta' has no icon from any source, so the card falls back to its initials.
         (await apps.CardIconImage("beta").CountAsync()).Should().Be(0);
         await apps.Card("beta").GetByText("B", new LocatorGetByTextOptions { Exact = true }).WaitForAsync();
+    }
+
+    [Fact]
+    public async Task Custom_name_is_used_as_page_title()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        // The static page title is the default; the custom name only appears once
+        // the app has loaded the configured settings, so poll for it.
+        var title = string.Empty;
+        var deadline = DateTime.UtcNow.AddSeconds(60);
+        while (DateTime.UtcNow < deadline)
+        {
+            title = await apps.Page.TitleAsync();
+            if (title == "Settings Dashboard")
+                break;
+
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+
+        title.Should().Be("Settings Dashboard", "because the scenario configures a custom name");
     }
 
     [Fact]

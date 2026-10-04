@@ -1,4 +1,4 @@
-namespace CrossCutting.Settings
+namespace Api.Settings
 {
     /// <summary>User overrides for a single app.</summary>
 #pragma warning disable CA1056 // URL-like members stay strings so one bad value degrades gracefully instead of invalidating the whole settings

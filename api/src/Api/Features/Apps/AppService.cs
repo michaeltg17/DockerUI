@@ -3,7 +3,7 @@ using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
 using Api.Extensions;
-using CrossCutting.Settings;
+using Api.Settings;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 

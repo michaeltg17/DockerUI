@@ -9,13 +9,12 @@ through its socket.
 
 - `api/src/Api` — ASP.NET Core minimal API. Feature-based: `Features/Apps`
   (endpoints, `AppService`, `AppCatalog`, SignalR hub, background monitor),
-  `Features/Health`. `DependencyConfigurator` composes DI; `Configure()` adds
-  the exception handler, static files, and the SPA fallback.
+  `Features/Health`. `Settings/` holds `DockerUISettings` (all settings, bound
+  from the `DockerUI` appsettings section; the app-state monitor reloads the
+  configuration when a settings file changes) and its startup validator.
+  `DependencyConfigurator` composes DI; `Configure()` adds the exception
+  handler, static files, and the SPA fallback.
 - `api/src/Core` — tiny shared helpers (string/type extensions).
-- `api/src/CrossCutting` — `DockerUISettings` (all settings, bound from the
-  `DockerUI` appsettings section; the app-state monitor reloads the
-  configuration when a settings file changes) + validator and DI
-  configurator.
 - `ui/` — Vite + React SPA. `src/features/apps` holds the single feature
   (types, api, hooks, components); `src/app` is the shell; `src/components/ui`
   is the shared UI kit (button, spinner, notifications).

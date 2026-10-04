@@ -3,10 +3,10 @@ using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
 using Api.Features.Health;
-using CrossCutting;
-using CrossCutting.Settings;
+using Api.Settings;
 using Docker.DotNet;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Api
@@ -26,7 +26,7 @@ namespace Api
             builder.AddSerilog();
 
             builder.Services
-                .AddCrossCuttingDependencies()
+                .AddSettingsDependencies()
                 .AddDockerClient(builder.Configuration.GetSection(DockerUISettings.Section))
                 .AddAppsDependencies();
 
@@ -76,6 +76,17 @@ namespace Api
             services.AddSingleton(client);
             services.AddSingleton<IContainerOperations>(client.Containers);
             services.AddSingleton<ISystemOperations>(client.System);
+
+            return services;
+        }
+
+        public static IServiceCollection AddSettingsDependencies(this IServiceCollection services)
+        {
+            services
+                .AddOptionsWithValidateOnStart<DockerUISettings>()
+                .BindConfiguration(DockerUISettings.Section);
+
+            services.AddSingleton<IValidateOptions<DockerUISettings>, DockerUISettingsValidator>();
 
             return services;
         }

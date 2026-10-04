@@ -49,12 +49,14 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
   `DockerUIException` → 503, `NotFoundException` → 404,
   `BadHttpRequestException` → 400, else 500.
 
-## api/src/Core, api/src/CrossCutting
+## api/src/Core
 
 - `Core` — small pure helpers (e.g. `string.JoinNonEmpty`).
-- `CrossCutting` — `DockerUISettings` (all settings, bound from the
-  `DockerUI` appsettings section, validated at startup) and
-  `AddCrossCuttingDependencies`.
+
+Settings (`DockerUISettings` and its validator, plus `AppUserSettings` /
+`AppIconMapping`) live in the API project's `Settings/` folder, bound from the
+`DockerUI` appsettings section and validated at startup via
+`DependencyConfigurator.AddSettingsDependencies`.
 
 ## ui/
 

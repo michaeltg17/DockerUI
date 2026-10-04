@@ -188,9 +188,8 @@ every connected client whenever the daemon state changes.
 ```
 ├── api/
 │   └── src/
-│       ├── Api/               # Minimal API: features, endpoints, hub, DI, Program
-│       ├── Core/              # Small shared helpers
-│       └── CrossCutting/      # Settings + DI configurator
+│       ├── Api/               # Minimal API: features, endpoints, settings, hub, DI, Program
+│       └── Core/              # Small shared helpers
 ├── ui/                        # Vite + React SPA (served by the API in prod)
 ├── e2e/                       # xunit v3 + Playwright scenarios (run in CI)
 ├── DockerUI.slnx

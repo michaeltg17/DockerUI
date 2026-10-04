@@ -1,4 +1,4 @@
-namespace CrossCutting.Settings
+namespace Api.Settings
 {
     /// <summary>
     /// All dashboard configuration, bound from the 'DockerUI' section of

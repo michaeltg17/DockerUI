@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Api.Features.Apps.Hubs;
-using CrossCutting.Settings;
+using Api.Settings;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Api.Features.Apps.Background

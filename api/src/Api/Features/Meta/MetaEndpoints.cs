@@ -1,4 +1,4 @@
-using CrossCutting.Settings;
+using Api.Settings;
 using Microsoft.Extensions.Options;
 
 namespace Api.Features.Meta

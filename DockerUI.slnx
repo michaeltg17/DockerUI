@@ -2,6 +2,5 @@
   <Folder Name="/api/">
     <Project Path="api/src/Api/Api.csproj" />
     <Project Path="api/src/Core/Core.csproj" />
-    <Project Path="api/src/CrossCutting/CrossCutting.csproj" />
   </Folder>
 </Solution>

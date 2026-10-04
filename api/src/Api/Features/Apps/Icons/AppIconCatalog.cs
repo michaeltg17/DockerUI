@@ -1,6 +1,6 @@
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
-using CrossCutting.Settings;
+using Api.Settings;
 
 namespace Api.Features.Apps.Icons
 {

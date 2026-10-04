@@ -14,7 +14,6 @@ WORKDIR /src
 COPY Directory.Build.props Directory.Packages.props global.json ./
 COPY api/src/Api/Api.csproj api/src/Api/
 COPY api/src/Core/Core.csproj api/src/Core/
-COPY api/src/CrossCutting/CrossCutting.csproj api/src/CrossCutting/
 RUN dotnet restore api/src/Api/Api.csproj
 COPY api/src/ ./api/src/
 RUN dotnet publish api/src/Api/Api.csproj -c Release -o /app/api /p:UseAppHost=false

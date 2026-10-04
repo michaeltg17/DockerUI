@@ -1,6 +1,6 @@
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
-using CrossCutting.Settings;
+using Api.Settings;
 using Serilog;
 
 namespace Api.Features.Apps

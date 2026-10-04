@@ -4,6 +4,7 @@ import {
   ContextMenu,
   type ContextMenuItem,
 } from '@/components/ui/context-menu';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/utils/cn';
 
 import { useRestartApp, useStartApp, useStopApp } from '../hooks/use-apps';
@@ -79,7 +80,7 @@ export const AppCard = ({ app }: AppCardProps) => {
       <button
         type="button"
         onClick={openApp}
-        className="flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div className="relative">
           <AppIcon
@@ -90,13 +91,32 @@ export const AppCard = ({ app }: AppCardProps) => {
               app.state === 'stopped' && 'opacity-50 grayscale',
             )}
           />
-          {isRunning && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          {app.state === 'stopped' && (
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label={`Start ${app.name}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                void startApp.mutate(app.name);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                event.stopPropagation();
+                void startApp.mutate(app.name);
+              }}
+              className="absolute inset-0 flex cursor-pointer items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+            >
               <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40">
-                <Square
-                  className="size-4 fill-white text-white"
-                  aria-hidden="true"
-                />
+                {startApp.isPending ? (
+                  <Spinner size="sm" variant="light" />
+                ) : (
+                  <Play
+                    className="size-4 fill-white text-white"
+                    aria-hidden="true"
+                  />
+                )}
               </span>
             </span>
           )}

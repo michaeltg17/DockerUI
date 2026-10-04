@@ -38,6 +38,9 @@ public sealed class AppsPage(IPage page)
     /// <summary>The app card icon image (absent when the app falls back to its initials).</summary>
     public ILocator CardIconImage(string appName) => Card(appName).Locator("img");
 
+    /// <summary>The play overlay that appears when a stopped app's card is hovered.</summary>
+    public ILocator CardPlayOverlay(string appName) => Card(appName).GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = $"Start {appName}", Exact = true });
+
     public ILocator NoMatchesMessage(string query) => Page.GetByText($"No apps match \u201C{query}\u201D.");
 
     /// <summary>Navigates to the dashboard. Callers then wait for the specific content they need.</summary>

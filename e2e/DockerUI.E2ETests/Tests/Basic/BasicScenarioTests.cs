@@ -188,6 +188,40 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Hovering_stopped_app_shows_play_overlay_that_starts_it()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("start-stack", AppsPage.StoppedState);
+
+        await apps.Card("start-stack").HoverAsync();
+
+        var overlay = apps.CardPlayOverlay("start-stack");
+        var opacity = string.Empty;
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            opacity = await overlay.EvaluateAsync<string>("(el) => getComputedStyle(el).opacity");
+            if (opacity == "1")
+                break;
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+
+        opacity.Should().Be("1", "because hovering a stopped app's card reveals its play overlay");
+
+        await overlay.ClickAsync();
+        await apps.WaitForStateAsync("start-stack", AppsPage.RunningState);
+        context.Pages.Count.Should().Be(1, "because the app has no url to open");
+
+        // Stop the app again so tests that expect its initial (stopped) state pass
+        // regardless of execution order.
+        var menu = await apps.OpenCardMenuAsync("start-stack");
+        await AppsPage.MenuItem(menu, "Stop").ClickAsync();
+        await apps.WaitForStateAsync("start-stack", AppsPage.StoppedState);
+    }
+
+    [Fact]
     public async Task Clicking_card_with_url_opens_new_tab()
     {
         await using var context = await browser.NewContextAsync();

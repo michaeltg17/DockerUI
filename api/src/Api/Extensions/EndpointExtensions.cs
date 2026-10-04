@@ -1,7 +1,7 @@
 ﻿using Api.Features.Apps.Endpoints;
 using Api.Features.Apps.Hubs;
 using Api.Features.Health;
-using Api.Features.Logs;
+using Api.Features.Logging;
 using Api.Features.Meta;
 
 namespace Api.Extensions;

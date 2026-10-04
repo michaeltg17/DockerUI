@@ -35,6 +35,19 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Dashboard_stack_is_hidden_by_default()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        // The scenario runs the dashboard from the 'basic' compose project, which has no
+        // per-app settings; it must be hidden without any configuration.
+        (await apps.Card("basic").CountAsync()).Should().Be(0, "because the dashboard's own stack is hidden by default");
+    }
+
+    [Fact]
     public async Task Theme_selection_applies_and_persists_across_reload()
     {
         await using var context = await browser.NewContextAsync();

@@ -25,7 +25,8 @@ namespace Api.Features.Apps
             IEnumerable<ContainerSnapshot> containers,
             IAppIconCatalog? iconCatalog = null,
             Uri? baseUrl = null,
-            DockerUiSettings? settings = null)
+            DockerUiSettings? settings = null,
+            string? selfProject = null)
         {
             var apps = new List<AppDto>();
             var liveIconCatalog = settings?.Icons is { Count: > 0 } icons ? new AppIconCatalog(icons) : null;
@@ -50,7 +51,7 @@ namespace Api.Features.Apps
                 }
             }
 
-            RemoveHidden(apps, settings);
+            RemoveHidden(apps, settings, selfProject);
 
             return OrderApps(apps, settings);
         }
@@ -165,12 +166,14 @@ namespace Api.Features.Apps
             };
         }
 
-        static void RemoveHidden(List<AppDto> apps, DockerUiSettings? settings)
+        static void RemoveHidden(List<AppDto> apps, DockerUiSettings? settings, string? selfProject)
         {
-            if (settings?.Apps is not { } appSettings)
-                return;
+            var appSettings = settings?.Apps;
 
-            apps.RemoveAll(app => appSettings.TryGetValue(app.Name, out var perApp) && perApp.Hidden);
+            apps.RemoveAll(app =>
+                appSettings is not null && appSettings.TryGetValue(app.Name, out var perApp)
+                    ? perApp.Hidden
+                    : selfProject is not null && string.Equals(app.Name, selfProject, StringComparison.Ordinal));
         }
 
         static List<AppDto> OrderApps(List<AppDto> apps, DockerUiSettings? settings)

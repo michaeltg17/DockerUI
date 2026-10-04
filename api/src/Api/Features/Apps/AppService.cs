@@ -21,7 +21,28 @@ namespace Api.Features.Apps
         {
             var settings = CurrentSettings;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
-            return AppCatalog.BuildApps(snapshots, iconCatalog, ResolveBaseUrl(settings), settings);
+            return AppCatalog.BuildApps(snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
+        }
+
+        /// <summary>
+        /// The compose project this dashboard itself runs in, so it can be hidden by
+        /// default. A container's hostname is its short container ID, so the dashboard
+        /// matches its own hostname against the listed container IDs and reads that
+        /// container's compose project label. Returns null when not running in a container.
+        /// </summary>
+        static string? ResolveSelfProject(IReadOnlyList<ContainerSnapshot> snapshots)
+        {
+            var hostname = Environment.MachineName;
+
+            if (string.IsNullOrWhiteSpace(hostname))
+                return null;
+
+            var self = snapshots.FirstOrDefault(container =>
+                container.Id.StartsWith(hostname, StringComparison.OrdinalIgnoreCase));
+
+            return self is { } && self.Labels.TryGetValue(AppCatalog.ComposeProjectLabel, out var project)
+                ? project
+                : null;
         }
 
         /// <summary>

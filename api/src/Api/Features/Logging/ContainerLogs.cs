@@ -1,7 +1,7 @@
 using Docker.DotNet;
 using Docker.DotNet.Models;
 
-namespace Api.Extensions;
+namespace Api.Features.Logging;
 
 /// <summary>Reads a recent tail of a container's logs through the Docker daemon.</summary>
 public static class ContainerLogs

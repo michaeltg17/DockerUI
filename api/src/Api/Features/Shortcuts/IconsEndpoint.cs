@@ -1,4 +1,4 @@
-using Api.Extensions;
+using Api.Base;
 using Api.Features.Apps.Icons;
 using Api.Settings;
 
@@ -9,7 +9,7 @@ public static class IconsEndpoint
 {
     public static void Map(WebApplication app)
     {
-        app.MapGet($"{EndpointExtensions.BasePath}/icons", (IConfiguration configuration) =>
+        app.MapGet($"{EndpointsMapper.BasePath}/icons", (IConfiguration configuration) =>
         {
             var builtIn = IconMappingLoader.LoadBuiltIn();
             var settings = configuration.GetSection(DockerUISettings.Section).Get<DockerUISettings>();

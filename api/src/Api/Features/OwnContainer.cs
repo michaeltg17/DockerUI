@@ -1,4 +1,4 @@
-namespace Api.Extensions;
+namespace Api.Features;
 
 /// <summary>
 /// Locates the container this dashboard process is running in. A container's hostname

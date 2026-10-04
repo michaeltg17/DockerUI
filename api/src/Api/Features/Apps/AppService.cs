@@ -3,10 +3,10 @@ using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
 using Api.Features.Shortcuts;
-using Api.Extensions;
 using Api.Settings;
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using Api.Features.Logging;
 
 namespace Api.Features.Apps
 {

@@ -5,9 +5,9 @@ using Api.Features.Logging;
 using Api.Features.Meta;
 using Api.Features.Shortcuts;
 
-namespace Api.Extensions;
+namespace Api.Base;
 
-public static class EndpointExtensions
+public static class EndpointsMapper
 {
     public const string BasePath = "api";
     public const string AppsPath = $"{BasePath}/apps";

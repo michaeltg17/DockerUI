@@ -1,4 +1,4 @@
-using Api.Extensions;
+using Api.Base;
 using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;

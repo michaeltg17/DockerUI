@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Text.Json;
 using Api.Exceptions;
+using Api.Extensions;
+using Api.Base;
 
-namespace Api.Extensions
+namespace Api.Base
 {
-    internal static class ExceptionHandlerExtensions
+    internal static class ExceptionHandlerConfigurator
     {
         public static WebApplication UseExceptionHandler(this WebApplication app)
         {

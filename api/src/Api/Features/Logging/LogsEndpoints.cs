@@ -1,5 +1,4 @@
 using Api.Exceptions;
-using Api.Extensions;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 

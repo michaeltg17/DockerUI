@@ -2,6 +2,7 @@ using System.Text;
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
+using Api.Features.Shortcuts;
 using Api.Extensions;
 using Api.Settings;
 using Docker.DotNet;
@@ -14,8 +15,9 @@ namespace Api.Features.Apps
         IContainerOperations containers,
         IAppIconCatalog iconCatalog,
         IConfiguration configuration,
-        AppBaseUrlTracker baseUrlTracker,
-        IHttpContextAccessor httpContextAccessor)
+    AppBaseUrlTracker baseUrlTracker,
+    IHttpContextAccessor httpContextAccessor,
+    ShortcutStore shortcutStore)
     {
         const uint StopGracePeriodSeconds = 10;
 
@@ -23,7 +25,37 @@ namespace Api.Features.Apps
         {
             var settings = CurrentSettings;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
-            return AppCatalog.BuildApps(snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
+            var apps = AppCatalog
+                .BuildApps(snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots))
+                .ToList();
+
+            apps.AddRange(BuildShortcutApps());
+
+            return apps;
+        }
+
+        /// <summary>User-defined shortcuts, surfaced as always-available apps after the docker stacks.</summary>
+        List<AppDto> BuildShortcutApps()
+        {
+            var apps = new List<AppDto>();
+
+            foreach (var shortcut in shortcutStore.Load())
+            {
+                if (!Uri.TryCreate(shortcut.Url, UriKind.Absolute, out var url))
+                    continue;
+
+                apps.Add(new AppDto(
+                    shortcut.Name,
+                    string.IsNullOrWhiteSpace(shortcut.Icon) ? null : shortcut.Icon,
+                    AppState.Running,
+                    url,
+                    [])
+                {
+                    IsShortcut = true,
+                });
+            }
+
+            return apps;
         }
 
         /// <summary>

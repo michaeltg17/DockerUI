@@ -3,6 +3,7 @@ using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
 using Api.Features.Health;
+using Api.Features.Shortcuts;
 using Api.Settings;
 using Docker.DotNet;
 using Microsoft.AspNetCore.SignalR;
@@ -96,6 +97,7 @@ namespace Api
             //Live icon mappings come from 'DockerUI:Icons' and are merged per request in AppCatalog;
             //only the built-in catalog (embedded in the assembly) is registered here.
             services.AddSingleton<IAppIconCatalog>(new AppIconCatalog(IconMappingLoader.LoadBuiltIn()));
+            services.AddSingleton<ShortcutStore>();
 
             services.AddSingleton<AppBaseUrlTracker>();
             services.AddSingleton<AppService>();

@@ -12,7 +12,11 @@ namespace Api.Features.Apps.Models
         string? Icon,
         AppState State,
         Uri? Url,
-        IReadOnlyList<AppServiceDto> Services);
+        IReadOnlyList<AppServiceDto> Services)
+    {
+        /// <summary>True for user-defined shortcuts (no containers); false for docker apps.</summary>
+        public bool IsShortcut { get; init; }
+    }
 
     public sealed record AppServiceDto(
         string Name,

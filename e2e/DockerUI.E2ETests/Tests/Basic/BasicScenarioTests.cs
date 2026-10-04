@@ -411,6 +411,123 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         context.Pages.Count.Should().Be(1, "because the app has no url to open");
     }
 
+    [Fact]
+    public async Task Add_shortcut_shows_it_as_a_card()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+        await apps.AddButton.WaitForAsync();
+
+        const string name = "E2E Alpha";
+        await apps.CreateShortcutAsync(name, "https://example.com/alpha");
+        await apps.WaitForAppAsync(name);
+
+        (await apps.CardInState(name, AppsPage.RunningState).CountAsync())
+            .Should().Be(1, "because a shortcut has no containers and always reads as running");
+
+        await apps.DeleteShortcutAsync(name);
+    }
+
+    [Fact]
+    public async Task Edit_shortcut_updates_its_url()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Beta";
+        await apps.CreateShortcutAsync(name, "https://example.com/beta-1");
+        await apps.WaitForAppAsync(name);
+
+        var menu = await apps.OpenCardMenuAsync(name);
+        await AppsPage.MenuItem(menu, "Edit").ClickAsync();
+
+        var dialog = apps.ShortcutDialog($"Edit {name}");
+        await dialog.WaitForAsync();
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("https://example.com/beta-2");
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Save", Exact = true })
+            .ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        var updated = await GetShortcutAsync(name, TestContext.Current.CancellationToken);
+        updated.GetProperty("url").GetString().Should().Be("https://example.com/beta-2", "because the edit saved the new url");
+
+        await apps.DeleteShortcutAsync(name);
+    }
+
+    [Fact]
+    public async Task Delete_shortcut_removes_its_card()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Gamma";
+        await apps.CreateShortcutAsync(name, "https://example.com/gamma");
+        await apps.WaitForAppAsync(name);
+
+        await apps.DeleteShortcutAsync(name);
+        (await apps.Card(name).CountAsync()).Should().Be(0, "because the shortcut was deleted");
+    }
+
+    [Fact]
+    public async Task Shortcut_icon_and_none_render_differently()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        using var client = new HttpClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var iconsJson = await client.GetStringAsync(new Uri(environment.BaseUrl, "api/icons"), cancellationToken);
+        using var iconsDocument = System.Text.Json.JsonDocument.Parse(iconsJson);
+        var iconPath = iconsDocument.RootElement
+            .EnumerateArray()
+            .Select(element => element.GetString())
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        iconPath.Should().NotBeNull("because the dashboard ships built-in app icons");
+
+        const string withIcon = "E2E Delta";
+        await apps.CreateShortcutAsync(withIcon, "https://example.com/delta", icon: iconPath);
+        await apps.WaitForAppAsync(withIcon);
+        (await apps.CardIconImage(withIcon).CountAsync())
+            .Should().Be(1, "because the shortcut selected an icon");
+
+        const string withoutIcon = "E2E Epsilon";
+        await apps.CreateShortcutAsync(withoutIcon, "https://example.com/epsilon");
+        await apps.WaitForAppAsync(withoutIcon);
+        (await apps.CardIconImage(withoutIcon).CountAsync())
+            .Should().Be(0, "because the shortcut selected no icon, so it falls back to initials");
+
+        await apps.DeleteShortcutAsync(withIcon);
+        await apps.DeleteShortcutAsync(withoutIcon);
+    }
+
+    async Task<System.Text.Json.JsonElement> GetShortcutAsync(string name, CancellationToken cancellationToken)
+    {
+        using var client = new HttpClient();
+        var json = await client.GetStringAsync(new Uri(environment.BaseUrl, "api/shortcuts"), cancellationToken);
+
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+
+        foreach (var element in document.RootElement.EnumerateArray())
+        {
+            if (string.Equals(element.GetProperty("name").GetString(), name, StringComparison.Ordinal))
+                return element.Clone();
+        }
+
+        throw new InvalidOperationException($"Shortcut '{name}' was not returned by the API.");
+    }
+
     static async Task<string> ContainerStartedAtAsync(string containerName, CancellationToken cancellationToken)
     {
         var result = await DockerCli.EnsureSucceededAsync(

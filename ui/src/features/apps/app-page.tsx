@@ -1,4 +1,4 @@
-import { ScrollText, Search, Ship } from 'lucide-react';
+import { Plus, ScrollText, Search, Ship } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
@@ -9,6 +9,7 @@ import { ThemePicker } from '@/components/ui/theme-picker';
 import { getLogs } from './api/get-logs';
 import { AppsGrid } from './components/apps-grid';
 import { LogsDialog } from './components/logs-dialog';
+import { ShortcutDialog } from './components/shortcut-dialog';
 import { filterApps } from './filter-apps';
 import { useApps } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
@@ -19,6 +20,7 @@ export const AppsPage = () => {
   const { data: meta } = useMeta();
   const [query, setQuery] = useState('');
   const [logsOpen, setLogsOpen] = useState(false);
+  const [shortcutOpen, setShortcutOpen] = useState(false);
 
   useAppsHub();
 
@@ -52,6 +54,13 @@ export const AppsPage = () => {
           <div className="flex items-center justify-end gap-3">
             <Button
               variant="outline"
+              onClick={() => setShortcutOpen(true)}
+              icon={<Plus className="size-4" aria-hidden="true" />}
+            >
+              Add
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setLogsOpen(true)}
               icon={<ScrollText className="size-4" aria-hidden="true" />}
             >
@@ -68,6 +77,12 @@ export const AppsPage = () => {
         scope="dashboard"
         fetchLogs={getLogs}
         onClose={() => setLogsOpen(false)}
+      />
+
+      <ShortcutDialog
+        open={shortcutOpen}
+        initial={null}
+        onClose={() => setShortcutOpen(false)}
       />
 
       <main className="mx-auto max-w-7xl px-6 py-8">

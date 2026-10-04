@@ -28,6 +28,12 @@ public sealed class AppsPage(IPage page)
     /// <summary>The header button that opens the dashboard's own logs.</summary>
     public ILocator LogsButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Logs", Exact = true });
 
+    /// <summary>The header button that opens the "Add shortcut" dialog.</summary>
+    public ILocator AddButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Add", Exact = true });
+
+    /// <summary>A shortcut dialog, addressed by its accessible name ('Add shortcut' or 'Edit {name}').</summary>
+    public ILocator ShortcutDialog(string title) => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = title, Exact = true });
+
     /// <summary>A logs dialog, addressed by its accessible name (e.g. 'Docker UI logs' or 'web-stack logs').</summary>
     public ILocator LogsDialog(string title) => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = title, Exact = true });
 
@@ -73,6 +79,43 @@ public sealed class AppsPage(IPage page)
     {
         await Card(appName).ClickAsync(new LocatorClickOptions { Button = MouseButton.Right });
         return Page.GetByRole(AriaRole.Menu, new PageGetByRoleOptions { Name = $"Actions for {appName}", Exact = true });
+    }
+
+    /// <summary>
+    /// Opens the "Add shortcut" dialog, fills in the name and url (and optionally an icon by
+    /// value) and submits. The dialog is expected to close once the create call succeeds.
+    /// </summary>
+#pragma warning disable CA1054 // The url is the value typed into the dialog's URL field, not a Uri to use.
+    public async Task CreateShortcutAsync(string name, string url, string? icon = null, int timeoutMs = StateChangeTimeoutMs)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(url);
+
+        await AddButton.ClickAsync();
+        var dialog = ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = timeoutMs });
+
+        await dialog.GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true }).FillAsync(name);
+        await dialog.GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true }).FillAsync(url);
+
+        if (icon is not null)
+        {
+            await dialog
+                .GetByRole(AriaRole.Combobox, new LocatorGetByRoleOptions { Name = "Icon", Exact = true })
+                .SelectOptionAsync(icon);
+        }
+
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Create", Exact = true }).ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
+    }
+#pragma warning restore CA1054
+
+    /// <summary>Right-clicks a shortcut's card and deletes it, then waits for the card to leave the page.</summary>
+    public async Task DeleteShortcutAsync(string name, int timeoutMs = StateChangeTimeoutMs)
+    {
+        var menu = await OpenCardMenuAsync(name);
+        await MenuItem(menu, "Delete").ClickAsync();
+        await Card(name).WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
     }
 
     public static ILocator MenuItem(ILocator menu, string label)

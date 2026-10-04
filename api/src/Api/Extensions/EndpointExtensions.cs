@@ -1,6 +1,7 @@
 ﻿using Api.Features.Apps.Endpoints;
 using Api.Features.Apps.Hubs;
 using Api.Features.Health;
+using Api.Features.Meta;
 
 namespace Api.Extensions;
 
@@ -13,6 +14,7 @@ public static class EndpointExtensions
     public static WebApplication MapEndpoints(this WebApplication app)
     {
         HealthEndpoints.Map(app);
+        MetaEndpoints.Map(app);
 
         var apps = app.MapGroup(AppsPath);
         GetAppsEndpoint.Map(apps);

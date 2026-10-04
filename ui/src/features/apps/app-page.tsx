@@ -9,9 +9,11 @@ import { AppsGrid } from './components/apps-grid';
 import { filterApps } from './filter-apps';
 import { useApps } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
+import { useMeta } from './hooks/use-meta';
 
 export const AppsPage = () => {
   const { data, isPending, isError, refetch } = useApps();
+  const { data: meta } = useMeta();
   const [query, setQuery] = useState('');
 
   useAppsHub();
@@ -22,7 +24,7 @@ export const AppsPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Docker UI</title>
+        <title>{meta?.name ?? 'Docker UI'}</title>
         <meta name="description" content="Your Docker stacks at a glance" />
       </Helmet>
 

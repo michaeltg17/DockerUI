@@ -73,6 +73,29 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
     }
 
     [Fact]
+    public async Task Custom_name_is_used_as_page_title()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        // The static page title is the default; the custom name only appears once
+        // the app has loaded the configured settings, so poll for it.
+        var title = string.Empty;
+        var deadline = DateTime.UtcNow.AddSeconds(60);
+        while (DateTime.UtcNow < deadline)
+        {
+            title = await apps.Page.TitleAsync();
+            if (title == "Settings Dashboard")
+                break;
+
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+
+        title.Should().Be("Settings Dashboard", "because the scenario configures a custom name");
+    }
+
+    [Fact]
     public async Task Url_override_is_used_when_opening_app()
     {
         await using var context = await browser.NewContextAsync();

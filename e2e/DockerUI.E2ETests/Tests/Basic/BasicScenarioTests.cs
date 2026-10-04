@@ -24,6 +24,17 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Default_page_title_is_used_when_no_name_is_configured()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        (await apps.Page.TitleAsync()).Should().Be("Docker UI", "because the scenario configures no custom name");
+    }
+
+    [Fact]
     public async Task Theme_selection_applies_and_persists_across_reload()
     {
         await using var context = await browser.NewContextAsync();

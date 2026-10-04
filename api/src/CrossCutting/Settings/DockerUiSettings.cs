@@ -13,6 +13,12 @@ namespace CrossCutting.Settings
         public required int PollIntervalSeconds { get; set; }
 
         /// <summary>
+        /// Custom dashboard name shown as the page title, e.g. 'Home Server'.
+        /// When unset, 'Docker UI' is used.
+        /// </summary>
+        public string? Name { get; set; }
+
+        /// <summary>
         /// Base URL (scheme + host) used to resolve app URLs, e.g.
         /// 'http://192.168.1.46:5000'. Wins over auto-detection from the
         /// client request. When unset, the host of the most recent client

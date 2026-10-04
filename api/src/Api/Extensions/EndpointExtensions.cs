@@ -23,6 +23,7 @@ public static class EndpointExtensions
         StartAppEndpoint.Map(apps);
         StopAppEndpoint.Map(apps);
         RestartAppEndpoint.Map(apps);
+        GetAppLogsEndpoint.Map(apps);
 
         app.MapHub<AppAppsHub>(AppsHubPath);
 

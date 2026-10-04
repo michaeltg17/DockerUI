@@ -4,10 +4,14 @@ import { createPortal } from 'react-dom';
 
 import { Spinner } from '@/components/ui/spinner';
 
+import type { Logs } from '../api/get-logs';
 import { useLogs } from '../hooks/use-logs';
 
 type LogsDialogProps = {
   open: boolean;
+  title: string;
+  scope: string;
+  fetchLogs: () => Promise<Logs>;
   onClose: () => void;
 };
 
@@ -21,8 +25,18 @@ function extractErrorMessage(error: unknown): string {
     : 'Could not load logs.';
 }
 
-export const LogsDialog = ({ open, onClose }: LogsDialogProps) => {
-  const { data, isPending, isError, error, refetch } = useLogs(open);
+export const LogsDialog = ({
+  open,
+  title,
+  scope,
+  fetchLogs,
+  onClose,
+}: LogsDialogProps) => {
+  const { data, isPending, isError, error, refetch } = useLogs(
+    open,
+    scope,
+    fetchLogs,
+  );
 
   useEffect(() => {
     if (!open) return undefined;
@@ -48,11 +62,11 @@ export const LogsDialog = ({ open, onClose }: LogsDialogProps) => {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Docker UI logs"
+        aria-label={title}
         className="flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-border bg-background shadow-lg"
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold">Docker UI logs</h2>
+          <h2 className="text-sm font-semibold">{title}</h2>
           <button
             type="button"
             onClick={onClose}

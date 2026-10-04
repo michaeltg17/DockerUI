@@ -1,3 +1,4 @@
+using System.Text;
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
@@ -86,6 +87,30 @@ namespace Api.Features.Apps
             }
 
             return await GetAppAsync(appName, cancellationToken);
+        }
+
+        /// <summary>The recent logs of every container in the given app, headed by a per-container name.</summary>
+        public async Task<string> GetAppLogsAsync(string appName, CancellationToken cancellationToken = default)
+        {
+            var targets = await ResolveAppContainersAsync(appName, cancellationToken);
+            var logs = new StringBuilder();
+
+            try
+            {
+                foreach (var container in targets)
+                {
+                    var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, container.Id, cancellationToken);
+                    logs.AppendLine("=== " + container.Name + " ===");
+                    logs.Append(stdout).AppendLine().Append(stderr);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                throw new DockerUiException(
+                    "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
+            }
+
+            return logs.ToString().TrimEnd();
         }
 
         async Task<AppDto> GetAppAsync(string appName, CancellationToken cancellationToken)

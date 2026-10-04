@@ -6,3 +6,8 @@ export type Logs = {
 };
 
 export const getLogs = () => http.get<Logs>('/logs');
+
+export const getAppLogs = (name: string) =>
+  http
+    .get<{ logs: string }>(`/apps/${encodeURIComponent(name)}/logs`)
+    .then((result) => ({ available: true, logs: result.logs }));

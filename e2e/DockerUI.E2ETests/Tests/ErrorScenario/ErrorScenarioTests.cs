@@ -34,9 +34,10 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
         await apps.LogsButton.ClickAsync();
-        await apps.LogsDialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        var dialog = apps.LogsDialog("Docker UI logs");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-        await apps.LogsDialog
+        await dialog
             .GetByText("Could not reach the Docker daemon")
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
     }

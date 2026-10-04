@@ -9,8 +9,6 @@ namespace Api.Features.Logging
     {
         public const string Path = "api/logs";
 
-        const string LogTailLines = "500";
-
         public static void Map(IEndpointRouteBuilder app)
         {
             app.MapGet(Path, async (IContainerOperations containers, CancellationToken cancellationToken) =>
@@ -23,19 +21,7 @@ namespace Api.Features.Logging
                     if (selfId is null)
                         return Results.Ok(new LogDto(false, string.Empty));
 
-                    //The dashboard runs without a TTY, so its output stream is multiplexed.
-                    using var logs = await containers.GetContainerLogsAsync(
-                        selfId,
-                        false,
-                        new ContainerLogsParameters
-                        {
-                            ShowStdout = true,
-                            ShowStderr = true,
-                            Tail = LogTailLines,
-                        },
-                        cancellationToken);
-
-                    var (stdout, stderr) = await logs.ReadOutputToEndAsync(cancellationToken);
+                    var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, selfId, cancellationToken);
                     return Results.Ok(new LogDto(true, (stdout + stderr).TrimEnd()));
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)

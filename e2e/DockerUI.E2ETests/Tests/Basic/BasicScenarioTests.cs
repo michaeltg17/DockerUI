@@ -44,12 +44,36 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LogsButton.WaitForAsync();
 
         await apps.LogsButton.ClickAsync();
-        await apps.LogsDialog.WaitForAsync();
+        var dialog = apps.LogsDialog("Docker UI logs");
+        await dialog.WaitForAsync();
 
         // The ASP.NET Core host always logs its listen address at startup, so the dialog
         // must show the dashboard's real container logs.
-        await apps.LogsDialog
+        await dialog
             .GetByText("Now listening on")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
+    public async Task Context_menu_shows_the_stack_logs()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        var menu = await apps.OpenCardMenuAsync("web-stack");
+        await AppsPage.MenuItem(menu, "View logs").ClickAsync();
+
+        var dialog = apps.LogsDialog("web-stack logs");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // web-stack runs two containers; each container's section is headed by its container name.
+        await dialog
+            .GetByText("web-stack-nginx-1")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        await dialog
+            .GetByText("web-stack-redis-1")
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
     }
 

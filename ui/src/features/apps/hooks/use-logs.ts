@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { getLogs } from '../api/get-logs';
+import type { Logs } from '../api/get-logs';
 
-export const LOGS_QUERY_KEY = ['logs'] as const;
-
-export const useLogs = (enabled: boolean) =>
+export const useLogs = (
+  enabled: boolean,
+  scope: string,
+  fetchLogs: () => Promise<Logs>,
+) =>
   useQuery({
-    queryKey: LOGS_QUERY_KEY,
-    queryFn: getLogs,
+    queryKey: ['logs', scope],
+    queryFn: fetchLogs,
     enabled,
     staleTime: 0,
   });

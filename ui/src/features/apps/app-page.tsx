@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { ThemePicker } from '@/components/ui/theme-picker';
 
+import { getLogs } from './api/get-logs';
 import { AppsGrid } from './components/apps-grid';
 import { LogsDialog } from './components/logs-dialog';
 import { filterApps } from './filter-apps';
@@ -58,7 +59,13 @@ export const AppsPage = () => {
         </div>
       </header>
 
-      <LogsDialog open={logsOpen} onClose={() => setLogsOpen(false)} />
+      <LogsDialog
+        open={logsOpen}
+        title="Docker UI logs"
+        scope="dashboard"
+        fetchLogs={getLogs}
+        onClose={() => setLogsOpen(false)}
+      />
 
       <main className="mx-auto max-w-7xl px-6 py-8">
         {isPending ? (

@@ -27,8 +27,8 @@ public sealed class AppsPage(IPage page)
     /// <summary>The header button that opens the dashboard's own logs.</summary>
     public ILocator LogsButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Logs", Exact = true });
 
-    /// <summary>The dashboard logs dialog, opened by the Logs button.</summary>
-    public ILocator LogsDialog => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Docker UI logs", Exact = true });
+    /// <summary>A logs dialog, addressed by its accessible name (e.g. 'Docker UI logs' or 'web-stack logs').</summary>
+    public ILocator LogsDialog(string title) => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = title, Exact = true });
 
     public ILocator RetryButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Retry", Exact = true });
 

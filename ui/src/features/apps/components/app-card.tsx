@@ -9,22 +9,10 @@ import { cn } from '@/utils/cn';
 
 import { getAppLogs } from '../api/get-logs';
 import { useRestartApp, useStartApp, useStopApp } from '../hooks/use-apps';
-import type { App, AppState } from '../types';
+import type { App } from '../types';
 
 import { AppIcon } from './app-icon';
 import { LogsDialog } from './logs-dialog';
-
-const stateDotStyles: Record<AppState, string> = {
-  running: 'bg-emerald-500',
-  partial: 'bg-amber-500',
-  stopped: 'bg-slate-400',
-};
-
-const stateLabels: Record<AppState, string> = {
-  running: 'Running',
-  partial: 'Partially running',
-  stopped: 'Stopped',
-};
 
 type AppCardProps = {
   app: App;
@@ -90,6 +78,7 @@ export const AppCard = ({ app }: AppCardProps) => {
         <button
           type="button"
           onClick={openApp}
+          data-state={app.state}
           className="group flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="relative">
@@ -135,13 +124,6 @@ export const AppCard = ({ app }: AppCardProps) => {
                 <span className="block h-full w-1/3 animate-progress-slide rounded-full bg-sky-500" />
               </span>
             )}
-            <span
-              className={cn(
-                'absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-background',
-                stateDotStyles[app.state],
-              )}
-              title={stateLabels[app.state]}
-            />
           </div>
 
           <h3

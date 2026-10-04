@@ -12,11 +12,11 @@ public sealed class AppsPage(IPage page)
     /// <summary>Timeout for waiting on app state changes driven by start/stop/restart.</summary>
     public const int StateChangeTimeoutMs = 90_000;
 
-    public const string RunningState = "Running";
+    public const string RunningState = "running";
 
-    public const string PartialState = "Partially running";
+    public const string PartialState = "partial";
 
-    public const string StoppedState = "Stopped";
+    public const string StoppedState = "stopped";
 
     public IPage Page { get; } = page;
 
@@ -41,8 +41,8 @@ public sealed class AppsPage(IPage page)
     /// <summary>The card (button) of the given app, addressed via the h3 title attribute.</summary>
     public ILocator Card(string appName) => Page.Locator($"h3[title='{appName}']").Locator("xpath=..");
 
-    /// <summary>The state dot of the given app's card; visible only while the app is in that state.</summary>
-    public ILocator CardStateDot(string appName, string state) => Card(appName).Locator($"span[title='{state}']");
+    /// <summary>The given app's card, matched only while the card's data-state attribute equals the given state.</summary>
+    public ILocator CardInState(string appName, string state) => Page.Locator($"h3[title='{appName}']").Locator($"xpath=parent::button[@data-state='{state}']");
 
     /// <summary>The app card icon image (absent when the app falls back to its initials).</summary>
     public ILocator CardIconImage(string appName) => Card(appName).Locator("img");
@@ -66,9 +66,9 @@ public sealed class AppsPage(IPage page)
     public async Task WaitForAppAsync(string appName, int timeoutMs = 60_000)
         => await Card(appName).WaitForAsync(new LocatorWaitForOptions { Timeout = timeoutMs, State = WaitForSelectorState.Visible });
 
-    /// <summary>Waits until the given app's card shows the given state.</summary>
+    /// <summary>Waits until the given app's card is in the given state.</summary>
     public async Task WaitForStateAsync(string appName, string state, int timeoutMs = StateChangeTimeoutMs)
-        => await CardStateDot(appName, state).WaitForAsync(new LocatorWaitForOptions { Timeout = timeoutMs, State = WaitForSelectorState.Visible });
+        => await CardInState(appName, state).WaitForAsync(new LocatorWaitForOptions { Timeout = timeoutMs, State = WaitForSelectorState.Visible });
 
     /// <summary>Right-clicks the given app's card and returns the context menu.</summary>
     public async Task<ILocator> OpenCardMenuAsync(string appName)

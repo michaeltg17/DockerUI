@@ -321,7 +321,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             }
 
             if (stoppedAt == DateTime.MinValue &&
-                (await apps.CardStateDot("solo-stack", AppsPage.StoppedState).CountAsync()) > 0)
+                (await apps.CardInState("solo-stack", AppsPage.StoppedState).CountAsync()) > 0)
             {
                 stoppedAt = DateTime.UtcNow;
             }

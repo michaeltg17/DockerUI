@@ -7,7 +7,7 @@ echo "========================================="
 
 echo
 echo "API: building (Release)."
-dotnet build DockerUI.slnx --configuration Release
+dotnet build api/DockerUI.slnx --configuration Release
 echo "API build passed"
 
 echo

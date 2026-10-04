@@ -12,8 +12,8 @@ public static class Paths
     public static string E2eDirectory { get; } = FindDirectoryContaining("scenarios")
         ?? throw new InvalidOperationException("Could not locate the e2e directory (no 'scenarios' folder found).");
 
-    public static string RepoRoot { get; } = FindDirectoryContaining("DockerUI.slnx")
-        ?? throw new InvalidOperationException("Could not locate the repository root (no 'DockerUI.slnx' found).");
+    public static string RepoRoot { get; } = FindDirectoryContaining("Dockerfile")
+        ?? throw new InvalidOperationException("Could not locate the repository root (no 'Dockerfile' found).");
 
     /// <summary>Joins segments under the e2e directory and resolves to an absolute path.</summary>
     public static string CombineE2e(params string[] segments) => Path.GetFullPath(Path.Combine([E2eDirectory, .. segments]));

@@ -11,7 +11,7 @@ RUN npm run build
 # ---- Stage 2: build the .NET API --------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api-build
 WORKDIR /src
-COPY Directory.Build.props Directory.Packages.props global.json ./
+COPY api/Directory.Build.props api/Directory.Packages.props api/global.json api/
 COPY api/src/Api/Api.csproj api/src/Api/
 COPY api/src/Core/Core.csproj api/src/Core/
 RUN dotnet restore api/src/Api/Api.csproj

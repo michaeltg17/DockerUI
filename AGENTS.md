@@ -7,6 +7,9 @@ through its socket.
 
 ## Layout
 
+- `api/` — the .NET solution (`DockerUI.slnx`) and its build/SDK config
+  (`Directory.Build.props`, `Directory.Packages.props`, `global.json`);
+  projects live under `api/src/`.
 - `api/src/Api` — ASP.NET Core minimal API. Feature-based: `Features/Apps`
   (endpoints, `AppService`, `AppCatalog`, SignalR hub, background monitor),
   `Features/Health`. `Settings/` holds `DockerUISettings` (all settings, bound
@@ -27,8 +30,9 @@ through its socket.
 
 ## Conventions
 
-- Central package management: add package versions in
-  `Directory.Packages.props` (root), references in csproj files.
+- Central package management: add package versions in the solution's
+  `Directory.Packages.props` (`api/` for the API, `e2e/` for tests),
+  references in csproj files.
 - C# style: file-scoped namespaces, primary constructors, expression bodies
   where short. Analysis rules are enforced (`AnalysisMode=AllEnabledByDefault`),
   keep the build warning-free when practical.

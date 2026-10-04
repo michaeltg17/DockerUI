@@ -186,15 +186,16 @@ every connected client whenever the daemon state changes.
 ## Repository layout
 
 ```
-├── api/
+├── api/                       # .NET solution + build/SDK config
+│   ├── DockerUI.slnx
+│   ├── Directory.Build.props  # net10.0, central package management, analysis
+│   ├── Directory.Packages.props
+│   ├── global.json
 │   └── src/
 │       ├── Api/               # Minimal API: features, endpoints, settings, hub, DI, Program
 │       └── Core/              # Small shared helpers
 ├── ui/                        # Vite + React SPA (served by the API in prod)
 ├── e2e/                       # xunit v3 + Playwright scenarios (run in CI)
-├── DockerUI.slnx
-├── Directory.Build.props      # net10.0, central package management, analysis
-├── Directory.Packages.props
 ├── Dockerfile                 # Multi-stage: UI build → API publish → runtime
 └── docker-compose.yml
 ```

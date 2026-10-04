@@ -4,7 +4,6 @@ import {
   ContextMenu,
   type ContextMenuItem,
 } from '@/components/ui/context-menu';
-import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/utils/cn';
 
 import { useRestartApp, useStartApp, useStopApp } from '../hooks/use-apps';
@@ -109,15 +108,20 @@ export const AppCard = ({ app }: AppCardProps) => {
               className="absolute inset-0 flex cursor-pointer items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
             >
               <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40">
-                {startApp.isPending ? (
-                  <Spinner size="sm" variant="light" />
-                ) : (
-                  <Play
-                    className="size-4 fill-white text-white"
-                    aria-hidden="true"
-                  />
-                )}
+                <Play
+                  className="size-4 fill-white text-white"
+                  aria-hidden="true"
+                />
               </span>
+            </span>
+          )}
+          {isBusy && (
+            <span
+              role="progressbar"
+              aria-label={`Updating ${app.name}`}
+              className="absolute inset-x-3 bottom-2 h-1 overflow-hidden rounded-full bg-slate-900/30"
+            >
+              <span className="block h-full w-1/3 animate-progress-slide rounded-full bg-sky-500" />
             </span>
           )}
           <span

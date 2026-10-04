@@ -188,6 +188,57 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Progress_bar_shows_while_stopping_app()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
+
+        var menu = await apps.OpenCardMenuAsync("solo-stack");
+        await AppsPage.MenuItem(menu, "Stop").ClickAsync();
+
+        // The progress bar is only rendered while the stop call is in flight. The
+        // dashboard state flips on a broadcast that the server sends before it answers
+        // the call, so once the app shows as stopped, allow a grace period for the
+        // in-flight call (and the bar) to finish.
+        var barSeen = false;
+        var deadline = DateTime.UtcNow.AddSeconds(AppsPage.StateChangeTimeoutMs / 1000);
+        var stoppedAt = DateTime.MinValue;
+        while (DateTime.UtcNow < deadline)
+        {
+            if ((await apps.CardProgressBar("solo-stack").CountAsync()) > 0)
+            {
+                barSeen = true;
+                break;
+            }
+
+            if (stoppedAt == DateTime.MinValue &&
+                (await apps.CardStateDot("solo-stack", AppsPage.StoppedState).CountAsync()) > 0)
+            {
+                stoppedAt = DateTime.UtcNow;
+            }
+
+            if (stoppedAt != DateTime.MinValue &&
+                DateTime.UtcNow - stoppedAt > TimeSpan.FromSeconds(5))
+            {
+                break;
+            }
+
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+        }
+
+        barSeen.Should().BeTrue("because the app icon shows a progress bar while the app stops");
+        await apps.WaitForStateAsync("solo-stack", AppsPage.StoppedState);
+
+        // Start the app again so tests that expect its initial (running) state pass
+        // regardless of execution order.
+        menu = await apps.OpenCardMenuAsync("solo-stack");
+        await AppsPage.MenuItem(menu, "Start").ClickAsync();
+        await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
+    }
+
+    [Fact]
     public async Task Hovering_stopped_app_shows_play_overlay_that_starts_it()
     {
         await using var context = await browser.NewContextAsync();

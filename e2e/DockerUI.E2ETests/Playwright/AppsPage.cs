@@ -41,6 +41,9 @@ public sealed class AppsPage(IPage page)
     /// <summary>The play overlay that appears when a stopped app's card is hovered.</summary>
     public ILocator CardPlayOverlay(string appName) => Card(appName).GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = $"Start {appName}", Exact = true });
 
+    /// <summary>The progress bar inside the app icon; present only while a start/stop/restart is in flight.</summary>
+    public ILocator CardProgressBar(string appName) => Card(appName).GetByRole(AriaRole.Progressbar, new LocatorGetByRoleOptions { Name = $"Updating {appName}", Exact = true });
+
     public ILocator NoMatchesMessage(string query) => Page.GetByText($"No apps match \u201C{query}\u201D.");
 
     /// <summary>Navigates to the dashboard. Callers then wait for the specific content they need.</summary>

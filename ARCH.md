@@ -48,10 +48,10 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
   mapping exceptions to RFC 9457 problem details:
   `DockerUIException` → 503, `NotFoundException` → 404,
   `BadHttpRequestException` → 400, else 500.
-
-## api/src/Core
-
-- `Core` — small pure helpers (e.g. `string.JoinNonEmpty`).
+- **Extensions/StringExtensions** and **Extensions/TypeExtensions** — small
+  pure helpers (e.g. `string.JoinNonEmpty`, `Type.GetNameWithoutGenericArity`).
+- **Builders/** — a small generic builder hierarchy (`IBuilder<T>`,
+  `Builder<T>`, `BuilderWithValues<TBuilder,T>`, `BuilderWithInstance<TBuilder,T>`).
 
 Settings (`DockerUISettings` and its validator, plus `AppUserSettings` /
 `AppIconMapping`) live in the API project's `Settings/` folder, bound from the

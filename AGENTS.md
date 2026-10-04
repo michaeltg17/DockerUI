@@ -17,7 +17,6 @@ through its socket.
   configuration when a settings file changes) and its startup validator.
   `DependencyConfigurator` composes DI; `Configure()` adds the exception
   handler, static files, and the SPA fallback.
-- `api/src/Core` — tiny shared helpers (string/type extensions).
 - `ui/` — Vite + React SPA. `src/features/apps` holds the single feature
   (types, api, hooks, components); `src/app` is the shell; `src/components/ui`
   is the shared UI kit (button, spinner, notifications).

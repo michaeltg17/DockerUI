@@ -1,6 +1,6 @@
-﻿namespace Core.Builders
+﻿namespace Api.Builders
 {
-    public abstract class BuilderWithValues<TBuilder, TEntity> : Builder<TEntity>
+    public abstract class BuilderWithValues<TBuilder, TEntity> : BaseBuilder<TEntity>
         where TBuilder : BuilderWithValues<TBuilder, TEntity>
     {
         public TBuilder WithValues(Action<TEntity> action)

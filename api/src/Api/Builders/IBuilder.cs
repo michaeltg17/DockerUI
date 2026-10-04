@@ -1,4 +1,4 @@
-﻿namespace Core.Builders
+﻿namespace Api.Builders
 {
     public interface IBuilder<T>
     {

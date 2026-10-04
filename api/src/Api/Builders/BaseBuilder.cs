@@ -1,6 +1,6 @@
-﻿namespace Core.Builders
+﻿namespace Api.Builders
 {
-    public abstract class Builder<T> : IBuilder<T>
+    public abstract class BaseBuilder<T> : IBuilder<T>
     {
         protected abstract T Item { get; set; }
 

@@ -192,8 +192,7 @@ every connected client whenever the daemon state changes.
 │   ├── Directory.Packages.props
 │   ├── global.json
 │   └── src/
-│       ├── Api/               # Minimal API: features, endpoints, settings, hub, DI, Program
-│       └── Core/              # Small shared helpers
+│       └── Api/               # Minimal API: features, endpoints, settings, hub, DI, Program, shared helpers
 ├── ui/                        # Vite + React SPA (served by the API in prod)
 ├── e2e/                       # xunit v3 + Playwright scenarios (run in CI)
 ├── Dockerfile                 # Multi-stage: UI build → API publish → runtime

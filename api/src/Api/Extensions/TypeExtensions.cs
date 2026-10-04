@@ -1,4 +1,4 @@
-﻿namespace Core.Extensions
+﻿namespace Api.Extensions
 {
     public static class TypeExtensions
     {

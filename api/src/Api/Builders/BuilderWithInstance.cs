@@ -1,4 +1,4 @@
-﻿namespace Core.Builders
+﻿namespace Api.Builders
 {
     public abstract class BuilderWithInstance<TBuilder, TEntity> : BuilderWithValues<TBuilder, TEntity>
         where TBuilder : BuilderWithInstance<TBuilder, TEntity>

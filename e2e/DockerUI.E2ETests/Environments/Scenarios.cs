@@ -7,7 +7,7 @@ namespace DockerUI.E2ETests.Environments;
 public static class Scenarios
 {
     /// <summary>
-    /// Default settings. Covers every app state (running, partial, stopped), a standalone
+    /// Default settings. Covers every app state (running, stopped), a standalone
     /// container, search, the right-click action menu, state transitions, and opening apps.
     /// </summary>
     public static readonly Scenario Basic = new()

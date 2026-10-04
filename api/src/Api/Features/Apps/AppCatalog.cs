@@ -101,12 +101,9 @@ namespace Api.Features.Apps
                 .OrderBy(service => service.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var runningCount = services.Count(service => service.IsRunning);
-            var state = runningCount == services.Count
+            var state = services.Any(service => service.IsRunning)
                 ? AppState.Running
-                : runningCount == 0
-                    ? AppState.Stopped
-                    : AppState.Partial;
+                : AppState.Stopped;
 
             var perApp = settings?.Apps is { } apps && apps.TryGetValue(name, out var appSettings)
                 ? appSettings

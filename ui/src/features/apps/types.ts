@@ -1,4 +1,4 @@
-export type AppState = 'running' | 'partial' | 'stopped';
+export type AppState = 'running' | 'stopped';
 
 export interface AppService {
   name: string;

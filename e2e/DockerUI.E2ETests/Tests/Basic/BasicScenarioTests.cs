@@ -171,13 +171,14 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
-    public async Task Shows_partially_running_app()
+    public async Task Stack_with_a_stopped_container_shows_as_running()
     {
         await using var context = await browser.NewContextAsync();
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
-        await apps.WaitForStateAsync("partial-stack", AppsPage.PartialState);
+        // partial-stack keeps one of its two containers stopped; the stack still counts as running.
+        await apps.WaitForStateAsync("partial-stack", AppsPage.RunningState);
     }
 
     [Fact]

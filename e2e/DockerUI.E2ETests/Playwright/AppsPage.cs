@@ -14,8 +14,6 @@ public sealed class AppsPage(IPage page)
 
     public const string RunningState = "running";
 
-    public const string PartialState = "partial";
-
     public const string StoppedState = "stopped";
 
     public IPage Page { get; } = page;

@@ -3,7 +3,6 @@ namespace Api.Features.Apps.Models
     public enum AppState
     {
         Running,
-        Partial,
         Stopped
     }
 

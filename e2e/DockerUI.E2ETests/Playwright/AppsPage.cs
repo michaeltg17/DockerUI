@@ -24,6 +24,12 @@ public sealed class AppsPage(IPage page)
 
     public ILocator ThemeSelect => Page.GetByRole(AriaRole.Combobox, new PageGetByRoleOptions { Name = "Theme", Exact = true });
 
+    /// <summary>The header button that opens the dashboard's own logs.</summary>
+    public ILocator LogsButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Logs", Exact = true });
+
+    /// <summary>The dashboard logs dialog, opened by the Logs button.</summary>
+    public ILocator LogsDialog => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Docker UI logs", Exact = true });
+
     public ILocator RetryButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Retry", Exact = true });
 
     // 'paragraph' is not a name-from-content role, so this is addressed by text, not by role + name.

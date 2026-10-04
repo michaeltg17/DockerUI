@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using DockerUI.E2ETests.Environments;
 using DockerUI.E2ETests.Playwright;
+using Microsoft.Playwright;
 using Xunit;
 
 namespace DockerUI.E2ETests.Tests.Basic;
@@ -32,6 +33,24 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForAppAsync("web-stack");
 
         (await apps.Page.TitleAsync()).Should().Be("Docker UI", "because the scenario configures no custom name");
+    }
+
+    [Fact]
+    public async Task Logs_button_shows_the_dashboard_logs()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.LogsButton.WaitForAsync();
+
+        await apps.LogsButton.ClickAsync();
+        await apps.LogsDialog.WaitForAsync();
+
+        // The ASP.NET Core host always logs its listen address at startup, so the dialog
+        // must show the dashboard's real container logs.
+        await apps.LogsDialog
+            .GetByText("Now listening on")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
     }
 
     [Fact]

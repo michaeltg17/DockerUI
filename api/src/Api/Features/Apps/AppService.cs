@@ -1,6 +1,7 @@
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
+using Api.Extensions;
 using CrossCutting.Settings;
 using Docker.DotNet;
 using Docker.DotNet.Models;
@@ -32,13 +33,12 @@ namespace Api.Features.Apps
         /// </summary>
         static string? ResolveSelfProject(IReadOnlyList<ContainerSnapshot> snapshots)
         {
-            var hostname = Environment.MachineName;
+            var selfId = OwnContainer.FindId(snapshots.Select(snapshot => snapshot.Id));
 
-            if (string.IsNullOrWhiteSpace(hostname))
+            if (selfId is null)
                 return null;
 
-            var self = snapshots.FirstOrDefault(container =>
-                container.Id.StartsWith(hostname, StringComparison.OrdinalIgnoreCase));
+            var self = snapshots.FirstOrDefault(snapshot => snapshot.Id == selfId);
 
             return self is { } && self.Labels.TryGetValue(AppCatalog.ComposeProjectLabel, out var project)
                 ? project

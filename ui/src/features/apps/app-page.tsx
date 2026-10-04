@@ -1,11 +1,13 @@
-import { Search, Ship } from 'lucide-react';
+import { ScrollText, Search, Ship } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { ThemePicker } from '@/components/ui/theme-picker';
 
 import { AppsGrid } from './components/apps-grid';
+import { LogsDialog } from './components/logs-dialog';
 import { filterApps } from './filter-apps';
 import { useApps } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
@@ -15,6 +17,7 @@ export const AppsPage = () => {
   const { data, isPending, isError, refetch } = useApps();
   const { data: meta } = useMeta();
   const [query, setQuery] = useState('');
+  const [logsOpen, setLogsOpen] = useState(false);
 
   useAppsHub();
 
@@ -44,9 +47,18 @@ export const AppsPage = () => {
               className="h-9 w-56 rounded-md border border-input bg-background pl-9 pr-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-64"
             />
           </label>
+          <Button
+            variant="outline"
+            onClick={() => setLogsOpen(true)}
+            icon={<ScrollText className="size-4" aria-hidden="true" />}
+          >
+            Logs
+          </Button>
           <ThemePicker />
         </div>
       </header>
+
+      <LogsDialog open={logsOpen} onClose={() => setLogsOpen(false)} />
 
       <main className="mx-auto max-w-7xl px-6 py-8">
         {isPending ? (

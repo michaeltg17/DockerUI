@@ -26,6 +26,22 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Logs_dialog_shows_error_when_daemon_unreachable()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await apps.LogsButton.ClickAsync();
+        await apps.LogsDialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await apps.LogsDialog
+            .GetByText("Could not reach the Docker daemon")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
     public async Task Retry_refetches_and_stays_in_error_state()
     {
         await using var context = await browser.NewContextAsync();

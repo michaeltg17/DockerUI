@@ -24,6 +24,9 @@ public sealed class AppsPage(IPage page)
 
     public ILocator ThemeSelect => Page.GetByRole(AriaRole.Combobox, new PageGetByRoleOptions { Name = "Theme", Exact = true });
 
+    /// <summary>The SVG favicon link in the page head (the dashboard's logo).</summary>
+    public ILocator FaviconLink => Page.Locator("link[rel='icon'][type='image/svg+xml']");
+
     /// <summary>The header button that opens the dashboard's own logs.</summary>
     public ILocator LogsButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Logs", Exact = true });
 

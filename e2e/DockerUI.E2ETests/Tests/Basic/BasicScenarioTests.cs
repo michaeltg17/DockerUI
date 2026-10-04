@@ -15,6 +15,22 @@ namespace DockerUI.E2ETests.Tests.Basic;
 public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixture browser) : IClassFixture<BasicEnvironment>
 {
     [Fact]
+    public async Task Uses_the_logo_as_favicon()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        (await apps.FaviconLink.CountAsync()).Should().Be(1, "because the dashboard declares its logo as the favicon");
+        (await apps.FaviconLink.GetAttributeAsync("href")).Should().Be("/favicon.svg");
+
+        using var client = new HttpClient();
+        using var response = await client.GetAsync(new Uri(environment.BaseUrl, "favicon.svg"));
+        response.IsSuccessStatusCode.Should().BeTrue("because the favicon is served by the dashboard");
+        (await response.Content.ReadAsStringAsync()).Should().StartWith("<svg");
+    }
+
+    [Fact]
     public async Task Shows_search_box()
     {
         await using var context = await browser.NewContextAsync();

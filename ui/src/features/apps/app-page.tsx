@@ -33,7 +33,8 @@ export const AppsPage = () => {
       </Helmet>
 
       <header className="border-b border-border bg-header text-header-foreground">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-6 py-4">
+        <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-6 py-4">
+          <div aria-hidden="true" />
           <label className="relative block">
             <span className="sr-only">Search apps</span>
             <Search
@@ -48,14 +49,16 @@ export const AppsPage = () => {
               className="h-9 w-56 rounded-md border border-input bg-background pl-9 pr-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-64"
             />
           </label>
-          <Button
-            variant="outline"
-            onClick={() => setLogsOpen(true)}
-            icon={<ScrollText className="size-4" aria-hidden="true" />}
-          >
-            Logs
-          </Button>
-          <ThemePicker />
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setLogsOpen(true)}
+              icon={<ScrollText className="size-4" aria-hidden="true" />}
+            >
+              Logs
+            </Button>
+            <ThemePicker />
+          </div>
         </div>
       </header>
 

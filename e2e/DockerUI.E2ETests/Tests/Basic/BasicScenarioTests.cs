@@ -25,9 +25,13 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         (await apps.FaviconLink.GetAttributeAsync("href")).Should().Be("/favicon.svg");
 
         using var client = new HttpClient();
-        using var response = await client.GetAsync(new Uri(environment.BaseUrl, "favicon.svg"));
+        using var response = await client.GetAsync(
+            new Uri(environment.BaseUrl, "favicon.svg"),
+            TestContext.Current.CancellationToken);
         response.IsSuccessStatusCode.Should().BeTrue("because the favicon is served by the dashboard");
-        (await response.Content.ReadAsStringAsync()).Should().StartWith("<svg");
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .Should()
+            .StartWith("<svg");
     }
 
     [Fact]
@@ -38,6 +42,26 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
 
         await apps.SearchBox.WaitForAsync();
+    }
+
+    [Fact]
+    public async Task Search_bar_is_centered_in_the_header()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.SearchBox.WaitForAsync();
+
+        var box = await apps.SearchBox.BoundingBoxAsync()
+            ?? throw new InvalidOperationException("The search box has no bounding box.");
+
+        var viewportWidth = await apps.Page.EvaluateAsync<int>("() => window.innerWidth");
+        double searchCenter = box.X + (box.Width / 2.0);
+        double expectedCenter = viewportWidth / 2.0;
+
+        searchCenter
+            .Should()
+            .BeApproximately(expectedCenter, 4, "because the search bar is centered in the header");
     }
 
     [Fact]

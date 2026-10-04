@@ -24,6 +24,22 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Theme_selection_applies_and_persists_across_reload()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.ThemeSelect.WaitForAsync();
+
+        await apps.ThemeSelect.SelectOptionAsync("docker");
+        (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
+
+        await apps.Page.ReloadAsync();
+        await apps.ThemeSelect.WaitForAsync();
+        (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
     public async Task Shows_running_apps_with_running_state()
     {
         await using var context = await browser.NewContextAsync();

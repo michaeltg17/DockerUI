@@ -22,6 +22,8 @@ public sealed class AppsPage(IPage page)
 
     public ILocator SearchBox => Page.GetByRole(AriaRole.Searchbox, new PageGetByRoleOptions { Name = "Search apps", Exact = true });
 
+    public ILocator ThemeSelect => Page.GetByRole(AriaRole.Combobox, new PageGetByRoleOptions { Name = "Theme", Exact = true });
+
     public ILocator RetryButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Retry", Exact = true });
 
     // 'paragraph' is not a name-from-content role, so this is addressed by text, not by role + name.

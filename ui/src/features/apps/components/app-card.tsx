@@ -79,7 +79,7 @@ export const AppCard = ({ app }: AppCardProps) => {
       <button
         type="button"
         onClick={openApp}
-        className="flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div className="relative">
           <AppIcon
@@ -102,7 +102,7 @@ export const AppCard = ({ app }: AppCardProps) => {
           )}
           <span
             className={cn(
-              'absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-white',
+              'absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-background',
               stateDotStyles[app.state],
             )}
             title={stateLabels[app.state]}

@@ -102,3 +102,23 @@ When creating or updating the `dev` → `main` PR:
 3. Check if a PR already exists (use `github_list_pull_requests`).
 4. If none exists, create one with title and description summarizing the changes.
 5. If one exists, update its title and description to reflect the actual current diff.
+
+## Automatic dev cycle
+
+Applies only when the user asks to start the automatic dev cycle.
+
+- The task board is
+  https://github.com/users/michaeltg17/projects/8/views/1.
+- Tasks ready for start developing are the ones in the `ready` column;
+  never pick ones in the backlog. Ignore any task assigned to
+  `michaeltg17`. Only pick unassigned tasks not in the backlog column.
+- When picking a task, move its card to `in progress`.
+- Do the work, then commit and push on `dev` and open/update the
+  `dev` → `main` PR, following the `## Workflow` instructions above.
+- A task counts as finished when it is committed, pushed, the PR is
+  updated, and the e2e tests pass in CI.
+- On finish, move the card to `done`. If the work needs user review,
+  move it to `review` instead, assign it to `michaeltg17`, and leave a
+  comment on the task describing what was done and what to review.
+- Then pick the next eligible task from the `ready` column and repeat;
+  stop and report a summary when no eligible tasks remain.

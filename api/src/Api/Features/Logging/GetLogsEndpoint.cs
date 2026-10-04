@@ -4,7 +4,7 @@ using Docker.DotNet.Models;
 
 namespace Api.Features.Logging
 {
-    public static class LogsEndpoints
+    public static class GetLogsEndpoint
     {
         public const string Path = "api/logs";
 

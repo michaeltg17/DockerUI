@@ -5,7 +5,7 @@ using Api.Features.Logging;
 using Api.Features.Meta;
 using Api.Features.Shortcuts;
 
-namespace Api.Base;
+namespace Api.Setup;
 
 public static class EndpointsMapper
 {
@@ -18,7 +18,7 @@ public static class EndpointsMapper
     {
         HealthEndpoints.Map(app);
         MetaEndpoints.Map(app);
-        LogsEndpoints.Map(app);
+        GetLogsEndpoint.Map(app);
         IconsEndpoint.Map(app);
 
         var apps = app.MapGroup(AppsPath);

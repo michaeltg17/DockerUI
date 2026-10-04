@@ -6,7 +6,6 @@ using Api.Features.Shortcuts;
 using Api.Settings;
 using Docker.DotNet;
 using Docker.DotNet.Models;
-using Api.Features.Logging;
 
 namespace Api.Features.Apps
 {

@@ -5,13 +5,12 @@ using System.Net;
 using System.Text.Json;
 using Api.Exceptions;
 using Api.Extensions;
-using Api.Base;
 
-namespace Api.Base
+namespace Api.Setup
 {
     internal static class ExceptionHandlerConfigurator
     {
-        public static WebApplication UseExceptionHandler(this WebApplication app)
+        public static WebApplication ConfigureExceptionHandler(this WebApplication app)
         {
             app.UseExceptionHandler(config => config.Run(async httpContext =>
             {

@@ -1,6 +1,6 @@
-using Api.Base;
 using Api.Features.Apps.Icons;
 using Api.Settings;
+using Api.Setup;
 
 namespace Api.Features.Shortcuts;
 

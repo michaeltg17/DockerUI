@@ -1,10 +1,10 @@
-using Api.Base;
 using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
 using Api.Features.Health;
 using Api.Features.Shortcuts;
 using Api.Settings;
+using Api.Setup;
 using Docker.DotNet;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
@@ -145,11 +145,10 @@ namespace Api
 
         public static WebApplication Configure(this WebApplication app)
         {
-            //Exception middleware first to catch exceptions
-            app.UseExceptionHandler().UseStatusCodePages();
-
-            app.UseDefaultFiles();
-            app.UseStaticFiles();
+            //Exception handler middleware first to catch exceptions
+            app.AddExceptionHandlerMiddleware()
+                .UseDefaultFiles()
+                .UseStaticFiles();
 
             app.MapEndpoints();
 
@@ -157,6 +156,11 @@ namespace Api
             app.MapFallbackToFile("index.html");
 
             return app;
+        }
+
+        public static IApplicationBuilder AddExceptionHandlerMiddleware(this WebApplication app)
+        {
+            return app.ConfigureExceptionHandler().UseStatusCodePages();
         }
     }
 }

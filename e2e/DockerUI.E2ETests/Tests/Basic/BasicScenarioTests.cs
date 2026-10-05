@@ -343,6 +343,27 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Docker_v2_theme_applies_the_gradient_header()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Docker V2").ClickAsync();
+
+        (await apps.Page.Locator("html[data-theme='docker-v2']").CountAsync()).Should().Be(1);
+        (await apps.Page
+               .Locator("header")
+               .EvaluateAsync<string>("(el) => getComputedStyle(el).backgroundImage"))
+            .Should()
+            .Contain(
+                "linear-gradient",
+                "because the Docker V2 theme matches the Docker Desktop gradient bar");
+    }
+
+    [Fact]
     public async Task Shows_running_apps_with_running_state()
     {
         await using var context = await browser.NewContextAsync();

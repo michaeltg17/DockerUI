@@ -26,6 +26,7 @@ const themeLabels: Record<Theme, string> = {
   light: 'Light',
   dark: 'Dark',
   docker: 'Docker',
+  'docker-v2': 'Docker V2',
 };
 
 const RESTART_TIMEOUT_MS = 120_000;

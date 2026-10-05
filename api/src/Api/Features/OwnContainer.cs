@@ -4,7 +4,7 @@ namespace Api.Features;
 /// Locates the container this dashboard process is running in. A container's hostname
 /// is its short container ID, so full container IDs are matched against the hostname.
 /// </summary>
-public static class OwnContainer
+internal static class OwnContainer
 {
     public static string? FindId(IEnumerable<string> containerIds)
     {

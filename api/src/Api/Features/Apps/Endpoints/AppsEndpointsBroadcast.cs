@@ -13,9 +13,9 @@ namespace Api.Features.Apps.Endpoints
             IAppStateMonitor monitor,
             CancellationToken cancellationToken)
         {
-            var apps = await appService.GetAppsAsync(cancellationToken);
+            var apps = await appService.GetAppsAsync(cancellationToken).ConfigureAwait(false);
             monitor.ForgetLastSnapshot();
-            await hubContext.Clients.All.SendAsync("appsUpdated", apps, cancellationToken);
+            await hubContext.Clients.All.SendAsync("appsUpdated", apps, cancellationToken).ConfigureAwait(false);
         }
     }
 }

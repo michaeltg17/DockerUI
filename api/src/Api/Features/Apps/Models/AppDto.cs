@@ -1,13 +1,13 @@
 namespace Api.Features.Apps.Models
 {
-    public enum AppState
+    internal enum AppState
     {
         Running,
         Stopped
     }
 
     /// <summary>A docker compose stack (or a standalone container) as shown in the UI.</summary>
-    public sealed record AppDto(
+    internal sealed record AppDto(
         string Name,
         string? Icon,
         AppState State,
@@ -18,7 +18,7 @@ namespace Api.Features.Apps.Models
         public bool IsShortcut { get; init; }
     }
 
-    public sealed record AppServiceDto(
+    internal sealed record AppServiceDto(
         string Name,
         string ContainerId,
         string? Image,

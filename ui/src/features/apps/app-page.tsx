@@ -13,11 +13,11 @@ import { ShortcutDialog } from './components/shortcut-dialog';
 import { filterApps } from './filter-apps';
 import { useApps } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
-import { useMeta } from './hooks/use-meta';
+import { useSettings } from './hooks/use-settings';
 
 export const AppsPage = () => {
   const { data, isPending, isError, refetch } = useApps();
-  const { data: meta } = useMeta();
+  const { data: settings } = useSettings();
   const [query, setQuery] = useState('');
   const [logsOpen, setLogsOpen] = useState(false);
   const [shortcutOpen, setShortcutOpen] = useState(false);
@@ -30,7 +30,7 @@ export const AppsPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>{meta?.name ?? 'Docker UI'}</title>
+        <title>{settings?.name ?? 'Docker UI'}</title>
         <meta name="description" content="Your Docker stacks at a glance" />
       </Helmet>
 

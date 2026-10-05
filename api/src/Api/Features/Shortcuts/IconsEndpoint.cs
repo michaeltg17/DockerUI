@@ -5,7 +5,7 @@ using Api.Setup;
 namespace Api.Features.Shortcuts;
 
 /// <summary>Lists the icon paths the dashboard can serve, for the shortcut icon picker.</summary>
-public static class IconsEndpoint
+internal static class IconsEndpoint
 {
     public static void Map(WebApplication app)
     {

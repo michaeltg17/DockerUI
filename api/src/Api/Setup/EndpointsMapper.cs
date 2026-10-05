@@ -2,12 +2,13 @@
 using Api.Features.Apps.Hubs;
 using Api.Features.Health;
 using Api.Features.Logging;
-using Api.Features.Meta;
+using Api.Features.Settings;
 using Api.Features.Shortcuts;
+using Api.Features.Shortcuts.Endpoints;
 
 namespace Api.Setup;
 
-public static class EndpointsMapper
+internal static class EndpointsMapper
 {
     public const string BasePath = "api";
     public const string AppsPath = $"{BasePath}/apps";
@@ -17,7 +18,7 @@ public static class EndpointsMapper
     public static WebApplication MapEndpoints(this WebApplication app)
     {
         HealthEndpoints.Map(app);
-        MetaEndpoints.Map(app);
+        GetSettingsEndpoint.Map(app);
         GetLogsEndpoint.Map(app);
         IconsEndpoint.Map(app);
 
@@ -29,7 +30,10 @@ public static class EndpointsMapper
         GetAppLogsEndpoint.Map(apps);
 
         var shortcuts = app.MapGroup(ShortcutsPath);
-        ShortcutsEndpoints.Map(shortcuts);
+        GetShortcutsEndpoint.Map(shortcuts);
+        CreateShortcutEndpoint.Map(shortcuts);
+        UpdateShortcutEndpoint.Map(shortcuts);
+        DeleteShortcutEndpoint.Map(shortcuts);
 
         app.MapHub<AppAppsHub>(AppsHubPath);
 

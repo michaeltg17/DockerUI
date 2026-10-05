@@ -4,7 +4,7 @@ using Docker.DotNet.Models;
 
 namespace Api.Features.Logging
 {
-    public static class GetLogsEndpoint
+    internal static class GetLogsEndpoint
     {
         public const string Path = "api/logs";
 
@@ -14,13 +14,13 @@ namespace Api.Features.Logging
             {
                 try
                 {
-                    var list = await containers.ListContainersAsync(new ContainersListParameters { All = true }, cancellationToken);
+                    var list = await containers.ListContainersAsync(new ContainersListParameters { All = true }, cancellationToken).ConfigureAwait(false);
                     var selfId = OwnContainer.FindId(list.Select(container => container.ID));
 
                     if (selfId is null)
                         return Results.Ok(new LogDto(false, string.Empty));
 
-                    var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, selfId, cancellationToken);
+                    var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, selfId, cancellationToken).ConfigureAwait(false);
                     return Results.Ok(new LogDto(true, (stdout + stderr).TrimEnd()));
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
@@ -32,5 +32,5 @@ namespace Api.Features.Logging
         }
     }
 
-    public record LogDto(bool Available, string Logs);
+    internal sealed record LogDto(bool Available, string Logs);
 }

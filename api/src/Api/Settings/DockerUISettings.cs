@@ -5,7 +5,7 @@ namespace Api.Settings
     /// appsettings.json (hot-reloaded via IOptionsMonitor; see the README).
     /// </summary>
 #pragma warning disable CA1056 // URL-like members stay strings so one bad value degrades gracefully instead of invalidating the whole settings
-    public record DockerUISettings
+    internal sealed record DockerUISettings
     {
         public const string Section = "DockerUI";
 
@@ -31,6 +31,12 @@ namespace Api.Settings
 
         /// <summary>Per-app overrides, keyed by app (stack) name.</summary>
         public IReadOnlyDictionary<string, AppUserSettings>? Apps { get; set; }
+
+        /// <summary>
+        /// User-defined shortcut links shown as cards on the dashboard, persisted in this
+        /// file (the shortcut endpoints edit this section).
+        /// </summary>
+        public IReadOnlyCollection<Shortcut>? Shortcuts { get; set; }
 
         /// <summary>
         /// Custom display order: apps listed here (in this order) come first;

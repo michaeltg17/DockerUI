@@ -24,11 +24,12 @@ namespace Api.Setup
                 {
                     BadHttpRequestException => (int)HttpStatusCode.BadRequest,
                     NotFoundException => (int)HttpStatusCode.NotFound,
+                    ConflictException => (int)HttpStatusCode.Conflict,
                     DockerUIException => (int)HttpStatusCode.ServiceUnavailable,
                     _ => (int)HttpStatusCode.InternalServerError,
                 };
 
-                await problemDetailsService.WriteAsync(BuildProblemDetailsContext(exception, httpContext));
+                await problemDetailsService.WriteAsync(BuildProblemDetailsContext(exception, httpContext)).ConfigureAwait(false);
             }));
 
             return app;

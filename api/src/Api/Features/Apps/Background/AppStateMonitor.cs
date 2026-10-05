@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace Api.Features.Apps.Background
 {
     /// <summary>Allows endpoints to force a re-broadcast after they change state themselves.</summary>
-    public interface IAppStateMonitor
+    internal interface IAppStateMonitor
     {
         void ForgetLastSnapshot();
     }
@@ -17,7 +17,7 @@ namespace Api.Features.Apps.Background
     /// configuration is reloaded so live settings (base URL, icons, per-app
     /// overrides, order, poll interval) apply on the next cycle.
     /// </summary>
-    public sealed partial class AppStateMonitor(
+    internal sealed partial class AppStateMonitor(
         AppService appService,
         IHubContext<AppAppsHub> hubContext,
         IConfiguration configuration,
@@ -42,7 +42,7 @@ namespace Api.Features.Apps.Background
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             // Give the host a moment to finish starting up before the first poll.
-            await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken).ConfigureAwait(false);
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -51,7 +51,7 @@ namespace Api.Features.Apps.Background
 
                 try
                 {
-                    await PollAndBroadcastAsync(stoppingToken);
+                    await PollAndBroadcastAsync(stoppingToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -66,7 +66,7 @@ namespace Api.Features.Apps.Background
 #pragma warning restore CA1031
 
                 //Clamped so a hot edit with an invalid value can never busy-loop the monitor.
-                await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, settings?.PollIntervalSeconds ?? 5)), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, settings?.PollIntervalSeconds ?? 5)), stoppingToken).ConfigureAwait(false);
             }
         }
 
@@ -75,7 +75,7 @@ namespace Api.Features.Apps.Background
 
         async Task PollAndBroadcastAsync(CancellationToken cancellationToken)
         {
-            var apps = await appService.GetAppsAsync(cancellationToken);
+            var apps = await appService.GetAppsAsync(cancellationToken).ConfigureAwait(false);
             var snapshot = JsonSerializer.Serialize(apps, JsonOptions);
 
             bool changed;
@@ -88,7 +88,7 @@ namespace Api.Features.Apps.Background
             if (!changed)
                 return;
 
-            await hubContext.Clients.All.SendAsync("appsUpdated", apps, cancellationToken);
+            await hubContext.Clients.All.SendAsync("appsUpdated", apps, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

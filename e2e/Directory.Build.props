@@ -11,5 +11,6 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<IsPackable>false</IsPackable>
 		<NoWarn>$(NoWarn);CS1591</NoWarn>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 	</PropertyGroup>
 </Project>

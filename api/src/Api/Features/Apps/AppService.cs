@@ -1,4 +1,3 @@
-using System.Text;
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
@@ -9,28 +8,47 @@ using Docker.DotNet.Models;
 
 namespace Api.Features.Apps
 {
-    /// <summary>Wraps the Docker daemon client to list apps and control their containers.</summary>
-    public sealed class AppService(
+    /// <summary>
+    /// Shared app operations: the full app list (docker stacks plus user shortcuts)
+    /// and the container resolution the app endpoints build on.
+    /// </summary>
+    internal sealed class AppService(
         IContainerOperations containers,
         IAppIconCatalog iconCatalog,
         IConfiguration configuration,
-    AppBaseUrlTracker baseUrlTracker,
-    IHttpContextAccessor httpContextAccessor,
-    ShortcutStore shortcutStore)
+        AppBaseUrlTracker baseUrlTracker,
+        IHttpContextAccessor httpContextAccessor,
+        ShortcutStore shortcutStore,
+        ILogger<AppService> logger)
     {
-        const uint StopGracePeriodSeconds = 10;
-
         public async Task<IReadOnlyList<AppDto>> GetAppsAsync(CancellationToken cancellationToken = default)
         {
             var settings = CurrentSettings;
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
+            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
             var apps = AppCatalog
-                .BuildApps(snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots))
+                .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots))
                 .ToList();
 
             apps.AddRange(BuildShortcutApps());
 
             return apps;
+        }
+
+        public async Task<AppDto> GetAppAsync(string appName, CancellationToken cancellationToken)
+        {
+            var apps = await GetAppsAsync(cancellationToken).ConfigureAwait(false);
+            return apps.FirstOrDefault(app => app.Name == appName)
+                ?? throw new NotFoundException($"The app '{appName}' was not found.");
+        }
+
+        public async Task<IReadOnlyList<ContainerSnapshot>> ResolveAppContainersAsync(string appName, CancellationToken cancellationToken)
+        {
+            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+            var targets = AppCatalog.ResolveApp(snapshots, appName);
+
+            return targets.Count is 0
+                ? throw new NotFoundException($"The app '{appName}' was not found.")
+                : targets;
         }
 
         /// <summary>User-defined shortcuts, surfaced as always-available apps after the docker stacks.</summary>
@@ -84,73 +102,6 @@ namespace Api.Features.Apps
         DockerUISettings? CurrentSettings =>
             configuration.GetSection(DockerUISettings.Section).Get<DockerUISettings>();
 
-        public async Task<AppDto> StartAppAsync(string appName, CancellationToken cancellationToken = default)
-        {
-            var targets = await ResolveAppContainersAsync(appName, cancellationToken);
-
-            foreach (var container in targets.Where(container => !AppCatalog.IsRunningState(container.State)))
-            {
-                await containers.StartContainerAsync(container.Id, new ContainerStartParameters(), cancellationToken);
-            }
-
-            return await GetAppAsync(appName, cancellationToken);
-        }
-
-        public async Task<AppDto> StopAppAsync(string appName, CancellationToken cancellationToken = default)
-        {
-            var targets = await ResolveAppContainersAsync(appName, cancellationToken);
-
-            foreach (var container in targets.Where(container => AppCatalog.IsRunningState(container.State)))
-            {
-                await containers.StopContainerAsync(container.Id, new ContainerStopParameters { WaitBeforeKillSeconds = StopGracePeriodSeconds }, cancellationToken);
-            }
-
-            return await GetAppAsync(appName, cancellationToken);
-        }
-
-        public async Task<AppDto> RestartAppAsync(string appName, CancellationToken cancellationToken = default)
-        {
-            var targets = await ResolveAppContainersAsync(appName, cancellationToken);
-
-            foreach (var container in targets.Where(container => AppCatalog.IsRunningState(container.State)))
-            {
-                await containers.RestartContainerAsync(container.Id, new ContainerRestartParameters { WaitBeforeKillSeconds = StopGracePeriodSeconds }, cancellationToken);
-            }
-
-            return await GetAppAsync(appName, cancellationToken);
-        }
-
-        /// <summary>The recent logs of every container in the given app, headed by a per-container name.</summary>
-        public async Task<string> GetAppLogsAsync(string appName, CancellationToken cancellationToken = default)
-        {
-            var targets = await ResolveAppContainersAsync(appName, cancellationToken);
-            var logs = new StringBuilder();
-
-            try
-            {
-                foreach (var container in targets)
-                {
-                    var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, container.Id, cancellationToken);
-                    logs.AppendLine("=== " + container.Name + " ===");
-                    logs.Append(stdout).AppendLine().Append(stderr);
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                throw new DockerUIException(
-                    "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
-            }
-
-            return logs.ToString().TrimEnd();
-        }
-
-        async Task<AppDto> GetAppAsync(string appName, CancellationToken cancellationToken)
-        {
-            var apps = await GetAppsAsync(cancellationToken);
-            return apps.FirstOrDefault(app => app.Name == appName)
-                ?? throw new NotFoundException($"The app '{appName}' was not found.");
-        }
-
         /// <summary>
         /// Resolves the base URL used to build app links: 'DockerUI:BaseUrl' wins;
         /// otherwise the current client request is used (and remembered); otherwise
@@ -179,23 +130,13 @@ namespace Api.Features.Apps
             return baseUrlTracker.Current;
         }
 
-        async Task<IReadOnlyList<ContainerSnapshot>> ResolveAppContainersAsync(string appName, CancellationToken cancellationToken)
-        {
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
-            var targets = AppCatalog.ResolveApp(snapshots, appName);
-
-            return targets.Count is 0
-                ? throw new NotFoundException($"The app '{appName}' was not found.")
-                : targets;
-        }
-
         async Task<IReadOnlyList<ContainerSnapshot>> GetContainerSnapshotsAsync(CancellationToken cancellationToken)
         {
             try
             {
                 var list = await containers.ListContainersAsync(
                     new ContainersListParameters { All = true },
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
 
                 return
                 [

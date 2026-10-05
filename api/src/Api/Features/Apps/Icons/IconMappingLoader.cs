@@ -4,7 +4,7 @@ using Api.Settings;
 namespace Api.Features.Apps.Icons
 {
     /// <summary>Loads the built-in icon catalog embedded in the assembly.</summary>
-    public static class IconMappingLoader
+    internal static class IconMappingLoader
     {
         const string BuiltInResourceName = "app-icons.json";
 

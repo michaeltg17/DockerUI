@@ -431,6 +431,46 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Shortcut_is_persisted_to_appsettings()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Zeta";
+        await apps.CreateShortcutAsync(name, "https://example.com/zeta");
+        await apps.WaitForAppAsync(name);
+
+        // Shortcuts live in the scenario's appsettings.json, bind-mounted into the dashboard.
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+
+        using (var document = System.Text.Json.JsonDocument.Parse(
+                   await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken)))
+        {
+            var stored = document.RootElement
+                .GetProperty("DockerUI")
+                .GetProperty("Shortcuts")
+                .EnumerateArray()
+                .FirstOrDefault(element =>
+                    element.TryGetProperty("Name", out var shortcutName) &&
+                    string.Equals(shortcutName.GetString(), name, StringComparison.Ordinal));
+
+            stored.ValueKind.Should().Be(System.Text.Json.JsonValueKind.Object, "because the shortcut is stored in appsettings");
+            stored.GetProperty("Url").GetString().Should().Be("https://example.com/zeta");
+        }
+
+        await apps.DeleteShortcutAsync(name);
+
+        using var after = System.Text.Json.JsonDocument.Parse(
+            await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken));
+        after.RootElement
+            .GetProperty("DockerUI")
+            .TryGetProperty("Shortcuts", out _)
+            .Should().BeFalse("because the last shortcut was removed from appsettings");
+    }
+
+    [Fact]
     public async Task Edit_shortcut_updates_its_url()
     {
         await using var context = await browser.NewContextAsync();
@@ -510,6 +550,25 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         await apps.DeleteShortcutAsync(withIcon);
         await apps.DeleteShortcutAsync(withoutIcon);
+    }
+
+    [Fact]
+    public async Task Stack_names_resolve_icons_from_the_catalog()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        await apps.WaitForAppAsync("wavelog");
+        await apps.WaitForAppAsync("adguard");
+
+        // 'wavelog' matches its icon file name exactly.
+        (await apps.CardIconImage("wavelog").GetAttributeAsync("src"))
+            .Should().Be("/icons/wavelog.svg");
+
+        // 'adguard' has no icon of its own, so it fuzzy-matches the 'adguard-home' icon.
+        (await apps.CardIconImage("adguard").GetAttributeAsync("src"))
+            .Should().Be("/icons/adguard-home.svg");
     }
 
     async Task<System.Text.Json.JsonElement> GetShortcutAsync(string name, CancellationToken cancellationToken)

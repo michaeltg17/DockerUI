@@ -1,7 +1,6 @@
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
 using Api.Settings;
-using Serilog;
 
 namespace Api.Features.Apps
 {
@@ -10,7 +9,7 @@ namespace Api.Features.Apps
     /// Compose projects are detected via the 'com.docker.compose.project' label;
     /// containers without it become standalone apps named after the container.
     /// </summary>
-    public static class AppCatalog
+    internal static partial class AppCatalog
     {
         public const string ComposeProjectLabel = "com.docker.compose.project";
         public const string ComposeServiceLabel = "com.docker.compose.service";
@@ -22,6 +21,7 @@ namespace Api.Features.Apps
         ];
 
         public static IReadOnlyList<AppDto> BuildApps(
+            ILogger logger,
             IEnumerable<ContainerSnapshot> containers,
             IAppIconCatalog? iconCatalog = null,
             Uri? baseUrl = null,
@@ -29,7 +29,7 @@ namespace Api.Features.Apps
             string? selfProject = null)
         {
             var apps = new List<AppDto>();
-            var liveIconCatalog = settings?.Icons is { Count: > 0 } icons ? new AppIconCatalog(icons) : null;
+            var liveIconCatalog = settings?.Icons is { Count: > 0 } icons ? new AppIconCatalog(icons, logger) : null;
 
             var groups = containers
                 .GroupBy(GetProject)
@@ -39,7 +39,7 @@ namespace Api.Features.Apps
                 .Where(group => group.Key is not null)
                 .OrderBy(group => group.Key, StringComparer.Ordinal))
             {
-                apps.Add(BuildApp(group.Key!, [.. group], iconCatalog, liveIconCatalog, baseUrl, settings));
+                apps.Add(BuildApp(group.Key!, [.. group], iconCatalog, liveIconCatalog, baseUrl, settings, logger));
             }
 
             var standalone = groups.FirstOrDefault(group => group.Key is null);
@@ -47,7 +47,7 @@ namespace Api.Features.Apps
             {
                 foreach (var container in standalone)
                 {
-                    apps.Add(BuildApp(container.Name, [container], iconCatalog, liveIconCatalog, baseUrl, settings));
+                    apps.Add(BuildApp(container.Name, [container], iconCatalog, liveIconCatalog, baseUrl, settings, logger));
                 }
             }
 
@@ -90,7 +90,8 @@ namespace Api.Features.Apps
             IAppIconCatalog? iconCatalog,
             IAppIconCatalog? liveIconCatalog,
             Uri? baseUrl,
-            DockerUISettings? settings)
+            DockerUISettings? settings,
+            ILogger logger)
         {
             var services = containers
                 .Select(container => new AppServiceDto(
@@ -115,12 +116,15 @@ namespace Api.Features.Apps
                     .Select(GetIcon)
                     .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
                     ?? GetCatalogIcon(containers, liveIconCatalog)
+                    ?? TryNameIcon(liveIconCatalog, name)
+                    ?? TryNameIcon(iconCatalog, name)
                     ?? GetCatalogIcon(containers, iconCatalog);
 
-            return new AppDto(name, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp), services);
+            return new AppDto(name, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp, logger), services);
         }
 
-        static Uri? ResolveAppUrl(string appName, IReadOnlyList<ContainerSnapshot> containers, Uri? baseUrl, AppUserSettings? perApp)
+        static Uri? ResolveAppUrl(
+            string appName, IReadOnlyList<ContainerSnapshot> containers, Uri? baseUrl, AppUserSettings? perApp, ILogger logger)
         {
             if (perApp?.Url is { Length: > 0 } && Uri.TryCreate(perApp.Url, UriKind.Absolute, out var url))
             {
@@ -128,10 +132,15 @@ namespace Api.Features.Apps
             }
 
             if (perApp?.Url is { Length: > 0 })
-                Log.Warning("The url override '{Url}' for app '{App}' is not a valid absolute URL; ignoring it.", perApp.Url, appName);
+                LogInvalidUrlOverride(logger, perApp.Url, appName);
 
             return ResolveUrl(containers, baseUrl);
         }
+
+        [LoggerMessage(
+            Level = LogLevel.Warning,
+            Message = "The url override '{Url}' for app '{App}' is not a valid absolute URL; ignoring it.")]
+        static partial void LogInvalidUrlOverride(ILogger logger, string url, string app);
 
         /// <summary>
         /// Best-effort URL of the app, derived from its running containers' published ports.
@@ -206,6 +215,12 @@ namespace Api.Features.Apps
 
         static string? GetIcon(ContainerSnapshot container) =>
             container.Labels.TryGetValue(IconLabel, out var icon) && !string.IsNullOrWhiteSpace(icon)
+                ? icon
+                : null;
+
+        /// <summary>Matches the app name against the icon catalog (exact match, then fuzzy).</summary>
+        static string? TryNameIcon(IAppIconCatalog? iconCatalog, string name) =>
+            iconCatalog is not null && iconCatalog.TryGetIconForName(name, out var icon)
                 ? icon
                 : null;
 

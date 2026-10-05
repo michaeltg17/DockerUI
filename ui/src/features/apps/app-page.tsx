@@ -1,13 +1,12 @@
-import { Plus, ScrollText, Search, Ship } from 'lucide-react';
+import { Search, Ship } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
-import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { ThemePicker } from '@/components/ui/theme-picker';
 
 import { getLogs } from './api/get-logs';
 import { AppsGrid } from './components/apps-grid';
+import { DashboardMenu } from './components/dashboard-menu';
 import { LogsDialog } from './components/logs-dialog';
 import { ShortcutDialog } from './components/shortcut-dialog';
 import { filterApps } from './filter-apps';
@@ -51,23 +50,7 @@ export const AppsPage = () => {
               className="h-9 w-56 rounded-md border border-input bg-background pl-9 pr-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-64"
             />
           </label>
-          <div className="flex items-center justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setShortcutOpen(true)}
-              icon={<Plus className="size-4" aria-hidden="true" />}
-            >
-              Add
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setLogsOpen(true)}
-              icon={<ScrollText className="size-4" aria-hidden="true" />}
-            >
-              Logs
-            </Button>
-            <ThemePicker />
-          </div>
+          <div aria-hidden="true" />
         </div>
       </header>
 
@@ -85,45 +68,50 @@ export const AppsPage = () => {
         onClose={() => setShortcutOpen(false)}
       />
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        {isPending ? (
-          <div className="flex justify-center py-24">
-            <Spinner size="xl" />
-          </div>
-        ) : isError ? (
-          <div className="flex flex-col items-center gap-4 py-24 text-center">
-            <Ship
-              className="size-10 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <p className="text-sm text-muted-foreground">
-              Could not load apps. Is the Docker daemon reachable?
-            </p>
-            <button
-              type="button"
-              onClick={() => void refetch()}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              Retry
-            </button>
-          </div>
-        ) : apps.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-24 text-center text-muted-foreground">
-            <Ship className="size-10" aria-hidden="true" />
-            {hasQuery ? (
-              <p className="text-sm">
-                No apps match &ldquo;{query.trim()}&rdquo;.
+      <DashboardMenu
+        onAddShortcut={() => setShortcutOpen(true)}
+        onViewLogs={() => setLogsOpen(true)}
+      >
+        <main className="mx-auto max-w-7xl px-6 py-8">
+          {isPending ? (
+            <div className="flex justify-center py-24">
+              <Spinner size="xl" />
+            </div>
+          ) : isError ? (
+            <div className="flex flex-col items-center gap-4 py-24 text-center">
+              <Ship
+                className="size-10 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <p className="text-sm text-muted-foreground">
+                Could not load apps. Is the Docker daemon reachable?
               </p>
-            ) : (
-              <p className="text-sm">
-                No apps found. Start a Docker Compose stack to see it here.
-              </p>
-            )}
-          </div>
-        ) : (
-          <AppsGrid apps={apps} />
-        )}
-      </main>
+              <button
+                type="button"
+                onClick={() => void refetch()}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Retry
+              </button>
+            </div>
+          ) : apps.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-24 text-center text-muted-foreground">
+              <Ship className="size-10" aria-hidden="true" />
+              {hasQuery ? (
+                <p className="text-sm">
+                  No apps match &ldquo;{query.trim()}&rdquo;.
+                </p>
+              ) : (
+                <p className="text-sm">
+                  No apps found. Start a Docker Compose stack to see it here.
+                </p>
+              )}
+            </div>
+          ) : (
+            <AppsGrid apps={apps} />
+          )}
+        </main>
+      </DashboardMenu>
     </div>
   );
 };

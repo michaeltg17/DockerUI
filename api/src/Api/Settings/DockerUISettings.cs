@@ -2,7 +2,7 @@ namespace Api.Settings
 {
     /// <summary>
     /// All dashboard configuration, bound from the 'DockerUI' section of
-    /// appsettings.json (hot-reloaded via IOptionsMonitor; see the README).
+    /// appsettings.json (hot-reloaded via IOptionsMonitor; see the wiki).
     /// </summary>
 #pragma warning disable CA1056 // URL-like members stay strings so one bad value degrades gracefully instead of invalidating the whole settings
     internal sealed record DockerUISettings
@@ -16,7 +16,7 @@ namespace Api.Settings
         /// Custom dashboard name shown as the page title, e.g. 'Home Server'.
         /// When unset, 'Docker UI' is used.
         /// </summary>
-        public string? Name { get; set; }
+        public string Name { get; set; } = "Docker UI";
 
         /// <summary>
         /// Base URL (scheme + host) used to resolve app URLs, e.g.

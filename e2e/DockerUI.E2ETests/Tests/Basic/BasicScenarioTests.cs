@@ -14,6 +14,9 @@ namespace DockerUI.E2ETests.Tests.Basic;
 [Collection(nameof(E2eCollectionFixture))]
 public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixture browser) : IClassFixture<BasicEnvironment>
 {
+    /// <summary>How long to wait for the dashboard's own container to stop or come back.</summary>
+    const int SelfActionTimeoutSeconds = 120;
+
     [Fact]
     public async Task Uses_the_logo_as_favicon()
     {
@@ -76,14 +79,15 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
-    public async Task Logs_button_shows_the_dashboard_logs()
+    public async Task Dashboard_menu_logs_option_shows_the_dashboard_logs()
     {
         await using var context = await browser.NewContextAsync();
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
-        await apps.LogsButton.WaitForAsync();
+        await apps.WaitForAppAsync("web-stack");
 
-        await apps.LogsButton.ClickAsync();
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "View logs").ClickAsync();
         var dialog = apps.LogsDialog("Docker UI logs");
         await dialog.WaitForAsync();
 
@@ -131,18 +135,131 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Dashboard_menu_offers_the_dashboard_actions()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+
+        string[] expectedItems =
+            ["Add shortcut", "View logs", "Light", "Dark", "Docker", "Show dashboard", "Restart dashboard", "Stop dashboard"];
+
+        foreach (var label in expectedItems)
+        {
+            (await AppsPage.MenuItem(menu, label).CountAsync())
+                .Should().Be(1, $"because the dashboard menu offers '{label}'");
+        }
+    }
+
+    [Fact]
+    public async Task Dashboard_menu_toggles_visibility_of_its_own_stack()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        (await apps.Card("basic").CountAsync()).Should().Be(0, "because the dashboard's own stack starts hidden");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Show dashboard").ClickAsync();
+
+        // Showing the dashboard persists the setting and makes its own stack appear.
+        await apps.WaitForAppAsync("basic", AppsPage.StateChangeTimeoutMs);
+        await apps.WaitForStateAsync("basic", AppsPage.RunningState);
+
+        menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Hide dashboard").ClickAsync();
+        await apps.Card("basic").WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
+    public async Task Dashboard_menu_restarts_its_own_container()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var startedAtBefore = await ContainerStartedAtAsync("docker-ui-e2e-basic", cancellationToken);
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Restart dashboard").ClickAsync();
+
+        // The overlay takes over while the container comes back; the page reloads itself
+        // once the API responds.
+        await apps.Page.GetByText("Restarting dashboard…").WaitForAsync(
+            new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // The restart re-creates the container, which changes its start time; the API is
+        // still up while the restart is pending, so wait for the restart itself.
+        var startedAtAfter = await WaitUntilContainerStartedAtChangesAsync(
+            "docker-ui-e2e-basic",
+            startedAtBefore,
+            cancellationToken);
+        await WaitForDashboardApiAsync(environment.BaseUrl, cancellationToken);
+        await apps.WaitForAppAsync("web-stack", AppsPage.StateChangeTimeoutMs);
+
+        startedAtAfter
+            .Should().NotBe(startedAtBefore, "because the restart action restarts the dashboard's own container");
+    }
+
+    [Fact]
+    public async Task Dashboard_menu_stops_its_own_container()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Stop dashboard").ClickAsync();
+
+        // The overlay offers a manual reload once the container has been started again.
+        await apps.Page
+            .GetByText("Dashboard stopped. Start its container to continue.")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        await WaitUntilDashboardApiDownAsync(environment.BaseUrl, cancellationToken);
+
+        // The API refuses connections as soon as the stop begins, but the container is still
+        // shutting down; 'docker start' issued while a stop is in flight is dropped, so wait
+        // for the container to have fully stopped first.
+        await WaitUntilContainerStoppedAsync("docker-ui-e2e-basic", cancellationToken);
+
+        // Start the container from the CLI and let the dashboard come back.
+        await DockerCli.EnsureSucceededAsync(
+            Paths.RepoRoot,
+            ["start", "docker-ui-e2e-basic"],
+            cancellationToken);
+        await WaitForDashboardApiAsync(environment.BaseUrl, cancellationToken);
+
+        await apps.Page
+            .GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Reload", Exact = true })
+            .ClickAsync();
+        await apps.WaitForAppAsync("web-stack", AppsPage.StateChangeTimeoutMs);
+    }
+
+    [Fact]
     public async Task Theme_selection_applies_and_persists_across_reload()
     {
         await using var context = await browser.NewContextAsync();
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
-        await apps.ThemeSelect.WaitForAsync();
+        await apps.WaitForAppAsync("web-stack");
 
-        await apps.ThemeSelect.SelectOptionAsync("docker");
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Docker").ClickAsync();
         (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
 
         await apps.Page.ReloadAsync();
-        await apps.ThemeSelect.WaitForAsync();
+        await apps.WaitForAppAsync("web-stack");
         (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
     }
 
@@ -418,7 +535,6 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
-        await apps.AddButton.WaitForAsync();
 
         const string name = "E2E Alpha";
         await apps.CreateShortcutAsync(name, "https://example.com/alpha");
@@ -594,5 +710,107 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             ["inspect", "-f", "{{.State.StartedAt}}", containerName],
             cancellationToken);
         return result.StandardOutput.Trim();
+    }
+
+    static async Task WaitForDashboardApiAsync(Uri baseUrl, CancellationToken cancellationToken)
+    {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        var settingsUrl = new Uri(baseUrl, "api/settings");
+        var deadline = DateTime.UtcNow.AddSeconds(SelfActionTimeoutSeconds);
+
+        while (true)
+        {
+            try
+            {
+                using var response = await client.GetAsync(settingsUrl, cancellationToken);
+                if (response.IsSuccessStatusCode)
+                    return;
+            }
+            catch (HttpRequestException)
+            {
+                // The dashboard is still down; keep waiting.
+            }
+            catch (TaskCanceledException)
+            {
+                // The request timed out; the dashboard is probably still starting up.
+            }
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException($"The dashboard at {baseUrl} did not come back within {SelfActionTimeoutSeconds}s.");
+
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        }
+    }
+
+    static async Task<string> WaitUntilContainerStartedAtChangesAsync(
+        string containerName,
+        string previousStartedAt,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(SelfActionTimeoutSeconds);
+
+        while (true)
+        {
+            var startedAt = await ContainerStartedAtAsync(containerName, cancellationToken);
+
+            if (startedAt != previousStartedAt)
+                return startedAt;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException($"Container {containerName} was not restarted within {SelfActionTimeoutSeconds}s.");
+
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        }
+    }
+
+    static async Task WaitUntilContainerStoppedAsync(string containerName, CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(SelfActionTimeoutSeconds);
+
+        while (true)
+        {
+            var result = await DockerCli.RunAsync(
+                Paths.RepoRoot,
+                ["inspect", "-f", "{{.State.Status}}", containerName],
+                cancellationToken);
+
+            if (result.Succeeded && result.StandardOutput.Trim() is "exited" or "created" or "dead")
+                return;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException($"Container {containerName} did not stop within {SelfActionTimeoutSeconds}s.");
+
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        }
+    }
+
+    static async Task WaitUntilDashboardApiDownAsync(Uri baseUrl, CancellationToken cancellationToken)
+    {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        var settingsUrl = new Uri(baseUrl, "api/settings");
+        var deadline = DateTime.UtcNow.AddSeconds(SelfActionTimeoutSeconds);
+
+        while (true)
+        {
+            try
+            {
+                using var response = await client.GetAsync(settingsUrl, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                    return;
+            }
+            catch (HttpRequestException)
+            {
+                return; // The dashboard is down, as expected.
+            }
+            catch (TaskCanceledException)
+            {
+                // The request timed out; treat the dashboard as still up.
+            }
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException($"The dashboard at {baseUrl} did not go down within {SelfActionTimeoutSeconds}s.");
+
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        }
     }
 }

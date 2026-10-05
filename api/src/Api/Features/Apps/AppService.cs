@@ -51,6 +51,13 @@ namespace Api.Features.Apps
                 : targets;
         }
 
+        /// <summary>The compose project this dashboard runs in, or null when not running in a container.</summary>
+        public async Task<string?> GetSelfProjectAsync(CancellationToken cancellationToken)
+        {
+            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+            return ResolveSelfProject(snapshots);
+        }
+
         /// <summary>User-defined shortcuts, surfaced as always-available apps after the docker stacks.</summary>
         List<AppDto> BuildShortcutApps()
         {

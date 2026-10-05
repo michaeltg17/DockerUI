@@ -20,16 +20,11 @@ public sealed class AppsPage(IPage page)
 
     public ILocator SearchBox => Page.GetByRole(AriaRole.Searchbox, new PageGetByRoleOptions { Name = "Search apps", Exact = true });
 
-    public ILocator ThemeSelect => Page.GetByRole(AriaRole.Combobox, new PageGetByRoleOptions { Name = "Theme", Exact = true });
-
     /// <summary>The SVG favicon link in the page head (the dashboard's logo).</summary>
     public ILocator FaviconLink => Page.Locator("link[rel='icon'][type='image/svg+xml']");
 
-    /// <summary>The header button that opens the dashboard's own logs.</summary>
-    public ILocator LogsButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Logs", Exact = true });
-
-    /// <summary>The header button that opens the "Add shortcut" dialog.</summary>
-    public ILocator AddButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Add", Exact = true });
+    /// <summary>The page's main content area, which carries the dashboard-wide context menu.</summary>
+    public ILocator Main => Page.GetByRole(AriaRole.Main);
 
     /// <summary>A shortcut dialog, addressed by its accessible name ('Add shortcut' or 'Edit {name}').</summary>
     public ILocator ShortcutDialog(string title) => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = title, Exact = true });
@@ -82,6 +77,19 @@ public sealed class AppsPage(IPage page)
     }
 
     /// <summary>
+    /// Right-clicks an empty spot in the page's main area (its top padding, never a card) and
+    /// returns the dashboard-wide context menu.
+    /// </summary>
+    public async Task<ILocator> OpenDashboardMenuAsync()
+    {
+        var box = await Main.BoundingBoxAsync()
+            ?? throw new InvalidOperationException("The dashboard's main area has no bounding box.");
+
+        await Page.Mouse.ClickAsync(box.X + 8, box.Y + 8, new MouseClickOptions { Button = MouseButton.Right });
+        return Page.GetByRole(AriaRole.Menu, new PageGetByRoleOptions { Name = "Dashboard actions", Exact = true });
+    }
+
+    /// <summary>
     /// Opens the "Add shortcut" dialog, fills in the name and url (and optionally an icon by
     /// value) and submits. The dialog is expected to close once the create call succeeds.
     /// </summary>
@@ -91,7 +99,9 @@ public sealed class AppsPage(IPage page)
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(url);
 
-        await AddButton.ClickAsync();
+        var menu = await OpenDashboardMenuAsync();
+        await MenuItem(menu, "Add shortcut").ClickAsync();
+
         var dialog = ShortcutDialog("Add shortcut");
         await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = timeoutMs });
 

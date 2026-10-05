@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -19,6 +20,8 @@ export type ContextMenuItem = {
   icon?: ReactNode;
   disabled?: boolean;
   isLoading?: boolean;
+  /** Marks the item as the active choice; a check is shown in the icon slot. */
+  selected?: boolean;
   onSelect?: () => void;
 };
 
@@ -49,7 +52,9 @@ export const ContextMenu = ({
   }, []);
 
   const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+    // Nested menus (e.g. a card menu inside the dashboard menu) must not both open.
     event.preventDefault();
+    event.stopPropagation();
     setIsReady(false);
     setPosition({ x: event.clientX, y: event.clientY });
   };
@@ -133,7 +138,13 @@ export const ContextMenu = ({
                 className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
               >
                 <span className="flex w-4 shrink-0 items-center justify-center">
-                  {item.isLoading ? <Spinner size="sm" /> : item.icon}
+                  {item.isLoading ? (
+                    <Spinner size="sm" />
+                  ) : item.selected ? (
+                    <Check className="size-4" aria-hidden="true" />
+                  ) : (
+                    item.icon
+                  )}
                 </span>
                 <span className="truncate">{item.label}</span>
               </button>

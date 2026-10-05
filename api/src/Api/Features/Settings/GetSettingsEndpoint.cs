@@ -1,3 +1,5 @@
+using Api.Exceptions;
+using Api.Features.Apps;
 using Api.Settings;
 using Microsoft.Extensions.Options;
 
@@ -9,18 +11,34 @@ namespace Api.Features.Settings
 
         public static void Map(IEndpointRouteBuilder app)
         {
-            app.MapGet(Path, (IOptionsMonitor<DockerUISettings> settings) =>
-                Results.Ok(new SettingsDto(ResolveName(settings.CurrentValue))));
+            app.MapGet(Path, async (AppService appService, IOptionsMonitor<DockerUISettings> settings, CancellationToken cancellationToken) =>
+            {
+                // The daemon may be unreachable; the rest of the settings must still be served.
+                string? self = null;
+
+                try
+                {
+                    self = await appService.GetSelfProjectAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (DockerUIException)
+                {
+                }
+
+                var current = settings.CurrentValue;
+
+                return Results.Ok(new
+                {
+                    current.DockerSocketPath,
+                    current.PollIntervalSeconds,
+                    current.Name,
+                    current.BaseUrl,
+                    current.Icons,
+                    current.Apps,
+                    current.Shortcuts,
+                    current.Order,
+                    Self = self,
+                });
+            });
         }
-
-        static string ResolveName(DockerUISettings settings) =>
-            string.IsNullOrWhiteSpace(settings.Name)
-                ? SettingsDto.DefaultName
-                : settings.Name.Trim();
-    }
-
-    internal sealed record SettingsDto(string Name)
-    {
-        public const string DefaultName = "Docker UI";
     }
 }

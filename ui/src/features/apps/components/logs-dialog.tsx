@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 import { Spinner } from '@/components/ui/spinner';
@@ -37,6 +37,17 @@ export const LogsDialog = ({
     scope,
     fetchLogs,
   );
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Start at the most recent lines once the logs have loaded.
+  useEffect(() => {
+    if (!data?.logs) return;
+
+    const element = scrollRef.current;
+    if (element) {
+      element.scrollTop = element.scrollHeight;
+    }
+  }, [data]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -76,7 +87,7 @@ export const LogsDialog = ({
             <X className="size-4" aria-hidden="true" />
           </button>
         </div>
-        <div className="overflow-auto p-4">
+        <div ref={scrollRef} className="overflow-auto p-4">
           {isPending ? (
             <div className="flex justify-center py-16">
               <Spinner size="xl" />

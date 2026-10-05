@@ -32,9 +32,12 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             new Uri(environment.BaseUrl, "favicon.svg"),
             TestContext.Current.CancellationToken);
         response.IsSuccessStatusCode.Should().BeTrue("because the favicon is served by the dashboard");
-        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
-            .Should()
-            .StartWith("<svg");
+
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        content.Should().StartWith("<svg");
+        content.Should().Contain(
+            "M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6",
+            "because the favicon is the project's ship logo");
     }
 
     [Fact]
@@ -119,6 +122,85 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await dialog
             .GetByText("web-stack-redis-1")
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
+    public async Task View_logs_dialog_starts_scrolled_to_the_recent_logs()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Point nginx's access log at its stdout (the container log) so the requests
+        // below produce log lines the dialog can display.
+        await DockerCli.EnsureSucceededAsync(
+            Paths.RepoRoot,
+            ["exec", "web-stack-nginx-1", "sh", "-c",
+                "echo 'access_log /dev/stdout;' > /etc/nginx/conf.d/e2e-logs.conf && nginx -s reload"],
+            cancellationToken);
+
+        try
+        {
+            // Generate enough access log lines that the dialog's log area overflows.
+            // web-stack publishes 8081, so its nginx is reachable on the host's localhost.
+            using var client = new HttpClient();
+            var url = new Uri("http://localhost:8081/e2e-log-check");
+            for (var i = 0; i < 300; i++)
+            {
+                using var response = await client.GetAsync(url, cancellationToken);
+            }
+
+            // Wait until a generated line is within the tail the dialog will fetch. The reload
+            // leaves the old workers shutting down, whose [notice] lines interleave after the
+            // access lines, so check a window rather than the single last line.
+            var deadline = DateTime.UtcNow.AddSeconds(15);
+            while (true)
+            {
+                var tail = await DockerCli.RunAsync(
+                    Paths.RepoRoot,
+                    ["logs", "--tail", "500", "web-stack-nginx-1"],
+                    cancellationToken);
+
+                if (tail.Succeeded &&
+                    tail.StandardOutput.Contains("e2e-log-check", StringComparison.Ordinal))
+                {
+                    break;
+                }
+
+                if (DateTime.UtcNow >= deadline)
+                    throw new TimeoutException("The generated access log lines did not reach the container log.");
+
+                await Task.Delay(500, cancellationToken);
+            }
+
+            var menu = await apps.OpenCardMenuAsync("web-stack");
+            await AppsPage.MenuItem(menu, "View logs").ClickAsync();
+
+            var dialog = apps.LogsDialog("web-stack logs");
+            await dialog.WaitForAsync();
+            await dialog
+                .GetByText("e2e-log-check")
+                .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+            var logArea = dialog.Locator(".overflow-auto");
+            (await logArea.EvaluateAsync<bool>("(el) => el.scrollHeight > el.clientHeight"))
+                .Should().BeTrue("because the generated log lines overflow the dialog's log area");
+            (await logArea.EvaluateAsync<bool>(
+                   "(el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2"))
+                .Should().BeTrue("because the dialog starts at the most recent logs");
+        }
+        finally
+        {
+            // Restore nginx's original access log target.
+            await DockerCli.RunAsync(
+                Paths.RepoRoot,
+                ["exec", "web-stack-nginx-1", "sh", "-c",
+                    "rm -f /etc/nginx/conf.d/e2e-logs.conf && nginx -s reload"],
+                cancellationToken);
+        }
     }
 
     [Fact]
@@ -264,6 +346,27 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Docker_v2_theme_applies_the_gradient_header()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Docker V2").ClickAsync();
+
+        (await apps.Page.Locator("html[data-theme='docker-v2']").CountAsync()).Should().Be(1);
+        (await apps.Page
+               .Locator("header")
+               .EvaluateAsync<string>("(el) => getComputedStyle(el).backgroundImage"))
+            .Should()
+            .Contain(
+                "linear-gradient",
+                "because the Docker V2 theme matches the Docker Desktop gradient bar");
+    }
+
+    [Fact]
     public async Task Shows_running_apps_with_running_state()
     {
         await using var context = await browser.NewContextAsync();
@@ -315,6 +418,129 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         await apps.SearchBox.FillAsync(string.Empty);
         await apps.WaitForAppAsync("solo-stack");
+    }
+
+    [Fact]
+    public async Task Production_page_emits_no_signalr_traces_to_the_console()
+    {
+        await using var context = await browser.NewContextAsync();
+        var page = await context.NewPageAsync();
+        var apps = new AppsPage(page);
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        // The SignalR handshake happens on page load; give it time to fully complete.
+        await Task.Delay(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+        var consoleTexts = (await page.ConsoleMessagesAsync())
+            .Select(message => message.Text)
+            .ToList();
+
+        var signalrTraces = consoleTexts
+            .Where(text =>
+                text.Contains("HubConnection", StringComparison.Ordinal) ||
+                text.Contains("WebSocket connected", StringComparison.Ordinal))
+            .ToList();
+
+        signalrTraces.Should().BeEmpty(
+            "because the SignalR client is configured to log nothing, so the production console stays clean");
+    }
+
+    [Fact]
+    public async Task Dragging_a_card_reorders_the_grid_and_persists_it()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var names = await apps.CardNamesAsync();
+        names.Count.Should().BeGreaterThan(1, "because the scenario runs several demo stacks");
+
+        var first = names[0];
+        var second = names[1];
+
+        await apps.DragCardAsync(first, second);
+
+        // The dragged card takes the hovered card's slot; the rest keep their relative order.
+        var expected = new List<string> { second, first };
+        expected.AddRange(names.Skip(2));
+        await apps.WaitForCardOrderAsync(expected);
+
+        // The new order is persisted in the scenario's appsettings, which the dashboard bind-mounts.
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+
+        while (true)
+        {
+            var persisted = false;
+
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(
+                    await File.ReadAllTextAsync(appSettingsPath, cancellationToken));
+
+                var order = document.RootElement
+                    .GetProperty("DockerUI")
+                    .TryGetProperty("Order", out var stored) ? stored : default;
+
+                if (order.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    var storedNames = order.EnumerateArray()
+                        .Select(element => element.GetString() ?? string.Empty)
+                        .ToList();
+
+                    persisted = storedNames.SequenceEqual(expected, StringComparer.Ordinal);
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // The settings file is mid-rewrite; read it again.
+            }
+
+            if (persisted)
+                break;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("The new card order was not persisted to appsettings.");
+
+            await Task.Delay(200, cancellationToken);
+        }
+
+        // The order survives a reload.
+        await apps.Page.ReloadAsync();
+        await apps.WaitForAppAsync("web-stack");
+        await apps.WaitForCardOrderAsync(expected);
+
+        // Restore the original layout so the other tests see the default arrangement.
+        await apps.DragCardAsync(second, first);
+        await apps.WaitForCardOrderAsync(names);
+
+        // Clear the persisted order so the scenario's settings file is left as found.
+        using var client = new HttpClient();
+        using var content = new StringContent("{\"order\":[]}", System.Text.Encoding.UTF8, "application/json");
+        var response = await client.PutAsync(
+            new Uri(environment.BaseUrl, "api/apps/order"),
+            content,
+            cancellationToken);
+        response.IsSuccessStatusCode.Should().BeTrue("because the order endpoint accepts an empty order");
+
+        deadline = DateTime.UtcNow.AddSeconds(10);
+
+        while (true)
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(
+                await File.ReadAllTextAsync(appSettingsPath, cancellationToken));
+
+            if (!document.RootElement.GetProperty("DockerUI").TryGetProperty("Order", out _))
+                break;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("The cleared order was not persisted to appsettings.");
+
+            await Task.Delay(200, cancellationToken);
+        }
     }
 
     [Fact]

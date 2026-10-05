@@ -104,6 +104,44 @@
     --input: 215 22% 24%;
     --ring: 204 84% 53%;
   }
+
+  [data-theme='docker-v2'] {
+    --background: 210 20% 8%;
+    --foreground: 210 40% 98%;
+
+    --header: 220 56% 16%;
+    --header-foreground: 210 40% 98%;
+
+    --card: 215 25% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 215 25% 14%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 204 84% 53%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 216 25% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 216 25% 14%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 216 30% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 22% 24%;
+    --input: 215 22% 24%;
+    --ring: 204 84% 53%;
+  }
+}
+
+/* The Docker Desktop bar fades from deep navy to bright blue. */
+[data-theme='docker-v2'] header {
+  background-image: linear-gradient(to right, hsl(222 91% 18%), hsl(222 100% 27%));
 }
 
 @layer base {

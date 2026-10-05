@@ -30,6 +30,7 @@ internal static class EndpointsMapper
         StopAppEndpoint.Map(apps);
         RestartAppEndpoint.Map(apps);
         GetAppLogsEndpoint.Map(apps);
+        SetAppOrderEndpoint.Map(apps);
 
         var shortcuts = app.MapGroup(ShortcutsPath);
         GetShortcutsEndpoint.Map(shortcuts);

@@ -31,7 +31,7 @@ namespace Api.Features.Apps
 
             apps.AddRange(BuildShortcutApps());
 
-            return apps;
+            return AppCatalog.OrderApps(apps, settings);
         }
 
         public async Task<AppDto> GetAppAsync(string appName, CancellationToken cancellationToken)
@@ -58,7 +58,7 @@ namespace Api.Features.Apps
             return ResolveSelfProject(snapshots);
         }
 
-        /// <summary>User-defined shortcuts, surfaced as always-available apps after the docker stacks.</summary>
+        /// <summary>User-defined shortcuts, surfaced as always-available apps in the same grid as the docker stacks.</summary>
         List<AppDto> BuildShortcutApps()
         {
             var apps = new List<AppDto>();

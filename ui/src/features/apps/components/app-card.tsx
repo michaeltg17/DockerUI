@@ -6,7 +6,7 @@ import {
   Square,
   Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type DragEvent } from 'react';
 
 import {
   ContextMenu,
@@ -25,9 +25,30 @@ import { ShortcutDialog } from './shortcut-dialog';
 
 type AppCardProps = {
   app: App;
+  draggable: boolean;
+  isDragging: boolean;
+  onDragStart: (event: DragEvent<HTMLButtonElement>) => void;
+  onDragEnter: (event: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: (event: DragEvent<HTMLButtonElement>) => void;
 };
 
-export const AppCard = ({ app }: AppCardProps) => {
+const cardClasses =
+  'group flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+export const AppCard = ({
+  app,
+  draggable,
+  isDragging,
+  onDragStart,
+  onDragEnter,
+  onDragEnd,
+}: AppCardProps) => {
+  const cardDragProps = {
+    draggable,
+    onDragStart,
+    onDragEnter,
+    onDragEnd,
+  };
   const startApp = useStartApp();
   const stopApp = useStopApp();
   const restartApp = useRestartApp();
@@ -69,7 +90,8 @@ export const AppCard = ({ app }: AppCardProps) => {
             type="button"
             onClick={openShortcut}
             data-state={app.state}
-            className="group flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            {...cardDragProps}
+            className={cn(cardClasses, isDragging && 'opacity-50')}
           >
             <AppIcon
               icon={app.icon}
@@ -144,7 +166,8 @@ export const AppCard = ({ app }: AppCardProps) => {
           type="button"
           onClick={openApp}
           data-state={app.state}
-          className="group flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          {...cardDragProps}
+          className={cn(cardClasses, isDragging && 'opacity-50')}
         >
           <div className="relative">
             <AppIcon

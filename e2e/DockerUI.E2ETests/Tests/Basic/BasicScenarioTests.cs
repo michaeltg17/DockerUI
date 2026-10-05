@@ -895,6 +895,98 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Add_shortcut_enables_create_for_a_protocolless_url()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Protocolless";
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync(name);
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("example.com/protocolless");
+
+        var create = dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Create", Exact = true });
+        (await create.IsEnabledAsync())
+            .Should().BeTrue("because a url without a scheme is completed to https before validation");
+
+        await create.ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+        await apps.WaitForAppAsync(name);
+
+        var shortcut = await GetShortcutAsync(name, TestContext.Current.CancellationToken);
+        shortcut.GetProperty("url").GetString()
+            .Should().Be("https://example.com/protocolless", "because the url is normalized to an absolute url");
+
+        await apps.DeleteShortcutAsync(name);
+    }
+
+    [Fact]
+    public async Task Shortcut_icon_picker_filters_by_name_and_selects_an_icon()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await picker
+            .GetByRole(AriaRole.Searchbox, new LocatorGetByRoleOptions { Name = "Search icons by name", Exact = true })
+            .FillAsync("adguard");
+
+        var icon = picker.Locator("img[src='/icons/adguard-home.svg']");
+        await icon.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await icon.CountAsync()).Should().Be(1, "because 'adguard' only matches the adguard-home icon");
+        (await picker.Locator("img").CountAsync()).Should().Be(1, "because the search filters the icon grid");
+
+        await icon.ClickAsync();
+        await picker.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        (await dialog.Locator("img[src='/icons/adguard-home.svg']").CountAsync())
+            .Should().Be(1, "because the chosen icon is previewed next to the name and url fields");
+
+        const string name = "E2E Picked Icon";
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync(name);
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("https://example.com/picked");
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Create", Exact = true })
+            .ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+        await apps.WaitForAppAsync(name);
+
+        (await apps.CardIconImage(name).CountAsync())
+            .Should().Be(1, "because the shortcut was created with its picked icon");
+
+        await apps.DeleteShortcutAsync(name);
+    }
+
+    [Fact]
     public async Task Stack_names_resolve_icons_from_the_catalog()
     {
         await using var context = await browser.NewContextAsync();

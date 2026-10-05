@@ -148,9 +148,18 @@ public sealed class AppsPage(IPage page)
 
         if (icon is not null)
         {
+            var label = System.IO.Path.GetFileNameWithoutExtension(icon);
             await dialog
-                .GetByRole(AriaRole.Combobox, new LocatorGetByRoleOptions { Name = "Icon", Exact = true })
-                .SelectOptionAsync(icon);
+                .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+                .ClickAsync();
+
+            var picker = Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+            await picker.WaitForAsync(new LocatorWaitForOptions { Timeout = timeoutMs });
+            await picker
+                .GetByRole(AriaRole.Searchbox, new LocatorGetByRoleOptions { Name = "Search icons by name", Exact = true })
+                .FillAsync(label);
+            await picker.Locator($"img[src='{icon}']").ClickAsync();
+            await picker.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
         }
 
         await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Create", Exact = true }).ClickAsync();

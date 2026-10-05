@@ -12,36 +12,40 @@ import {
 import type { Shortcut } from '../types';
 
 import { AppIcon } from './app-icon';
+import { IconPickerDialog } from './icon-picker-dialog';
 
 type ShortcutDialogProps = {
   open: boolean;
   /** The shortcut to edit; when null a new shortcut is created. */
-  initial: Shortcut | null;
+  initial?: Shortcut | null;
   onClose: () => void;
 };
 
-const isAbsoluteUrl = (value: string) => {
+const isEditingShortcut = (initial?: Shortcut | null) => Boolean(initial?.name);
+
+const normalizeUrl = (value: string) => {
+  const trimmed = value.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
+const isSaveableUrl = (value: string) => {
   try {
-    const url = new URL(value);
+    const url = new URL(normalizeUrl(value));
     return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
     return false;
   }
 };
 
-const iconLabel = (path: string) => {
-  const file = path.split('/').pop() ?? path;
-  return file.replace(/\.[a-z]+$/i, '');
-};
-
 const fieldClasses =
-  'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30';
+  'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
 export const ShortcutDialog = ({
   open,
   initial,
   onClose,
 }: ShortcutDialogProps) => {
+  const isEditing = isEditingShortcut(initial);
   const { data: icons = [] } = useIcons();
   const addShortcut = useAddShortcut();
   const updateShortcut = useUpdateShortcut();
@@ -49,38 +53,38 @@ export const ShortcutDialog = ({
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [icon, setIcon] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  const isEditing = initial !== null;
   const isSaving = addShortcut.isPending || updateShortcut.isPending;
-
   const initialName = initial?.name ?? '';
-  const initialIcon = initial?.icon ?? '';
+  const initialIcon = initial?.icon ?? null;
   const initialUrl = initial?.url ?? '';
 
   useEffect(() => {
     if (!open) return;
     setName(initialName);
     setUrl(initialUrl);
-    setIcon(initialIcon);
+    setIcon(initialIcon ?? '');
+    setPickerOpen(false);
   }, [open, initialName, initialIcon, initialUrl]);
 
   useEffect(() => {
     if (!open) return undefined;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      // Escape closes the icon picker first; the shortcut dialog closes
+      // only when no other dialog is layered on top of it.
+      if (event.key === 'Escape' && !pickerOpen) onClose();
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open, onClose, pickerOpen]);
 
   if (!open) return null;
 
   const trimmedName = name.trim();
-  const trimmedUrl = url.trim();
-  const canSave =
-    trimmedName.length > 0 && isAbsoluteUrl(trimmedUrl) && !isSaving;
+  const canSave = trimmedName.length > 0 && isSaveableUrl(url) && !isSaving;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -89,7 +93,7 @@ export const ShortcutDialog = ({
     const shortcut: Shortcut = {
       name: trimmedName,
       icon: icon === '' ? null : icon,
-      url: trimmedUrl,
+      url: normalizeUrl(url),
     };
 
     try {
@@ -133,49 +137,44 @@ export const ShortcutDialog = ({
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Name</span>
-            <input
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="e.g. GitHub"
-              className={fieldClasses}
-            />
-          </label>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              aria-label="Choose icon"
+              className="shrink-0 self-start rounded-2xl transition-shadow hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <AppIcon
+                icon={icon === '' ? null : icon}
+                name={trimmedName || '?'}
+                className="size-16 text-xl"
+              />
+            </button>
 
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">URL</span>
-            <input
-              type="url"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              placeholder="https://example.com"
-              className={fieldClasses}
-            />
-          </label>
+            <div className="flex min-w-0 flex-1 flex-col gap-4">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">Name</span>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="e.g. GitHub"
+                  className={fieldClasses}
+                />
+              </label>
 
-          <div className="flex items-center gap-3">
-            <AppIcon
-              icon={icon === '' ? null : icon}
-              name={trimmedName || '?'}
-              className="size-12 shrink-0 text-base"
-            />
-            <label className="flex flex-1 flex-col gap-1.5 text-sm">
-              <span className="font-medium">Icon</span>
-              <select
-                value={icon}
-                onChange={(event) => setIcon(event.target.value)}
-                className={fieldClasses}
-              >
-                <option value="">None</option>
-                {icons.map((path) => (
-                  <option key={path} value={path}>
-                    {iconLabel(path)}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">URL</span>
+                <input
+                  type="text"
+                  inputMode="url"
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                  placeholder="e.g. https://example.com or example.com"
+                  className={fieldClasses}
+                />
+              </label>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
@@ -188,6 +187,18 @@ export const ShortcutDialog = ({
           </div>
         </form>
       </div>
+
+      {pickerOpen && (
+        <IconPickerDialog
+          icons={icons}
+          selected={icon === '' ? null : icon}
+          onSelect={(path) => {
+            setIcon(path ?? '');
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>,
     document.body,
   );

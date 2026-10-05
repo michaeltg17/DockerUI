@@ -6,8 +6,6 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { env } from '@/config/env';
-
 import type { App } from '../types';
 
 import { APPS_QUERY_KEY } from './use-apps';
@@ -25,9 +23,7 @@ export const useAppsHub = () => {
     let isStopping = false;
 
     const start = async () => {
-      const builder = new HubConnectionBuilder().withUrl(
-        `${env.API_URL}/apps/hub`,
-      );
+      const builder = new HubConnectionBuilder().withUrl('/api/apps/hub');
 
       // LogLevel.None: the client's default logger writes its connection
       // trace/debug lines straight to the browser console.

@@ -14,7 +14,6 @@ import {
   type ContextMenuItem,
 } from '@/components/ui/context-menu';
 import { Spinner } from '@/components/ui/spinner';
-import { env } from '@/config/env';
 import { useTheme } from '@/hooks/use-theme';
 import { themes, type Theme } from '@/lib/theme';
 
@@ -72,7 +71,7 @@ export const DashboardMenu = ({
     while (Date.now() < deadline) {
       let up = false;
       try {
-        const response = await fetch(`${env.API_URL}/settings`, {
+        const response = await fetch('/api/settings', {
           cache: 'no-store',
         });
 
@@ -89,7 +88,7 @@ export const DashboardMenu = ({
     // Wait for the dashboard to come back, then reload into the fresh instance.
     while (Date.now() < deadline) {
       try {
-        const response = await fetch(`${env.API_URL}/settings`, {
+        const response = await fetch('/api/settings', {
           cache: 'no-store',
         });
 

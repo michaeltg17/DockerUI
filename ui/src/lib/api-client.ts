@@ -1,7 +1,6 @@
 import Axios, { type InternalAxiosRequestConfig } from 'axios';
 
 import { useNotifications } from '@/components/ui/notifications';
-import { env } from '@/config/env';
 
 function requestInterceptor(config: InternalAxiosRequestConfig) {
   if (config.headers) {
@@ -12,7 +11,7 @@ function requestInterceptor(config: InternalAxiosRequestConfig) {
 }
 
 export const api = Axios.create({
-  baseURL: env.API_URL,
+  baseURL: '/api',
 });
 
 api.interceptors.request.use(requestInterceptor);

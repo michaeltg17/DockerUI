@@ -1,4 +1,8 @@
-import { type HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
+import {
+  type HubConnection,
+  HubConnectionBuilder,
+  LogLevel,
+} from '@microsoft/signalr';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
@@ -25,7 +29,12 @@ export const useAppsHub = () => {
         `${env.API_URL}/apps/hub`,
       );
 
-      connection = builder.withAutomaticReconnect().configureLogging(0).build();
+      // LogLevel.None: the client's default logger writes its connection
+      // trace/debug lines straight to the browser console.
+      connection = builder
+        .withAutomaticReconnect()
+        .configureLogging(LogLevel.None)
+        .build();
 
       connection.on('appsUpdated', (apps: App[]) => {
         queryClient.setQueryData(APPS_QUERY_KEY, apps);

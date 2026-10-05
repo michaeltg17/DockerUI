@@ -318,6 +318,32 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Production_page_emits_no_signalr_traces_to_the_console()
+    {
+        await using var context = await browser.NewContextAsync();
+        var page = await context.NewPageAsync();
+        var apps = new AppsPage(page);
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        // The SignalR handshake happens on page load; give it time to fully complete.
+        await Task.Delay(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+        var consoleTexts = (await page.ConsoleMessagesAsync())
+            .Select(message => message.Text)
+            .ToList();
+
+        var signalrTraces = consoleTexts
+            .Where(text =>
+                text.Contains("HubConnection", StringComparison.Ordinal) ||
+                text.Contains("WebSocket connected", StringComparison.Ordinal))
+            .ToList();
+
+        signalrTraces.Should().BeEmpty(
+            "because the SignalR client is configured to log nothing, so the production console stays clean");
+    }
+
+    [Fact]
     public async Task Dragging_a_card_reorders_the_grid_and_persists_it()
     {
         await using var context = await browser.NewContextAsync();

@@ -33,6 +33,12 @@ namespace Api.Settings
         public IReadOnlyDictionary<string, AppUserSettings>? Apps { get; set; }
 
         /// <summary>
+        /// User-defined shortcut links shown as cards on the dashboard, persisted in this
+        /// file (the shortcut endpoints edit this section).
+        /// </summary>
+        public IReadOnlyCollection<Shortcut>? Shortcuts { get; set; }
+
+        /// <summary>
         /// Custom display order: apps listed here (in this order) come first;
         /// everything else follows alphabetically.
         /// </summary>

@@ -32,7 +32,7 @@ public static class Program
 
         //The web host registers the root configuration as IConfiguration; expose the root
         //explicitly so the app-state monitor can call Reload() on settings-file edits.
-        builder.Services.AddSingleton<IConfigurationRoot>(sp => (IConfigurationRoot)sp.GetRequiredService<IConfiguration>());
+        builder.Services.AddSingleton(sp => (IConfigurationRoot)sp.GetRequiredService<IConfiguration>());
 
         builder.AddSerilog();
 
@@ -81,12 +81,12 @@ public static class Program
                 TimeSpan.FromSeconds(60),
                 TimeSpan.FromSeconds(5),
                 new Dictionary<string, string>())
-            .CreateClient(new System.Version(1, 40));
+            .CreateClient(new Version(1, 40));
 #pragma warning restore CA2000
 
         services.AddSingleton(client);
-        services.AddSingleton<IContainerOperations>(client.Containers);
-        services.AddSingleton<ISystemOperations>(client.System);
+        services.AddSingleton(client.Containers);
+        services.AddSingleton(client.System);
 
         return services;
     }

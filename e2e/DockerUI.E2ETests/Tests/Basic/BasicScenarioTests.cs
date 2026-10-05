@@ -431,6 +431,46 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Shortcut_is_persisted_to_appsettings()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Zeta";
+        await apps.CreateShortcutAsync(name, "https://example.com/zeta");
+        await apps.WaitForAppAsync(name);
+
+        // Shortcuts live in the scenario's appsettings.json, bind-mounted into the dashboard.
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+
+        using (var document = System.Text.Json.JsonDocument.Parse(
+                   await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken)))
+        {
+            var stored = document.RootElement
+                .GetProperty("DockerUI")
+                .GetProperty("Shortcuts")
+                .EnumerateArray()
+                .FirstOrDefault(element =>
+                    element.TryGetProperty("Name", out var shortcutName) &&
+                    string.Equals(shortcutName.GetString(), name, StringComparison.Ordinal));
+
+            stored.ValueKind.Should().Be(System.Text.Json.JsonValueKind.Object, "because the shortcut is stored in appsettings");
+            stored.GetProperty("Url").GetString().Should().Be("https://example.com/zeta");
+        }
+
+        await apps.DeleteShortcutAsync(name);
+
+        using var after = System.Text.Json.JsonDocument.Parse(
+            await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken));
+        after.RootElement
+            .GetProperty("DockerUI")
+            .TryGetProperty("Shortcuts", out _)
+            .Should().BeFalse("because the last shortcut was removed from appsettings");
+    }
+
+    [Fact]
     public async Task Edit_shortcut_updates_its_url()
     {
         await using var context = await browser.NewContextAsync();

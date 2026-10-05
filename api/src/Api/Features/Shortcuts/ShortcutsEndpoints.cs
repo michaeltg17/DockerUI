@@ -2,6 +2,7 @@ using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Endpoints;
 using Api.Features.Apps.Hubs;
+using Api.Settings;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Api.Features.Shortcuts;
@@ -28,7 +29,7 @@ public static class ShortcutsEndpoints
             if (shortcuts.Any(shortcut => string.Equals(shortcut.Name, name, StringComparison.OrdinalIgnoreCase)))
                 return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Conflict", detail: $"A shortcut named '{name}' already exists.");
 
-            shortcuts.Add(new Shortcut(name, NormalizeIcon(input.Icon), url.ToString()));
+            shortcuts.Add(new Shortcut(name, url.ToString(), NormalizeIcon(input.Icon)));
             store.Save(shortcuts);
 
             await AppsEndpointsBroadcast.BroadcastAsync(appService, hub, monitor, cancellationToken);
@@ -47,7 +48,7 @@ public static class ShortcutsEndpoints
             if (index < 0)
                 return Results.NotFound();
 
-            shortcuts[index] = new Shortcut(name, NormalizeIcon(input.Icon), url.ToString());
+            shortcuts[index] = new Shortcut(name, url.ToString(), NormalizeIcon(input.Icon));
             store.Save(shortcuts);
 
             await AppsEndpointsBroadcast.BroadcastAsync(appService, hub, monitor, cancellationToken);

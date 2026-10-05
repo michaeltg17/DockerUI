@@ -63,6 +63,14 @@ dotnet build e2e/DockerUI.e2e.slnx
 dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
 # Builds the DockerUI image once, then brings up the basic/settings/error
 # scenarios (ports 5010-5012) and tears them all down afterwards.
+
+# Local CI (same checks as GitHub CI: Dockerfile.ci runs ci.sh)
+docker build -t docker-ui-ci:latest -f Dockerfile.ci .
+# <ws> is the checkout as a POSIX path (E:\1\Repos\docker-ui ->
+# /e/1/Repos/docker-ui on Docker Desktop); client and daemon must see
+# the same path, so mount the checkout onto that path.
+docker run --rm --network host -w <ws> -v <ws>:<ws> \
+  -v //var/run/docker.sock:/var/run/docker.sock docker-ui-ci:latest
 ```
 
 ## Gotchas
@@ -117,7 +125,12 @@ Applies only when the user asks to start the automatic dev cycle.
 - Do the work, then commit and push on `dev` and open/update the
   `dev` → `main` PR, following the `## Workflow` instructions above.
 - A task counts as finished when it is committed, pushed, the PR is
-  updated, and the e2e tests pass in CI.
+  updated, and the e2e tests pass in CI. If the GitHub CI run is
+  cancelled or stuck, do not wait for it: validate locally that CI
+  passes by running the `Dockerfile.ci` container (it executes
+  `ci.sh`: API Release build, UI lint/type check/build, and the full
+  e2e suite against the local Docker daemon), then treat the task as
+  done and go to the next one.
 - On finish, move the card to `done`. If the work needs user review,
   move it to `review` instead, assign it to `michaeltg17`, and leave a
   comment on the task describing what was done and what to review.

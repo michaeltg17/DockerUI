@@ -16,7 +16,8 @@ namespace Api.Features.Apps
         IConfiguration configuration,
     AppBaseUrlTracker baseUrlTracker,
     IHttpContextAccessor httpContextAccessor,
-    ShortcutStore shortcutStore)
+    ShortcutStore shortcutStore,
+    ILogger<AppService> logger)
     {
         const uint StopGracePeriodSeconds = 10;
 
@@ -25,7 +26,7 @@ namespace Api.Features.Apps
             var settings = CurrentSettings;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
             var apps = AppCatalog
-                .BuildApps(snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots))
+                .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots))
                 .ToList();
 
             apps.AddRange(BuildShortcutApps());

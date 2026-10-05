@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Serilog;
 
 namespace Api.Features.Shortcuts;
 
@@ -7,7 +6,7 @@ namespace Api.Features.Shortcuts;
 /// Persists shortcuts to a JSON file in the app's content root. Reads and writes are
 /// serialized so concurrent requests never observe a torn file.
 /// </summary>
-public sealed class ShortcutStore
+public sealed partial class ShortcutStore
 {
     const string FileName = "shortcuts.json";
 
@@ -15,11 +14,13 @@ public sealed class ShortcutStore
 
     readonly Lock _gate = new();
     readonly string _path;
+    readonly ILogger _logger;
 
-    public ShortcutStore(IWebHostEnvironment environment)
+    public ShortcutStore(IWebHostEnvironment environment, ILogger<ShortcutStore> logger)
     {
         ArgumentNullException.ThrowIfNull(environment);
         _path = Path.Combine(environment.ContentRootPath, FileName);
+        _logger = logger;
     }
 
     public IReadOnlyList<Shortcut> Load()
@@ -35,11 +36,16 @@ public sealed class ShortcutStore
             }
             catch (JsonException ex)
             {
-                Log.Warning(ex, "The shortcuts file '{Path}' could not be parsed; ignoring it.", _path);
+                LogParseFailed(_logger, _path, ex);
                 return [];
             }
         }
     }
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The shortcuts file '{Path}' could not be parsed; ignoring it.")]
+    static partial void LogParseFailed(ILogger logger, string path, Exception? exception);
 
     public IReadOnlyList<Shortcut> Save(IEnumerable<Shortcut> shortcuts)
     {

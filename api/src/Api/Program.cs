@@ -106,7 +106,8 @@ public static class Program
     {
         //Live icon mappings come from 'DockerUI:Icons' and are merged per request in AppCatalog;
         //only the built-in catalog (embedded in the assembly) is registered here.
-        services.AddSingleton<IAppIconCatalog>(new AppIconCatalog(IconMappingLoader.LoadBuiltIn()));
+        services.AddSingleton<IAppIconCatalog>(sp =>
+            new AppIconCatalog(IconMappingLoader.LoadBuiltIn(), sp.GetRequiredService<ILogger<AppIconCatalog>>()));
         services.AddSingleton<ShortcutStore>();
 
         services.AddSingleton<AppBaseUrlTracker>();

@@ -2,7 +2,6 @@ using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Api.Settings;
-using Serilog;
 
 namespace Api.Features.Apps.Icons
 {
@@ -25,7 +24,7 @@ namespace Api.Features.Apps.Icons
     /// 'docker.io/library/postgres:16'). Name lookup matches the app name against the
     /// normalized icon names. Later mappings override earlier ones.
     /// </summary>
-    public sealed class AppIconCatalog : IAppIconCatalog
+    public sealed partial class AppIconCatalog : IAppIconCatalog
     {
         const double BoundaryScore = 0.9;
         const double TokenScore = 0.85;
@@ -36,11 +35,13 @@ namespace Api.Features.Apps.Icons
         readonly FrozenDictionary<string, string> _byImageName;
         readonly FrozenDictionary<string, string> _byName;
         readonly KeyValuePair<string, string>[] _candidates;
+        readonly ILogger _logger;
 
-        public AppIconCatalog(IReadOnlyCollection<AppIconMapping> mappings)
+        public AppIconCatalog(IReadOnlyCollection<AppIconMapping> mappings, ILogger logger)
         {
             ArgumentNullException.ThrowIfNull(mappings);
 
+            _logger = logger;
             BuildMaps(mappings, out _byImage, out _byImageName, out _byName, out _candidates);
         }
 
@@ -94,12 +95,17 @@ namespace Api.Features.Apps.Icons
 
             if (bestScore >= MinFuzzyScore && _byName.TryGetValue(best, out icon))
             {
-                Log.Debug("App name '{Name}' matched the '{Icon}' icon.", name, best);
+                LogFuzzyNameMatch(_logger, name, best);
                 return true;
             }
 
             return false;
         }
+
+        [LoggerMessage(
+            Level = LogLevel.Debug,
+            Message = "App name '{Name}' matched the '{Icon}' icon.")]
+        static partial void LogFuzzyNameMatch(ILogger logger, string name, string icon);
 
         /// <summary>
         /// Normalizes a container image reference for mapping lookup: trims, uppercases,

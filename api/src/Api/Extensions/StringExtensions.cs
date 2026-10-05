@@ -1,6 +1,6 @@
 namespace Api.Extensions
 {
-    public static class StringExtensions
+    internal static class StringExtensions
     {
         //C# 14 requires extension blocks to live in a top-level static class; the
         //analyzer sees the block as a nested type, which is a false positive here.

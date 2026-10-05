@@ -1,7 +1,7 @@
 namespace Api.Features.Apps.Models
 {
     /// <summary>Read-only snapshot of a container as returned by the Docker daemon.</summary>
-    public sealed record ContainerSnapshot(
+    internal sealed record ContainerSnapshot(
         string Id,
         string Name,
         string State,
@@ -10,5 +10,5 @@ namespace Api.Features.Apps.Models
         IReadOnlyList<PortMapping> Ports);
 
     /// <summary>A container port mapping as reported by the Docker daemon.</summary>
-    public sealed record PortMapping(ushort PrivatePort, ushort? PublicPort, string Protocol);
+    internal sealed record PortMapping(ushort PrivatePort, ushort? PublicPort, string Protocol);
 }

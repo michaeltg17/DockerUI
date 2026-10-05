@@ -11,7 +11,7 @@ internal static class HealthCheckResponseWriter
         if (report.Status == HealthStatus.Healthy)
         {
             httpContext.Response.StatusCode = StatusCodes.Status200OK;
-            await httpContext.Response.WriteAsJsonAsync(new HealthResponse(report.Status));
+            await httpContext.Response.WriteAsJsonAsync(new HealthResponse(report.Status)).ConfigureAwait(false);
         }
         else
         {
@@ -31,7 +31,7 @@ internal static class HealthCheckResponseWriter
                     Status = StatusCodes.Status503ServiceUnavailable,
                     Instance = httpContext.Request.Path
                 }
-            });
+            }).ConfigureAwait(false);
         }
     }
 }

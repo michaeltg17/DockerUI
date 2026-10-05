@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace Api.Features.Settings
 {
-    public static class GetSettingsEndpoint
+    internal static class GetSettingsEndpoint
     {
         public const string Path = "api/settings";
 
@@ -19,7 +19,7 @@ namespace Api.Features.Settings
                 : settings.Name.Trim();
     }
 
-    public record SettingsDto(string Name)
+    internal sealed record SettingsDto(string Name)
     {
         public const string DefaultName = "Docker UI";
     }

@@ -1,6 +1,6 @@
 namespace Api.Features.Shortcuts.Endpoints
 {
-    public static class DeleteShortcutEndpoint
+    internal static class DeleteShortcutEndpoint
     {
         public static void Map(IEndpointRouteBuilder group)
         {
@@ -9,7 +9,7 @@ namespace Api.Features.Shortcuts.Endpoints
                 ShortcutService shortcutService,
                 CancellationToken cancellationToken) =>
             {
-                await shortcutService.DeleteAsync(name, cancellationToken);
+                await shortcutService.DeleteAsync(name, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();
             });
         }

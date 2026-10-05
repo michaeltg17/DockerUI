@@ -1,6 +1,6 @@
 namespace Api.Features.Shortcuts.Endpoints
 {
-    public static class GetShortcutsEndpoint
+    internal static class GetShortcutsEndpoint
     {
         public static void Map(IEndpointRouteBuilder group)
         {

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace Api.Features.Apps.Endpoints
 {
-    public static class RestartAppEndpoint
+    internal static class RestartAppEndpoint
     {
         const uint StopGracePeriodSeconds = 10;
 
@@ -21,18 +21,18 @@ namespace Api.Features.Apps.Endpoints
                 CancellationToken cancellationToken) =>
             {
                 AppNameValidator.Validate(name);
-                var targets = await appService.ResolveAppContainersAsync(name, cancellationToken);
+                var targets = await appService.ResolveAppContainersAsync(name, cancellationToken).ConfigureAwait(false);
 
                 foreach (var container in targets.Where(container => AppCatalog.IsRunningState(container.State)))
                 {
                     await containers.RestartContainerAsync(
                         container.Id,
                         new ContainerRestartParameters { WaitBeforeKillSeconds = StopGracePeriodSeconds },
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                 }
 
-                var app = await appService.GetAppAsync(name, cancellationToken);
-                await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken);
+                var app = await appService.GetAppAsync(name, cancellationToken).ConfigureAwait(false);
+                await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);
                 return Results.Ok(app);
             });
         }

@@ -6,7 +6,7 @@ namespace Api.Features.Apps
     /// context) reuse it, so app URLs always point at the host people are actually
     /// browsing the dashboard from.
     /// </summary>
-    public sealed class AppBaseUrlTracker
+    internal sealed class AppBaseUrlTracker
     {
         Uri? _lastSeen;
 

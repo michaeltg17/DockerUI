@@ -19,6 +19,9 @@ dotnet_diagnostic.CA2007.severity = none
 # CA1032: Standard exception constructors - unnecessary boilerplate for custom exceptions
 dotnet_diagnostic.CA1032.severity = none
 
+# CA1812: Internal classes instantiated by the DI container or by configuration/JSON binding
+dotnet_diagnostic.CA1812.severity = none
+
 # IDE0160: Convert to block scoped namespace
 dotnet_diagnostic.IDE0160.severity = none
 

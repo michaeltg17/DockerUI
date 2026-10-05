@@ -12,7 +12,7 @@ namespace Api.Features.Apps
     /// Shared app operations: the full app list (docker stacks plus user shortcuts)
     /// and the container resolution the app endpoints build on.
     /// </summary>
-    public sealed class AppService(
+    internal sealed class AppService(
         IContainerOperations containers,
         IAppIconCatalog iconCatalog,
         IConfiguration configuration,
@@ -24,7 +24,7 @@ namespace Api.Features.Apps
         public async Task<IReadOnlyList<AppDto>> GetAppsAsync(CancellationToken cancellationToken = default)
         {
             var settings = CurrentSettings;
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
+            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
             var apps = AppCatalog
                 .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots))
                 .ToList();
@@ -36,14 +36,14 @@ namespace Api.Features.Apps
 
         public async Task<AppDto> GetAppAsync(string appName, CancellationToken cancellationToken)
         {
-            var apps = await GetAppsAsync(cancellationToken);
+            var apps = await GetAppsAsync(cancellationToken).ConfigureAwait(false);
             return apps.FirstOrDefault(app => app.Name == appName)
                 ?? throw new NotFoundException($"The app '{appName}' was not found.");
         }
 
         public async Task<IReadOnlyList<ContainerSnapshot>> ResolveAppContainersAsync(string appName, CancellationToken cancellationToken)
         {
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken);
+            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
             var targets = AppCatalog.ResolveApp(snapshots, appName);
 
             return targets.Count is 0
@@ -136,7 +136,7 @@ namespace Api.Features.Apps
             {
                 var list = await containers.ListContainersAsync(
                     new ContainersListParameters { All = true },
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
 
                 return
                 [

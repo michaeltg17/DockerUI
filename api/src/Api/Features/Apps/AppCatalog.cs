@@ -9,7 +9,7 @@ namespace Api.Features.Apps
     /// Compose projects are detected via the 'com.docker.compose.project' label;
     /// containers without it become standalone apps named after the container.
     /// </summary>
-    public static partial class AppCatalog
+    internal static partial class AppCatalog
     {
         public const string ComposeProjectLabel = "com.docker.compose.project";
         public const string ComposeServiceLabel = "com.docker.compose.service";

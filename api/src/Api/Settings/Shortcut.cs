@@ -7,6 +7,6 @@ namespace Api.Settings
     /// </summary>
     // CA1054/CA1056: the url stays a plain string for friendly input validation and clean JSON round-tripping.
 #pragma warning disable CA1054, CA1056
-    public sealed record Shortcut(string Name, string Url, string? Icon = null);
+    internal sealed record Shortcut(string Name, string Url, string? Icon = null);
 #pragma warning restore CA1054, CA1056
 }

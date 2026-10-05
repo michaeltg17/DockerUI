@@ -12,7 +12,7 @@ namespace Api.Features.Shortcuts
     /// Shared shortcut operations: input validation, persistence via <see cref="ShortcutStore"/>,
     /// and the broadcast to connected clients after every change.
     /// </summary>
-    public sealed class ShortcutService(
+    internal sealed class ShortcutService(
         ShortcutStore store,
         AppService appService,
         IHubContext<AppAppsHub> hub,
@@ -31,7 +31,7 @@ namespace Api.Features.Shortcuts
                 throw new ConflictException($"A shortcut named '{name}' already exists.");
 
             shortcuts.Add(new Shortcut(name, url, NormalizeIcon(input.Icon)));
-            return await SaveAndBroadcastAsync(shortcuts, cancellationToken);
+            return await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<IReadOnlyList<Shortcut>> UpdateAsync(string name, Shortcut input, CancellationToken cancellationToken)
@@ -45,7 +45,7 @@ namespace Api.Features.Shortcuts
                 throw new NotFoundException($"The shortcut '{name}' was not found.");
 
             shortcuts[index] = new Shortcut(name, url, NormalizeIcon(input.Icon));
-            return await SaveAndBroadcastAsync(shortcuts, cancellationToken);
+            return await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task DeleteAsync(string name, CancellationToken cancellationToken)
@@ -57,7 +57,7 @@ namespace Api.Features.Shortcuts
                 throw new NotFoundException($"The shortcut '{name}' was not found.");
 
             shortcuts.RemoveAt(index);
-            await SaveAndBroadcastAsync(shortcuts, cancellationToken);
+            await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
         }
 
         static int FindIndex(List<Shortcut> shortcuts, string name) =>
@@ -66,7 +66,7 @@ namespace Api.Features.Shortcuts
         async Task<IReadOnlyList<Shortcut>> SaveAndBroadcastAsync(List<Shortcut> shortcuts, CancellationToken cancellationToken)
         {
             store.Save(shortcuts);
-            await AppsEndpointsBroadcast.BroadcastAsync(appService, hub, monitor, cancellationToken);
+            await AppsEndpointsBroadcast.BroadcastAsync(appService, hub, monitor, cancellationToken).ConfigureAwait(false);
             return shortcuts;
         }
 

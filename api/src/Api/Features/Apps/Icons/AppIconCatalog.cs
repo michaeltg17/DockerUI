@@ -5,7 +5,7 @@ using Api.Settings;
 
 namespace Api.Features.Apps.Icons
 {
-    public interface IAppIconCatalog
+    internal interface IAppIconCatalog
     {
         /// <summary>Tries to resolve an icon path for the given container image reference.</summary>
         bool TryGetIcon(string? image, [NotNullWhen(true)] out string? icon);
@@ -24,7 +24,7 @@ namespace Api.Features.Apps.Icons
     /// 'docker.io/library/postgres:16'). Name lookup matches the app name against the
     /// normalized icon names. Later mappings override earlier ones.
     /// </summary>
-    public sealed partial class AppIconCatalog : IAppIconCatalog
+    internal sealed partial class AppIconCatalog : IAppIconCatalog
     {
         const double BoundaryScore = 0.9;
         const double TokenScore = 0.85;

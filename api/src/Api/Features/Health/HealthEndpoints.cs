@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 namespace Api.Features.Health;
 
-public static class HealthEndpoints
+internal static class HealthEndpoints
 {
     public const string LivePath = "health/live";
     public const string ReadyPath = "health/ready";

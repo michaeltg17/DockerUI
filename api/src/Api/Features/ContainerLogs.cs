@@ -4,7 +4,7 @@ using Docker.DotNet.Models;
 namespace Api.Features;
 
 /// <summary>Reads a recent tail of a container's logs through the Docker daemon.</summary>
-public static class ContainerLogs
+internal static class ContainerLogs
 {
     public const string LogTailLines = "500";
 
@@ -25,8 +25,8 @@ public static class ContainerLogs
                 ShowStderr = true,
                 Tail = LogTailLines,
             },
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
-        return await logs.ReadOutputToEndAsync(cancellationToken);
+        return await logs.ReadOutputToEndAsync(cancellationToken).ConfigureAwait(false);
     }
 }

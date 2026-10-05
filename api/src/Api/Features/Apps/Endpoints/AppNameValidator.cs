@@ -1,6 +1,6 @@
 namespace Api.Features.Apps.Endpoints
 {
-    public static class AppNameValidator
+    internal static class AppNameValidator
     {
         public static void Validate(string name)
         {

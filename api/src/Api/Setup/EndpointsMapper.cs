@@ -8,7 +8,7 @@ using Api.Features.Shortcuts.Endpoints;
 
 namespace Api.Setup;
 
-public static class EndpointsMapper
+internal static class EndpointsMapper
 {
     public const string BasePath = "api";
     public const string AppsPath = $"{BasePath}/apps";

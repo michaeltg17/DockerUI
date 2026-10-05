@@ -1,6 +1,19 @@
 namespace Api.Exceptions
 {
-    public class DockerUIException(string message, Exception? innerException = null) : Exception(message, innerException)
+    internal class DockerUIException : Exception
     {
+        public DockerUIException()
+        {
+        }
+
+        public DockerUIException(string message)
+            : base(message)
+        {
+        }
+
+        public DockerUIException(string message, Exception? innerException)
+            : base(message, innerException)
+        {
+        }
     }
 }

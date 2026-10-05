@@ -9,7 +9,7 @@ namespace Api.Features.Shortcuts;
 /// configuration root is reloaded, so the running instance sees the change immediately
 /// (and the app-state monitor's own file-watch reloads it for every other reader).
 /// </summary>
-public sealed class ShortcutStore(
+internal sealed class ShortcutStore(
     IWebHostEnvironment environment,
     IConfigurationRoot configurationRoot)
 {

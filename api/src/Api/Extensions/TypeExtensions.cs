@@ -1,6 +1,6 @@
 ﻿namespace Api.Extensions
 {
-    public static class TypeExtensions
+    internal static class TypeExtensions
     {
         public static string GetNameWithoutGenericArity(this Type type)
         {

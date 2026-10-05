@@ -29,7 +29,7 @@ namespace Api.Setup
                     _ => (int)HttpStatusCode.InternalServerError,
                 };
 
-                await problemDetailsService.WriteAsync(BuildProblemDetailsContext(exception, httpContext));
+                await problemDetailsService.WriteAsync(BuildProblemDetailsContext(exception, httpContext)).ConfigureAwait(false);
             }));
 
             return app;

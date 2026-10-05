@@ -122,6 +122,85 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task View_logs_dialog_starts_scrolled_to_the_recent_logs()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Point nginx's access log at its stdout (the container log) so the requests
+        // below produce log lines the dialog can display.
+        await DockerCli.EnsureSucceededAsync(
+            Paths.RepoRoot,
+            ["exec", "web-stack-nginx-1", "sh", "-c",
+                "echo 'access_log /dev/stdout;' > /etc/nginx/conf.d/e2e-logs.conf && nginx -s reload"],
+            cancellationToken);
+
+        try
+        {
+            // Generate enough access log lines that the dialog's log area overflows.
+            // web-stack publishes 8081, so its nginx is reachable on the host's localhost.
+            using var client = new HttpClient();
+            var url = new Uri("http://localhost:8081/e2e-log-check");
+            for (var i = 0; i < 300; i++)
+            {
+                using var response = await client.GetAsync(url, cancellationToken);
+            }
+
+            // Wait until a generated line is within the tail the dialog will fetch. The reload
+            // leaves the old workers shutting down, whose [notice] lines interleave after the
+            // access lines, so check a window rather than the single last line.
+            var deadline = DateTime.UtcNow.AddSeconds(15);
+            while (true)
+            {
+                var tail = await DockerCli.RunAsync(
+                    Paths.RepoRoot,
+                    ["logs", "--tail", "500", "web-stack-nginx-1"],
+                    cancellationToken);
+
+                if (tail.Succeeded &&
+                    tail.StandardOutput.Contains("e2e-log-check", StringComparison.Ordinal))
+                {
+                    break;
+                }
+
+                if (DateTime.UtcNow >= deadline)
+                    throw new TimeoutException("The generated access log lines did not reach the container log.");
+
+                await Task.Delay(500, cancellationToken);
+            }
+
+            var menu = await apps.OpenCardMenuAsync("web-stack");
+            await AppsPage.MenuItem(menu, "View logs").ClickAsync();
+
+            var dialog = apps.LogsDialog("web-stack logs");
+            await dialog.WaitForAsync();
+            await dialog
+                .GetByText("e2e-log-check")
+                .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+            var logArea = dialog.Locator(".overflow-auto");
+            (await logArea.EvaluateAsync<bool>("(el) => el.scrollHeight > el.clientHeight"))
+                .Should().BeTrue("because the generated log lines overflow the dialog's log area");
+            (await logArea.EvaluateAsync<bool>(
+                   "(el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2"))
+                .Should().BeTrue("because the dialog starts at the most recent logs");
+        }
+        finally
+        {
+            // Restore nginx's original access log target.
+            await DockerCli.RunAsync(
+                Paths.RepoRoot,
+                ["exec", "web-stack-nginx-1", "sh", "-c",
+                    "rm -f /etc/nginx/conf.d/e2e-logs.conf && nginx -s reload"],
+                cancellationToken);
+        }
+    }
+
+    [Fact]
     public async Task Dashboard_stack_is_hidden_by_default()
     {
         await using var context = await browser.NewContextAsync();

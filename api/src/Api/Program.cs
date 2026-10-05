@@ -109,6 +109,7 @@ public static class Program
         services.AddSingleton<IAppIconCatalog>(sp =>
             new AppIconCatalog(IconMappingLoader.LoadBuiltIn(), sp.GetRequiredService<ILogger<AppIconCatalog>>()));
         services.AddSingleton<ShortcutStore>();
+        services.AddSingleton<ShortcutService>();
 
         services.AddSingleton<AppBaseUrlTracker>();
         services.AddSingleton<AppService>();

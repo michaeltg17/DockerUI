@@ -4,6 +4,7 @@ using Api.Features.Health;
 using Api.Features.Logging;
 using Api.Features.Settings;
 using Api.Features.Shortcuts;
+using Api.Features.Shortcuts.Endpoints;
 
 namespace Api.Setup;
 
@@ -29,7 +30,10 @@ public static class EndpointsMapper
         GetAppLogsEndpoint.Map(apps);
 
         var shortcuts = app.MapGroup(ShortcutsPath);
-        ShortcutsEndpoints.Map(shortcuts);
+        GetShortcutsEndpoint.Map(shortcuts);
+        CreateShortcutEndpoint.Map(shortcuts);
+        UpdateShortcutEndpoint.Map(shortcuts);
+        DeleteShortcutEndpoint.Map(shortcuts);
 
         app.MapHub<AppAppsHub>(AppsHubPath);
 

@@ -1,4 +1,3 @@
-using AwesomeAssertions;
 using DockerUI.E2ETests.Environments;
 using DockerUI.E2ETests.Playwright;
 using Microsoft.Playwright;

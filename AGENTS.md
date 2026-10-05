@@ -33,8 +33,9 @@ through its socket.
   `Directory.Packages.props` (`api/` for the API, `e2e/` for tests),
   references in csproj files.
 - C# style: file-scoped namespaces, primary constructors, expression bodies
-  where short. Analysis rules are enforced (`AnalysisMode=AllEnabledByDefault`),
-  keep the build warning-free when practical.
+  where short. Analysis rules are enforced (`AnalysisMode=AllEnabledByDefault`)
+  and `TreatWarningsAsErrors` is on in both solutions, so the build must stay
+  warning-free.
 - TypeScript: strict mode, `@/` path alias to `ui/src`, kebab-case file and
   folder names, LF line endings. Tailwind for styling; shadcn-style theme
   tokens from `index.css`.

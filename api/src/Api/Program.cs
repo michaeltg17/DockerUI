@@ -2,6 +2,7 @@
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
 using Api.Features.Health;
+using Api.Features.Settings;
 using Api.Features.Shortcuts;
 using Api.Settings;
 using Api.Setup;
@@ -110,6 +111,7 @@ internal static class Program
             new AppIconCatalog(IconMappingLoader.LoadBuiltIn(), sp.GetRequiredService<ILogger<AppIconCatalog>>()));
         services.AddSingleton<ShortcutStore>();
         services.AddSingleton<ShortcutService>();
+        services.AddSingleton<SettingsStore>();
 
         services.AddSingleton<AppBaseUrlTracker>();
         services.AddSingleton<AppService>();

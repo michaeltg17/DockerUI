@@ -32,7 +32,8 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-        await apps.LogsButton.ClickAsync();
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "View logs").ClickAsync();
         var dialog = apps.LogsDialog("Docker UI logs");
         await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 

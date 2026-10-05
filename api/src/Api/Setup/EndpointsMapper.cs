@@ -2,6 +2,7 @@
 using Api.Features.Apps.Hubs;
 using Api.Features.Health;
 using Api.Features.Logging;
+using Api.Features.Self;
 using Api.Features.Settings;
 using Api.Features.Shortcuts;
 using Api.Features.Shortcuts.Endpoints;
@@ -14,6 +15,7 @@ internal static class EndpointsMapper
     public const string AppsPath = $"{BasePath}/apps";
     public const string AppsHubPath = $"{AppsPath}/hub";
     public const string ShortcutsPath = $"{BasePath}/shortcuts";
+    public const string SelfPath = $"{BasePath}/self";
 
     public static WebApplication MapEndpoints(this WebApplication app)
     {
@@ -34,6 +36,11 @@ internal static class EndpointsMapper
         CreateShortcutEndpoint.Map(shortcuts);
         UpdateShortcutEndpoint.Map(shortcuts);
         DeleteShortcutEndpoint.Map(shortcuts);
+
+        var self = app.MapGroup(SelfPath);
+        RestartSelfEndpoint.Map(self);
+        StopSelfEndpoint.Map(self);
+        SetSelfVisibilityEndpoint.Map(self);
 
         app.MapHub<AppAppsHub>(AppsHubPath);
 

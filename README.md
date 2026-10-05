@@ -120,12 +120,21 @@ Icons are resolved in this order (first match wins):
          dockerui.icon: "https://example.com/icon.png"
    ```
 
-3. **`DockerUI:Icons` mappings** from appsettings.json, then **the built-in
-   icon catalog**: each container's image (e.g. `linuxserver/jellyfin:10.9`)
-   is matched against a mapping of images to icons that is synced from the
+3. **`DockerUI:Icons` mappings** from appsettings.json: each container's
+   image (e.g. `linuxserver/jellyfin:10.9`) is matched against a
+   user-provided image → icon mapping.
+4. **The stack name against the icon catalog**: the stack's name is matched
+   against the icon file names in `ui/public/icons/` — exactly first
+   (`wavelog` → `wavelog.svg`), then fuzzily, so names that are not exact
+   still resolve: boundary prefix or suffix (`my-wavelog` → `wavelog.svg`,
+   `adguard` → `adguard-home.svg`), reordered words, and small typos
+   (similarity of 0.8 or higher).
+5. **The built-in icon catalog**: each container's image (e.g.
+   `linuxserver/jellyfin:10.9`) is matched against a mapping of images to
+   icons that is synced from the
    [Umbrel app store](https://github.com/getumbrel/umbrel-apps-gallery)
    (`ui/public/icons/`, served at `/icons/`).
-4. **The initials fallback**: the app's initials on a colored background.
+6. **The initials fallback**: the app's initials on a colored background.
 
 To remap images to different icons, add entries to `DockerUI:Icons` in
 appsettings.json:

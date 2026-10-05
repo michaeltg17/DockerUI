@@ -8,7 +8,8 @@ public static class Scenarios
 {
     /// <summary>
     /// Default settings. Covers every app state (running, stopped), a standalone
-    /// container, search, the right-click action menu, state transitions, and opening apps.
+    /// container, icon resolution by stack name, search, the right-click action menu,
+    /// state transitions, and opening apps.
     /// </summary>
     public static readonly Scenario Basic = new()
     {
@@ -23,6 +24,8 @@ public static class Scenarios
             "scenarios/basic/stacks/stopped-stack",
             "scenarios/basic/stacks/start-stack",
             "scenarios/basic/stacks/partial-stack",
+            "scenarios/basic/stacks/wavelog",
+            "scenarios/basic/stacks/adguard",
         ],
         SetupAsync = async (_, cancellationToken) =>
         {

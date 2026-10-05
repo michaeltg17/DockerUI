@@ -512,6 +512,25 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.DeleteShortcutAsync(withoutIcon);
     }
 
+    [Fact]
+    public async Task Stack_names_resolve_icons_from_the_catalog()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        await apps.WaitForAppAsync("wavelog");
+        await apps.WaitForAppAsync("adguard");
+
+        // 'wavelog' matches its icon file name exactly.
+        (await apps.CardIconImage("wavelog").GetAttributeAsync("src"))
+            .Should().Be("/icons/wavelog.svg");
+
+        // 'adguard' has no icon of its own, so it fuzzy-matches the 'adguard-home' icon.
+        (await apps.CardIconImage("adguard").GetAttributeAsync("src"))
+            .Should().Be("/icons/adguard-home.svg");
+    }
+
     async Task<System.Text.Json.JsonElement> GetShortcutAsync(string name, CancellationToken cancellationToken)
     {
         using var client = new HttpClient();

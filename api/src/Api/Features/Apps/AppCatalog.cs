@@ -115,6 +115,8 @@ namespace Api.Features.Apps
                     .Select(GetIcon)
                     .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
                     ?? GetCatalogIcon(containers, liveIconCatalog)
+                    ?? TryNameIcon(liveIconCatalog, name)
+                    ?? TryNameIcon(iconCatalog, name)
                     ?? GetCatalogIcon(containers, iconCatalog);
 
             return new AppDto(name, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp), services);
@@ -206,6 +208,12 @@ namespace Api.Features.Apps
 
         static string? GetIcon(ContainerSnapshot container) =>
             container.Labels.TryGetValue(IconLabel, out var icon) && !string.IsNullOrWhiteSpace(icon)
+                ? icon
+                : null;
+
+        /// <summary>Matches the app name against the icon catalog (exact match, then fuzzy).</summary>
+        static string? TryNameIcon(IAppIconCatalog? iconCatalog, string name) =>
+            iconCatalog is not null && iconCatalog.TryGetIconForName(name, out var icon)
                 ? icon
                 : null;
 

@@ -25,9 +25,15 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
     `DockerUIException` (→ 503) so daemon problems surface as a clean
     problem-details response.
   - `AppCatalog` — pure function: container snapshots → `AppDto[]`. Groups by
-    the `com.docker.compose.project` label, resolves the `dockerui.icon`
-    label, computes the aggregate state (`Running` / `Partial` / `Stopped`).
+    the `com.docker.compose.project` label, resolves icons (per-app setting →
+    `dockerui.icon` label → `DockerUI:Icons` image mapping → the stack name
+    against the icon catalog, exact then fuzzy → the built-in image catalog),
+    and computes the aggregate state (`Running` / `Partial` / `Stopped`).
     Unit tested in isolation.
+  - `Icons/AppIconCatalog` — resolves container images to icons (full image
+    name, then last path segment) and app names to icons (exact match against
+    the normalized icon file names, then fuzzy: boundary prefix/suffix,
+    token subset, Levenshtein similarity ≥ 0.8).
   - `Background/AppStateMonitor` — `BackgroundService` that polls
     `AppService.GetAppsAsync`, serializes the result, and broadcasts over
     SignalR only when the JSON changed. Also implements `IAppStateMonitor`

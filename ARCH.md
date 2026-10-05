@@ -25,11 +25,9 @@ Docker.DotNet ── unix:///var/run/docker.sock (ro) ── Docker daemon
     `DockerUIException` (→ 503) so daemon problems surface as a clean
     problem-details response.
   - `AppCatalog` — pure function: container snapshots → `AppDto[]`. Groups by
-    the `com.docker.compose.project` label, resolves icons (per-app setting →
-    `dockerui.icon` label → `DockerUI:Icons` image mapping → the stack name
-    against the icon catalog, exact then fuzzy → the built-in image catalog),
-    and computes the aggregate state (`Running` / `Partial` / `Stopped`).
-    Unit tested in isolation.
+    the `com.docker.compose.project` label, resolves each app's icon (see
+    App icons below), and computes the aggregate state (`Running` / `Partial`
+    / `Stopped`). Unit tested in isolation.
   - `Icons/AppIconCatalog` — resolves container images to icons (full image
     name, then last path segment) and app names to icons (exact match against
     the normalized icon file names, then fuzzy: boundary prefix/suffix,
@@ -63,6 +61,39 @@ Settings (`DockerUISettings` and its validator, plus `AppUserSettings` /
 `AppIconMapping`) live in the API project's `Settings/` folder, bound from the
 `DockerUI` appsettings section and validated at startup via
 `DependencyConfigurator.AddSettingsDependencies`.
+
+## App icons
+
+`AppCatalog` resolves each app's icon in this order (first match wins); when
+nothing matches, the UI's `AppIcon` renders the app's initials on a colored
+background.
+
+1. **`DockerUI:Apps.<name>.Icon`** — a per-stack override in appsettings.json,
+   keyed by the app's *name*: this stack gets this icon, whatever runs in it.
+   Any URL or data URI.
+2. **The `dockerui.icon` container label** — the same per-stack override, but
+   declared on a container in the stack's own `docker-compose.yml`, so it
+   travels with the stack. First non-empty label across the stack's
+   containers wins; any URL or data URI.
+3. **`DockerUI:Icons`** — image → icon mappings in appsettings.json. A rule
+   that applies to any app running a matching *image*, whatever the stack is
+   named. Images are matched normalized (tags and digests stripped), falling
+   back to the last path segment.
+4. **The stack name against the icon catalog** — the app's name is matched
+   against the icon file names in `ui/public/icons/`, exactly first
+   (`wavelog` → `wavelog.svg`), then fuzzily (see `Icons/AppIconCatalog`
+   for the scoring rules).
+5. **The built-in image catalog** — the Umbrel-synced `app-icons.json`
+   embedded in the assembly: container image → icon file served at
+   `/icons/`. Same image matching as 3.
+6. **Initials fallback** — no icon from any source.
+
+1–2 (and 3, which the user also configures) are explicit choices, so they
+beat the inference in 4–5: a wrong guess is just an odd icon, but overriding
+a deliberate choice would not be. Within the automatic sources, the user's
+own image mappings (3) win over the auto-generated catalog (5), and a
+stack name the user chose (4) is a stronger signal than which container
+image happens to be recognized first (5).
 
 ## ui/
 

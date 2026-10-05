@@ -23,41 +23,65 @@ internal sealed class SettingsStore(
     {
         lock (_gate)
         {
-            WriteAppHidden(appName, hidden);
+            var settings = LoadSettings();
+
+            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
+            settings[DockerUISettings.Section] = section;
+
+            var apps = section["Apps"] as JsonObject ?? [];
+            section["Apps"] = apps;
+
+            var entry = apps[appName] as JsonObject ?? [];
+
+            if (hidden)
+                entry.Remove("Hidden");
+            else
+                entry["Hidden"] = false;
+
+            if (entry.Count == 0)
+                apps.Remove(appName);
+            else
+                apps[appName] = entry;
+
+            if (apps.Count == 0)
+                section.Remove("Apps");
+
+            SaveSettings(settings);
             configurationRoot.Reload();
         }
     }
 
-    void WriteAppHidden(string appName, bool hidden)
+    /// <summary>Persists the custom display order in the 'DockerUI:Order' section of the settings file.</summary>
+    public void SetAppOrder(IReadOnlyCollection<string> order)
+    {
+        lock (_gate)
+        {
+            var settings = LoadSettings();
+
+            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
+            settings[DockerUISettings.Section] = section;
+
+            if (order.Count == 0)
+                section.Remove("Order");
+            else
+                section["Order"] = new JsonArray([.. order.Select(name => (JsonNode)name)]);
+
+            SaveSettings(settings);
+            configurationRoot.Reload();
+        }
+    }
+
+    JsonObject LoadSettings()
     {
         JsonNode? root = File.Exists(_appSettingsPath)
             ? JsonNode.Parse(File.ReadAllText(_appSettingsPath))
             : new JsonObject();
 
-        if (root is not JsonObject settings)
-            throw new InvalidOperationException($"The settings file '{_appSettingsPath}' must contain a JSON object.");
-
-        var section = settings[DockerUISettings.Section] as JsonObject ?? [];
-        settings[DockerUISettings.Section] = section;
-
-        var apps = section["Apps"] as JsonObject ?? [];
-        section["Apps"] = apps;
-
-        var entry = apps[appName] as JsonObject ?? [];
-
-        if (hidden)
-            entry.Remove("Hidden");
-        else
-            entry["Hidden"] = false;
-
-        if (entry.Count == 0)
-            apps.Remove(appName);
-        else
-            apps[appName] = entry;
-
-        if (apps.Count == 0)
-            section.Remove("Apps");
-
-        File.WriteAllText(_appSettingsPath, root.ToJsonString(Json) + Environment.NewLine);
+        return root is JsonObject settings
+            ? settings
+            : throw new InvalidOperationException($"The settings file '{_appSettingsPath}' must contain a JSON object.");
     }
+
+    void SaveSettings(JsonObject settings) =>
+        File.WriteAllText(_appSettingsPath, settings.ToJsonString(Json) + Environment.NewLine);
 }

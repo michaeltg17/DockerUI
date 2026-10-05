@@ -182,7 +182,7 @@ namespace Api.Features.Apps
                     : selfProject is not null && string.Equals(app.Name, selfProject, StringComparison.Ordinal));
         }
 
-        static List<AppDto> OrderApps(List<AppDto> apps, DockerUISettings? settings)
+        internal static List<AppDto> OrderApps(List<AppDto> apps, DockerUISettings? settings)
         {
             var order = settings?.Order;
 

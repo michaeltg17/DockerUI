@@ -10,12 +10,13 @@ import { DashboardMenu } from './components/dashboard-menu';
 import { LogsDialog } from './components/logs-dialog';
 import { ShortcutDialog } from './components/shortcut-dialog';
 import { filterApps } from './filter-apps';
-import { useApps } from './hooks/use-apps';
+import { useApps, useSetAppOrder } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
 import { useSettings } from './hooks/use-settings';
 
 export const AppsPage = () => {
   const { data, isPending, isError, refetch } = useApps();
+  const setOrder = useSetAppOrder();
   const { data: settings } = useSettings();
   const [query, setQuery] = useState('');
   const [logsOpen, setLogsOpen] = useState(false);
@@ -30,7 +31,7 @@ export const AppsPage = () => {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>{settings?.name ?? 'Docker UI'}</title>
-        <meta name="description" content="Your Docker stacks at a glance" />
+        <meta name="description" content="A lightweight user interface for your Docker stacks and more." />
       </Helmet>
 
       <header className="border-b border-border bg-header text-header-foreground">
@@ -108,7 +109,14 @@ export const AppsPage = () => {
               )}
             </div>
           ) : (
-            <AppsGrid apps={apps} />
+            <AppsGrid
+              apps={apps}
+              // Reordering a filtered subset would only pin that subset, so dragging
+              // is enabled while the whole list is visible.
+              onReorder={
+                hasQuery ? undefined : (names) => void setOrder.mutate(names)
+              }
+            />
           )}
         </main>
       </DashboardMenu>

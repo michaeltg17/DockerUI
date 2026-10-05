@@ -318,6 +318,103 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Dragging_a_card_reorders_the_grid_and_persists_it()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var names = await apps.CardNamesAsync();
+        names.Count.Should().BeGreaterThan(1, "because the scenario runs several demo stacks");
+
+        var first = names[0];
+        var second = names[1];
+
+        await apps.DragCardAsync(first, second);
+
+        // The dragged card takes the hovered card's slot; the rest keep their relative order.
+        var expected = new List<string> { second, first };
+        expected.AddRange(names.Skip(2));
+        await apps.WaitForCardOrderAsync(expected);
+
+        // The new order is persisted in the scenario's appsettings, which the dashboard bind-mounts.
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+
+        while (true)
+        {
+            var persisted = false;
+
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(
+                    await File.ReadAllTextAsync(appSettingsPath, cancellationToken));
+
+                var order = document.RootElement
+                    .GetProperty("DockerUI")
+                    .TryGetProperty("Order", out var stored) ? stored : default;
+
+                if (order.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    var storedNames = order.EnumerateArray()
+                        .Select(element => element.GetString() ?? string.Empty)
+                        .ToList();
+
+                    persisted = storedNames.SequenceEqual(expected, StringComparer.Ordinal);
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // The settings file is mid-rewrite; read it again.
+            }
+
+            if (persisted)
+                break;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("The new card order was not persisted to appsettings.");
+
+            await Task.Delay(200, cancellationToken);
+        }
+
+        // The order survives a reload.
+        await apps.Page.ReloadAsync();
+        await apps.WaitForAppAsync("web-stack");
+        await apps.WaitForCardOrderAsync(expected);
+
+        // Restore the original layout so the other tests see the default arrangement.
+        await apps.DragCardAsync(second, first);
+        await apps.WaitForCardOrderAsync(names);
+
+        // Clear the persisted order so the scenario's settings file is left as found.
+        using var client = new HttpClient();
+        using var content = new StringContent("{\"order\":[]}", System.Text.Encoding.UTF8, "application/json");
+        var response = await client.PutAsync(
+            new Uri(environment.BaseUrl, "api/apps/order"),
+            content,
+            cancellationToken);
+        response.IsSuccessStatusCode.Should().BeTrue("because the order endpoint accepts an empty order");
+
+        deadline = DateTime.UtcNow.AddSeconds(10);
+
+        while (true)
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(
+                await File.ReadAllTextAsync(appSettingsPath, cancellationToken));
+
+            if (!document.RootElement.GetProperty("DockerUI").TryGetProperty("Order", out _))
+                break;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("The cleared order was not persisted to appsettings.");
+
+            await Task.Delay(200, cancellationToken);
+        }
+    }
+
+    [Fact]
     public async Task Context_menu_of_running_app_disables_start()
     {
         await using var context = await browser.NewContextAsync();

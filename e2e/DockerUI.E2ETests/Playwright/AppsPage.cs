@@ -40,6 +40,44 @@ public sealed class AppsPage(IPage page)
     /// <summary>The card (button) of the given app, addressed via the h3 title attribute.</summary>
     public ILocator Card(string appName) => Page.Locator($"h3[title='{appName}']").Locator("xpath=..");
 
+    /// <summary>The visible app card names in their current display order.</summary>
+    public async Task<IReadOnlyList<string>> CardNamesAsync()
+    {
+        var titles = Main.Locator("h3[title]");
+        var count = await titles.CountAsync();
+        var names = new List<string>(count);
+
+        for (var i = 0; i < count; i++)
+            names.Add(await titles.Nth(i).GetAttributeAsync("title") ?? string.Empty);
+
+        return names;
+    }
+
+    /// <summary>Drags one app's card onto another's, reordering the grid.</summary>
+    public async Task DragCardAsync(string from, string to)
+        => await Card(from).DragToAsync(Card(to));
+
+    /// <summary>Waits until the cards are displayed in exactly the given order.</summary>
+    public async Task WaitForCardOrderAsync(IReadOnlyList<string> order, int timeoutMs = 15_000)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+
+        while (true)
+        {
+            var names = await CardNamesAsync();
+
+            if (names.SequenceEqual(order, StringComparer.Ordinal))
+                return;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException($"The cards were not reordered to [{string.Join(", ", order)}].");
+
+            await Task.Delay(200);
+        }
+    }
+
     /// <summary>The given app's card, matched only while the card's data-state attribute equals the given state.</summary>
     public ILocator CardInState(string appName, string state) => Page.Locator($"h3[title='{appName}']").Locator($"xpath=parent::button[@data-state='{state}']");
 

@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using Xunit;
 
-namespace DockerUI.E2ETests.Environments;
+namespace E2E.Environments;
 
 /// <summary>
 /// Brings a scenario's environment up (building the DockerUI image on first use, starting

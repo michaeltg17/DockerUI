@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace DockerUI.E2ETests.Playwright;
+namespace E2E.Playwright;
 
 /// <summary>
 /// One collection for every e2e test class so environments never overlap: the classes run

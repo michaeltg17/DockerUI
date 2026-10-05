@@ -1,6 +1,6 @@
 using Microsoft.Playwright;
 
-namespace DockerUI.E2ETests.Playwright;
+namespace E2E.Playwright;
 
 /// <summary>
 /// Locators and interactions for the dashboard's single page. The UI ships no data-testid

@@ -1,7 +1,7 @@
 using Microsoft.Playwright;
 using Xunit;
 
-namespace DockerUI.E2ETests.Playwright;
+namespace E2E.Playwright;
 
 /// <summary>
 /// Launches one headless Chromium browser shared by every test class in the e2e collection.

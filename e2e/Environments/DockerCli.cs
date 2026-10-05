@@ -1,4 +1,4 @@
-namespace DockerUI.E2ETests.Environments;
+namespace E2E.Environments;
 
 /// <summary>
 /// Runs Docker CLI commands with captured output. Compose commands are executed from the

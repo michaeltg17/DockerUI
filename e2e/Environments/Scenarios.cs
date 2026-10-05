@@ -1,4 +1,4 @@
-namespace DockerUI.E2ETests.Environments;
+namespace E2E.Environments;
 
 /// <summary>
 /// The environments the suite runs against. Each scenario brings up its own DockerUI

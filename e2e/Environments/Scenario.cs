@@ -1,4 +1,4 @@
-namespace DockerUI.E2ETests.Environments;
+namespace E2E.Environments;
 
 /// <summary>
 /// Describes one end-to-end environment: a DockerUI instance (with its own settings and

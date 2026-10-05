@@ -1,10 +1,10 @@
 using AwesomeAssertions;
-using DockerUI.E2ETests.Environments;
-using DockerUI.E2ETests.Playwright;
+using E2E.Environments;
+using E2E.Playwright;
 using Microsoft.Playwright;
 using Xunit;
 
-namespace DockerUI.E2ETests.Tests.Basic;
+namespace E2E.Tests.Basic;
 
 /// <summary>
 /// End-to-end tests against a DockerUI instance with default settings: one per app state,

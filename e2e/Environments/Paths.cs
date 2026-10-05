@@ -1,4 +1,4 @@
-namespace DockerUI.E2ETests.Environments;
+namespace E2E.Environments;
 
 /// <summary>
 /// Resolves the directories the e2e suite needs. The paths are discovered relative to the

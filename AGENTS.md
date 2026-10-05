@@ -8,9 +8,9 @@ through its socket.
 ## Layout
 
 - `api/` — the .NET solution (`DockerUI.slnx`) and its build/SDK config
-  (`Directory.Build.props`, `Directory.Packages.props`, `global.json`);
-  projects live under `api/src/`.
-- `api/src/Api` — ASP.NET Core minimal API. Feature-based: `Features/Apps`
+  (`Directory.Build.props`, `Directory.Packages.props`, `global.json`); the
+  single `Api` project (csproj) sits in the same folder.
+- `Api` — ASP.NET Core minimal API. Feature-based: `Features/Apps`
   (endpoints, `AppService`, `AppCatalog`, SignalR hub, background monitor),
   `Features/Health`. `Settings/` holds `DockerUISettings` (all settings, bound
   from the `DockerUI` appsettings section; the app-state monitor reloads the
@@ -21,7 +21,9 @@ through its socket.
   (types, api, hooks, components); `src/app` is the shell; `src/components/ui`
   is the shared UI kit (button, spinner, notifications).
 - `e2e/` — the only tests in the repo; separate xunit v3 + Playwright
-  solution (`DockerUI.e2e.slnx`).
+  solution (`DockerUIE2E.slnx`) whose `E2E` project (csproj) sits in the same
+  folder; the `scenarios/` demo stacks live next to it (part of the project,
+  never copied to the test output).
   Each scenario under `e2e/scenarios` is its own DockerUI instance (own port,
   own `appsettings.json`) plus demo stacks; `Environments/` orchestrates the
   compose environments, `Playwright/` holds the browser fixture and the
@@ -46,7 +48,7 @@ through its socket.
 
 ```bash
 # API
-dotnet run --project api/src/Api            # dev on :5000
+dotnet run --project api/Api.csproj         # dev on :5000
 
 # UI (from ui/)
 npm install
@@ -59,8 +61,8 @@ npm run build                               # tsc + vite build (base=/)
 docker compose up -d --build                # http://localhost:5000
 
 # E2E (Docker Desktop must be running)
-dotnet build e2e/DockerUI.e2e.slnx
-dotnet e2e/DockerUI.E2ETests/bin/Debug/net10.0/DockerUI.E2ETests.dll
+dotnet build e2e/DockerUIE2E.slnx
+dotnet e2e/bin/Debug/net10.0/E2E.dll
 # Builds the DockerUI image once, then brings up the basic/settings/error
 # scenarios (ports 5010-5012) and tears them all down afterwards.
 
@@ -81,7 +83,7 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
 - `DockerUIException` → 503, `NotFoundException` → 404 (mapped in
-  `Api/Extensions/ExceptionHandlerExtensions.cs`); problems are RFC 9457
+  `api/Extensions/ExceptionHandlerExtensions.cs`); problems are RFC 9457
   `application/problem+json` with the human message in `detail`.
 - The SignalR hub is at `/api/apps/hub`; the vite dev proxy must forward
   web sockets (`ws: true`) for live updates in development.

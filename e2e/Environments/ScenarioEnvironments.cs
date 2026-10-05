@@ -1,4 +1,4 @@
-namespace DockerUI.E2ETests.Environments;
+namespace E2E.Environments;
 
 /// <summary>The <see cref="ScenarioEnvironment"/> for the basic scenario (default settings).</summary>
 public sealed class BasicEnvironment : ScenarioEnvironment

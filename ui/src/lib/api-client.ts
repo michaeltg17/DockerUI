@@ -38,12 +38,6 @@ api.interceptors.response.use(
   },
 );
 
-/**
- * The response interceptor above already unwraps `response.data` at runtime,
- * so the promise resolves to the response body (T) rather than an
- * `AxiosResponse<T>`. The `R = T` generic tells axios the resolved value is
- * the body itself — no second `.data` access (which would yield `undefined`).
- */
 export const http = {
   get: <T>(url: string) => api.get<T, T>(url),
   post: <T>(url: string, body?: unknown) => api.post<T, T>(url, body),

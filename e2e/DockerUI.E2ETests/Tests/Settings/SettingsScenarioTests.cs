@@ -23,7 +23,7 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("alpha");
 
-        (await apps.Card("vault").CountAsync()).Should().Be(0, "because 'vault' is hidden in the settings");
+        (await apps.Card("DockerUI").CountAsync()).Should().Be(0, "because 'DockerUI' is hidden in the settings");
         (await apps.Card("settings").CountAsync()).Should().Be(0, "because the dashboard's own stack is hidden by default");
     }
 

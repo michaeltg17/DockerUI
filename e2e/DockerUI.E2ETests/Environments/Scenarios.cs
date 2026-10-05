@@ -62,7 +62,7 @@ public static class Scenarios
             "scenarios/settings/stacks/alpha",
             "scenarios/settings/stacks/beta",
             "scenarios/settings/stacks/gamma",
-            "scenarios/settings/stacks/vault",
+            "scenarios/settings/stacks/DockerUI",
             "scenarios/settings/stacks/custom",
         ],
     };

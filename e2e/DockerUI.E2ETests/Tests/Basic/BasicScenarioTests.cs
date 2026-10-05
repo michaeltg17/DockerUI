@@ -32,9 +32,12 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             new Uri(environment.BaseUrl, "favicon.svg"),
             TestContext.Current.CancellationToken);
         response.IsSuccessStatusCode.Should().BeTrue("because the favicon is served by the dashboard");
-        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
-            .Should()
-            .StartWith("<svg");
+
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        content.Should().StartWith("<svg");
+        content.Should().Contain(
+            "M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6",
+            "because the favicon is the project's ship logo");
     }
 
     [Fact]

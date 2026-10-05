@@ -88,7 +88,7 @@ namespace Api.Features.Apps.Background
             if (!changed)
                 return;
 
-            await hubContext.Clients.All.SendAsync("appsUpdated", apps, cancellationToken).ConfigureAwait(false);
+            await hubContext.Clients.All.SendAsync(AppAppsHub.AppsUpdatedEvent, apps, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

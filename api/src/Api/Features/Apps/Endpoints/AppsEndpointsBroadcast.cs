@@ -15,7 +15,7 @@ namespace Api.Features.Apps.Endpoints
         {
             var apps = await appService.GetAppsAsync(cancellationToken).ConfigureAwait(false);
             monitor.ForgetLastSnapshot();
-            await hubContext.Clients.All.SendAsync("appsUpdated", apps, cancellationToken).ConfigureAwait(false);
+            await hubContext.Clients.All.SendAsync(AppAppsHub.AppsUpdatedEvent, apps, cancellationToken).ConfigureAwait(false);
         }
     }
 }

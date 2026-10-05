@@ -10,6 +10,8 @@ import type { App } from '../types';
 
 import { APPS_QUERY_KEY } from './use-apps';
 
+const APPS_UPDATED_EVENT = 'appsUpdated';
+
 /**
  * Subscribes to the SignalR hub and keeps the apps cache in sync
  * with whatever the Docker daemon is doing (including changes made
@@ -32,7 +34,7 @@ export const useAppsHub = () => {
         .configureLogging(LogLevel.None)
         .build();
 
-      connection.on('appsUpdated', (apps: App[]) => {
+      connection.on(APPS_UPDATED_EVENT, (apps: App[]) => {
         queryClient.setQueryData(APPS_QUERY_KEY, apps);
       });
 

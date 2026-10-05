@@ -15,8 +15,8 @@ through its socket.
   `Features/Health`. `Settings/` holds `DockerUISettings` (all settings, bound
   from the `DockerUI` appsettings section; the app-state monitor reloads the
   configuration when a settings file changes) and its startup validator.
-  `DependencyConfigurator` composes DI; `Configure()` adds the exception
-  handler, static files, and the SPA fallback.
+   `Program` composes DI (`AddDependencies`); `Configure()` adds the exception
+   handler, static files, and the SPA fallback.
 - `ui/` — Vite + React SPA. `src/features/apps` holds the single feature
   (types, api, hooks, components); `src/app` is the shell; `src/components/ui`
   is the shared UI kit (button, spinner, notifications).

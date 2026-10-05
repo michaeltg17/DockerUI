@@ -31,7 +31,10 @@ export const AppsPage = () => {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>{settings?.name ?? 'Docker UI'}</title>
-        <meta name="description" content="A lightweight user interface for your Docker stacks and more." />
+        <meta
+          name="description"
+          content="A lightweight user interface for your Docker stacks and more."
+        />
       </Helmet>
 
       <header className="border-b border-border bg-header text-header-foreground">

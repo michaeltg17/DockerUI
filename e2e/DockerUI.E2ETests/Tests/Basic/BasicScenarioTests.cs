@@ -1005,6 +1005,139 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .Should().Be("/icons/adguard-home.svg");
     }
 
+    [Fact]
+    public async Task Stopped_app_icon_is_darkened_with_a_stop_glyph_that_becomes_play_on_hover()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("adguard", AppsPage.RunningState);
+
+        var icon = apps.CardIconImage("adguard");
+        var menu = await apps.OpenCardMenuAsync("adguard");
+        await AppsPage.MenuItem(menu, "Stop").ClickAsync();
+
+        // The progress bar is only rendered while the stop call is in flight, and the icon
+        // darkens as soon as the stop is initiated — before the daemon reports the state.
+        var barSeen = false;
+        var iconDarkened = false;
+        var deadline = DateTime.UtcNow.AddSeconds(AppsPage.StateChangeTimeoutMs / 1000);
+        while (DateTime.UtcNow < deadline && (!barSeen || !iconDarkened))
+        {
+            if (!barSeen && (await apps.CardProgressBar("adguard").CountAsync()) > 0)
+                barSeen = true;
+
+            if (!iconDarkened)
+            {
+                var filter = await icon.EvaluateAsync<string>("(el) => getComputedStyle(el).filter");
+                iconDarkened = filter.Contains("brightness", StringComparison.Ordinal);
+            }
+
+            if (!barSeen || !iconDarkened)
+                await Task.Delay(50, TestContext.Current.CancellationToken);
+        }
+
+        barSeen.Should().BeTrue("because the app icon shows a progress bar while the app stops");
+        iconDarkened.Should().BeTrue("because a stopping app's icon darkens immediately");
+
+        await apps.WaitForStateAsync("adguard", AppsPage.StoppedState);
+
+        // A stop glyph sits on the darkened icon while the card is not hovered. The pointer
+        // is still over the card from opening its context menu, so move it away first.
+        var overlay = apps.CardPlayOverlay("adguard");
+        var stopGlyph = overlay.Locator("span").Nth(0);
+        var playGlyph = overlay.Locator("span").Nth(1);
+        await stopGlyph.WaitForAsync(new LocatorWaitForOptions { Timeout = 10_000 });
+
+        await apps.Page.Mouse.MoveAsync(0, 0);
+        var stopOpacity = string.Empty;
+        deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            stopOpacity = await stopGlyph.EvaluateAsync<string>("(el) => getComputedStyle(el).opacity");
+            if (stopOpacity == "1")
+                break;
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+        stopOpacity.Should().Be("1", "because a stopped app shows its stop glyph while idle");
+
+        // Hovering swaps the stop glyph for a play glyph.
+        await apps.Card("adguard").HoverAsync();
+        var playOpacity = string.Empty;
+        deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            playOpacity = await playGlyph.EvaluateAsync<string>("(el) => getComputedStyle(el).opacity");
+            if (playOpacity == "1")
+                break;
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+
+        playOpacity.Should().Be("1", "because hovering a stopped app's card reveals its play glyph");
+        (await stopGlyph.EvaluateAsync<string>("(el) => getComputedStyle(el).opacity"))
+            .Should().Be("0", "because the stop glyph is hidden while the play glyph is shown");
+
+        await overlay.ClickAsync();
+        await apps.WaitForStateAsync("adguard", AppsPage.RunningState);
+        context.Pages.Count.Should().Be(1, "because the app has no url to open");
+    }
+
+    [Fact]
+    public async Task Progress_bar_is_red_while_stopping_and_green_while_starting()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
+
+        var menu = await apps.OpenCardMenuAsync("solo-stack");
+        await AppsPage.MenuItem(menu, "Stop").ClickAsync();
+        var stopColor = await CaptureProgressColorAsync(apps, "solo-stack", AppsPage.StoppedState);
+        stopColor.Should().Be("rgb(239, 68, 68)", "because the progress bar is red while the app stops");
+        await apps.WaitForStateAsync("solo-stack", AppsPage.StoppedState);
+
+        menu = await apps.OpenCardMenuAsync("solo-stack");
+        await AppsPage.MenuItem(menu, "Start").ClickAsync();
+        var startColor = await CaptureProgressColorAsync(apps, "solo-stack", AppsPage.RunningState);
+        startColor.Should().Be("rgb(34, 197, 94)", "because the progress bar is green while the app starts");
+        await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
+    }
+
+    /// <summary>
+    /// Waits for the app's in-flight progress bar and returns the computed background color of
+    /// its fill. The bar is only rendered while the start/stop/restart call is in flight, so
+    /// once the app reaches <paramref name="terminalState"/>, allow a grace period for the
+    /// in-flight call (and the bar) to finish.
+    /// </summary>
+    static async Task<string> CaptureProgressColorAsync(AppsPage apps, string appName, string terminalState)
+    {
+        var bar = apps.CardProgressBar(appName);
+        var deadline = DateTime.UtcNow.AddSeconds(AppsPage.StateChangeTimeoutMs / 1000);
+        var terminalAt = DateTime.MinValue;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            if ((await bar.CountAsync()) > 0)
+                return await bar.Locator("span").EvaluateAsync<string>("(el) => getComputedStyle(el).backgroundColor");
+
+            if (terminalAt == DateTime.MinValue &&
+                (await apps.CardInState(appName, terminalState).CountAsync()) > 0)
+            {
+                terminalAt = DateTime.UtcNow;
+            }
+
+            if (terminalAt != DateTime.MinValue &&
+                DateTime.UtcNow - terminalAt > TimeSpan.FromSeconds(5))
+            {
+                break;
+            }
+
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+        }
+
+        return string.Empty;
+    }
+
     async Task<System.Text.Json.JsonElement> GetShortcutAsync(string name, CancellationToken cancellationToken)
     {
         using var client = new HttpClient();

@@ -6,7 +6,7 @@ import {
   Square,
   Trash2,
 } from 'lucide-react';
-import { useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 
 import {
   ContextMenu,
@@ -57,8 +57,36 @@ export const AppCard = ({
   const [editing, setEditing] = useState(false);
 
   const isRunning = app.state === 'running';
-  const isBusy =
-    startApp.isPending || stopApp.isPending || restartApp.isPending;
+  const isStarting = startApp.isPending;
+  const isStopping = stopApp.isPending;
+  const isRestarting = restartApp.isPending;
+  const isBusy = isStarting || isStopping || isRestarting;
+
+  // As soon as a stop (or restart) is initiated the app is already treated
+  // as not running, so the icon darkens immediately — before the daemon
+  // reports the new state.
+  const isDimmed = !isRunning || isStopping || isRestarting;
+
+  // A restart first stops the app and then starts it. Track whether the
+  // stopped phase was observed so the progress bar can switch from red
+  // (stopping) to green (starting).
+  const [restartSawStopped, setRestartSawStopped] = useState(false);
+
+  useEffect(() => {
+    if (!isRestarting) {
+      setRestartSawStopped(false);
+      return;
+    }
+    if (app.state === 'stopped') setRestartSawStopped(true);
+  }, [isRestarting, app.state]);
+
+  const progressColor = isRestarting
+    ? restartSawStopped
+      ? 'bg-green-500'
+      : 'bg-red-500'
+    : isStarting
+      ? 'bg-green-500'
+      : 'bg-red-500';
 
   if (app.isShortcut) {
     const shortcutActions: ContextMenuItem[] = [
@@ -174,8 +202,8 @@ export const AppCard = ({
               icon={app.icon}
               name={app.name}
               className={cn(
-                'size-24 text-3xl transition-opacity',
-                app.state === 'stopped' && 'opacity-50 grayscale',
+                'size-24 text-3xl transition-[filter] duration-200',
+                isDimmed && 'brightness-50',
               )}
             />
             {app.state === 'stopped' && (
@@ -193,9 +221,15 @@ export const AppCard = ({
                   event.stopPropagation();
                   void startApp.mutate(app.name);
                 }}
-                className="absolute inset-0 flex cursor-pointer items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+                className="absolute inset-0 flex cursor-pointer items-center justify-center"
               >
-                <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40">
+                <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40 transition-opacity duration-150 group-hover:opacity-0">
+                  <Square
+                    className="size-4 fill-white text-white"
+                    aria-hidden="true"
+                  />
+                </span>
+                <span className="absolute left-1/2 top-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-slate-900/40 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                   <Play
                     className="size-4 fill-white text-white"
                     aria-hidden="true"
@@ -209,7 +243,12 @@ export const AppCard = ({
                 aria-label={`Updating ${app.name}`}
                 className="absolute inset-x-3 bottom-2 h-1 overflow-hidden rounded-full bg-slate-900/30"
               >
-                <span className="block h-full w-1/3 animate-progress-slide rounded-full bg-sky-500" />
+                <span
+                  className={cn(
+                    'block h-full w-1/3 animate-progress-slide rounded-full',
+                    progressColor,
+                  )}
+                />
               </span>
             )}
           </div>

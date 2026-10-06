@@ -229,7 +229,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
 
         string[] expectedItems =
-            ["Add shortcut", "View logs", "Theme", "Show Docker UI", "Restart dashboard", "Stop dashboard"];
+            ["Add shortcut", "View logs", "Theme", "Show Docker UI", "Power"];
 
         foreach (var label in expectedItems)
         {
@@ -238,13 +238,23 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         }
 
         // The theme options are grouped under the 'Theme' item's submenu.
-        var themeMenu = await apps.OpenThemeSubmenuAsync(menu);
+        var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
         string[] themeOptions = ["Light", "Dark", "Docker", "Docker V2"];
 
         foreach (var label in themeOptions)
         {
             (await AppsPage.MenuItem(themeMenu, label).CountAsync())
                 .Should().Be(1, $"because the theme submenu offers '{label}'");
+        }
+
+        // The self-actions are grouped under the 'Power' item's submenu.
+        var powerMenu = await apps.OpenGroupSubmenuAsync(menu, "Power");
+        string[] powerActions = ["Restart dashboard", "Stop dashboard"];
+
+        foreach (var label in powerActions)
+        {
+            (await AppsPage.MenuItem(powerMenu, label).CountAsync())
+                .Should().Be(1, $"because the power submenu offers '{label}'");
         }
     }
 
@@ -283,7 +293,8 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var startedAtBefore = await ContainerStartedAtAsync("docker-ui-e2e-basic", cancellationToken);
 
         var menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Restart dashboard").ClickAsync();
+        var powerMenu = await apps.OpenGroupSubmenuAsync(menu, "Power");
+        await AppsPage.MenuItem(powerMenu, "Restart dashboard").ClickAsync();
 
         // The overlay takes over while the container comes back; the page reloads itself
         // once the API responds.
@@ -314,7 +325,8 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var cancellationToken = TestContext.Current.CancellationToken;
 
         var menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Stop dashboard").ClickAsync();
+        var powerMenu = await apps.OpenGroupSubmenuAsync(menu, "Power");
+        await AppsPage.MenuItem(powerMenu, "Stop dashboard").ClickAsync();
 
         // The overlay offers a manual reload once the container has been started again.
         await apps.Page
@@ -349,7 +361,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForAppAsync("web-stack");
 
         var menu = await apps.OpenDashboardMenuAsync();
-        var themeMenu = await apps.OpenThemeSubmenuAsync(menu);
+        var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
         await AppsPage.MenuItem(themeMenu, "Docker").ClickAsync();
         (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
 
@@ -367,7 +379,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForAppAsync("web-stack");
 
         var menu = await apps.OpenDashboardMenuAsync();
-        var themeMenu = await apps.OpenThemeSubmenuAsync(menu);
+        var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
         await AppsPage.MenuItem(themeMenu, "Docker V2").ClickAsync();
 
         (await apps.Page.Locator("html[data-theme='docker-v2']").CountAsync()).Should().Be(1);

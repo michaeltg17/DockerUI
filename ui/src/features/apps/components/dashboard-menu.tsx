@@ -4,6 +4,7 @@ import {
   EyeOff,
   Palette,
   Plus,
+  Power,
   PowerOff,
   RefreshCw,
   ScrollText,
@@ -161,18 +162,24 @@ export const DashboardMenu = ({
       onSelect: () => void setVisibility.mutate(selfVisible),
     },
     {
-      id: 'restart',
-      label: 'Restart dashboard',
-      icon: <RefreshCw className="size-4" aria-hidden="true" />,
+      id: 'power',
+      label: 'Power',
+      icon: <Power className="size-4" aria-hidden="true" />,
       disabled: selfProject === null,
-      onSelect: () => runSelfAction('restart'),
-    },
-    {
-      id: 'stop',
-      label: 'Stop dashboard',
-      icon: <PowerOff className="size-4" aria-hidden="true" />,
-      disabled: selfProject === null,
-      onSelect: () => runSelfAction('stop'),
+      children: [
+        {
+          id: 'restart',
+          label: 'Restart dashboard',
+          icon: <RefreshCw className="size-4" aria-hidden="true" />,
+          onSelect: () => runSelfAction('restart'),
+        },
+        {
+          id: 'stop',
+          label: 'Stop dashboard',
+          icon: <PowerOff className="size-4" aria-hidden="true" />,
+          onSelect: () => runSelfAction('stop'),
+        },
+      ],
     },
   ];
 

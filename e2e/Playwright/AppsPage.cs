@@ -127,14 +127,15 @@ public sealed class AppsPage(IPage page)
         return Page.GetByRole(AriaRole.Menu, new PageGetByRoleOptions { Name = "Dashboard actions", Exact = true });
     }
 
-    /// <summary>Hovers the "Theme" item of the dashboard menu, opening its submenu of theme options.</summary>
-    public async Task<ILocator> OpenThemeSubmenuAsync(ILocator menu)
+    /// <summary>Hovers a grouped item of a context menu, opening its submenu of options.</summary>
+    public async Task<ILocator> OpenGroupSubmenuAsync(ILocator menu, string groupLabel)
     {
         ArgumentNullException.ThrowIfNull(menu);
+        ArgumentNullException.ThrowIfNull(groupLabel);
 
-        await MenuItem(menu, "Theme").HoverAsync();
+        await MenuItem(menu, groupLabel).HoverAsync();
 
-        var submenu = Page.GetByRole(AriaRole.Menu, new PageGetByRoleOptions { Name = "Theme", Exact = true });
+        var submenu = Page.GetByRole(AriaRole.Menu, new PageGetByRoleOptions { Name = groupLabel, Exact = true });
         await submenu.WaitForAsync(new LocatorWaitForOptions { Timeout = StateChangeTimeoutMs });
         return submenu;
     }

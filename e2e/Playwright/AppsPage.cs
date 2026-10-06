@@ -32,6 +32,9 @@ public sealed class AppsPage(IPage page)
     /// <summary>A logs dialog, addressed by its accessible name (e.g. 'Docker UI logs' or 'web-stack logs').</summary>
     public ILocator LogsDialog(string title) => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = title, Exact = true });
 
+    /// <summary>The dashboard rename dialog, addressed by its accessible name.</summary>
+    public ILocator RenameDialog => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Rename dashboard", Exact = true });
+
     public ILocator RetryButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Retry", Exact = true });
 
     // 'paragraph' is not a name-from-content role, so this is addressed by text, not by role + name.
@@ -101,6 +104,25 @@ public sealed class AppsPage(IPage page)
                 throw new TimeoutException($"The cards were not reordered to [{string.Join(", ", order)}].");
 
             await Task.Delay(200);
+        }
+    }
+
+    /// <summary>Waits until the document title equals the given dashboard name.</summary>
+    public async Task WaitForTitleAsync(string title, CancellationToken cancellationToken, int timeoutMs = StateChangeTimeoutMs)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+
+        while (true)
+        {
+            var actual = await Page.TitleAsync();
+
+            if (string.Equals(actual, title, StringComparison.Ordinal))
+                return;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException($"The page title is '{actual}', not '{title}'.");
+
+            await Task.Delay(200, cancellationToken);
         }
     }
 

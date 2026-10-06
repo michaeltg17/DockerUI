@@ -8,6 +8,7 @@ import { getLogs } from './api/get-logs';
 import { AppsGrid } from './components/apps-grid';
 import { DashboardMenu } from './components/dashboard-menu';
 import { LogsDialog } from './components/logs-dialog';
+import { RenameDialog } from './components/rename-dialog';
 import { ShortcutDialog } from './components/shortcut-dialog';
 import { filterApps } from './filter-apps';
 import { useApps, useSetAppOrder } from './hooks/use-apps';
@@ -21,6 +22,7 @@ export const AppsPage = () => {
   const [query, setQuery] = useState('');
   const [logsOpen, setLogsOpen] = useState(false);
   const [shortcutOpen, setShortcutOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
 
   useAppsHub();
 
@@ -72,12 +74,19 @@ export const AppsPage = () => {
         onClose={() => setShortcutOpen(false)}
       />
 
+      <RenameDialog
+        open={renameOpen}
+        currentName={settings?.name ?? 'Docker UI'}
+        onClose={() => setRenameOpen(false)}
+      />
+
       <DashboardMenu
         // The whole area below the header (cards, gaps, and empty space)
         // is the dashboard menu's trigger zone.
         className="flex-1"
         onAddShortcut={() => setShortcutOpen(true)}
         onViewLogs={() => setLogsOpen(true)}
+        onRename={() => setRenameOpen(true)}
       >
         <main className="mx-auto max-w-7xl px-6 py-8">
           {isPending ? (

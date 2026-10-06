@@ -229,7 +229,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
 
         string[] expectedItems =
-            ["Add shortcut", "View logs", "Theme", "Show Docker UI", "Power"];
+            ["Add shortcut", "View logs", "Rename dashboard", "Theme", "Show Docker UI", "Power"];
 
         foreach (var label in expectedItems)
         {
@@ -255,6 +255,67 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         {
             (await AppsPage.MenuItem(powerMenu, label).CountAsync())
                 .Should().Be(1, $"because the power submenu offers '{label}'");
+        }
+    }
+
+    [Fact]
+    public async Task Dashboard_menu_renames_the_dashboard()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var dialog = apps.RenameDialog;
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Rename dashboard").ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("E2E Dashboard");
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Save", Exact = true })
+            .ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // The page title switches to the new name, and the settings API confirms it.
+        await apps.WaitForTitleAsync("E2E Dashboard", cancellationToken);
+        (await GetDashboardNameAsync(cancellationToken))
+            .Should().Be("E2E Dashboard", "because the rename is stored in the settings");
+
+        // Restoring the default name clears the setting from the scenario's appsettings.
+        menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Rename dashboard").ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("Docker UI");
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Save", Exact = true })
+            .ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await apps.WaitForTitleAsync("Docker UI", cancellationToken);
+
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+
+        while (true)
+        {
+            using var document = JsonDocument.Parse(
+                await File.ReadAllTextAsync(appSettingsPath, cancellationToken));
+
+            if (!document.RootElement.GetProperty("DockerUI").TryGetProperty("Name", out _))
+                break;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("The default dashboard name was not removed from appsettings.");
+
+            await Task.Delay(200, cancellationToken);
         }
     }
 
@@ -1314,6 +1375,15 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         }
 
         return string.Empty;
+    }
+
+    async Task<string> GetDashboardNameAsync(CancellationToken cancellationToken)
+    {
+        using var client = new HttpClient();
+        var json = await client.GetStringAsync(new Uri(environment.BaseUrl, "api/settings"), cancellationToken);
+
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.GetProperty("name").GetString() ?? string.Empty;
     }
 
     async Task<JsonElement> GetShortcutAsync(string name, CancellationToken cancellationToken)

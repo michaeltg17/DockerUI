@@ -3,6 +3,7 @@ import {
   Eye,
   EyeOff,
   Palette,
+  Pencil,
   Plus,
   Power,
   PowerOff,
@@ -36,6 +37,7 @@ const RESTART_POLL_MS = 1_000;
 type DashboardMenuProps = {
   onAddShortcut: () => void;
   onViewLogs: () => void;
+  onRename: () => void;
   /** Extra classes for the wrapper that defines the menu's trigger zone. */
   className?: string;
   children: ReactNode;
@@ -44,6 +46,7 @@ type DashboardMenuProps = {
 export const DashboardMenu = ({
   onAddShortcut,
   onViewLogs,
+  onRename,
   className,
   children,
 }: DashboardMenuProps) => {
@@ -136,6 +139,12 @@ export const DashboardMenu = ({
       label: 'View logs',
       icon: <ScrollText className="size-4" aria-hidden="true" />,
       onSelect: onViewLogs,
+    },
+    {
+      id: 'rename',
+      label: 'Rename dashboard',
+      icon: <Pencil className="size-4" aria-hidden="true" />,
+      onSelect: onRename,
     },
     {
       id: 'theme',

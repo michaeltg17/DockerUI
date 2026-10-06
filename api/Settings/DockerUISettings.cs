@@ -8,15 +8,16 @@ namespace Api.Settings
     internal sealed record DockerUISettings
     {
         public const string Section = "DockerUI";
+        public const string DefaultName = "Docker UI";
 
         public required string DockerSocketPath { get; set; }
         public required int PollIntervalSeconds { get; set; }
 
         /// <summary>
         /// Custom dashboard name shown as the page title, e.g. 'Home Server'.
-        /// When unset, 'Docker UI' is used.
+        /// When unset, <see cref="DefaultName"/> is used.
         /// </summary>
-        public string Name { get; set; } = "Docker UI";
+        public string Name { get; set; } = DefaultName;
 
         /// <summary>
         /// Base URL (scheme + host) used to resolve app URLs, e.g.

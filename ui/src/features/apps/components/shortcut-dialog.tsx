@@ -38,7 +38,7 @@ const isSaveableUrl = (value: string) => {
 };
 
 /** The API reports problems as RFC 9457 documents; surface the human message. */
-const getErrorMessage = (error: unknown) => {
+export const getErrorMessage = (error: unknown) => {
   const data = (error as { response?: { data?: unknown } } | null)?.response
     ?.data;
 

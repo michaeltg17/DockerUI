@@ -52,6 +52,26 @@ internal sealed class SettingsStore(
         }
     }
 
+    /// <summary>Persists the dashboard name in the 'DockerUI:Name' setting of the settings file.</summary>
+    public void SetName(string name)
+    {
+        lock (gate)
+        {
+            var settings = LoadSettings();
+
+            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
+            settings[DockerUISettings.Section] = section;
+
+            if (string.Equals(name, DockerUISettings.DefaultName, StringComparison.Ordinal))
+                section.Remove("Name");
+            else
+                section["Name"] = name;
+
+            SaveSettings(settings);
+            configurationRoot.Reload();
+        }
+    }
+
     /// <summary>Persists the custom display order in the 'DockerUI:Order' section of the settings file.</summary>
     public void SetAppOrder(IReadOnlyCollection<string> order)
     {

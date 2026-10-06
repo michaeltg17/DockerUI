@@ -21,6 +21,7 @@ internal static class EndpointsMapper
     {
         HealthEndpoints.Map(app);
         GetSettingsEndpoint.Map(app);
+        SetNameEndpoint.Map(app);
         GetLogsEndpoint.Map(app);
         IconsEndpoint.Map(app);
 

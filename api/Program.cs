@@ -136,25 +136,14 @@ internal static class Program
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.Host.UseSerilog((context, services, configuration) =>
-        {
-            ApplyCommonSerilogConfiguration(context, services, configuration);
-            configuration.WriteTo.Console(formatProvider: System.Globalization.CultureInfo.InvariantCulture);
-        });
+            configuration
+                .ReadFrom.Configuration(context.Configuration)
+                .ReadFrom.Services(services)
+                .Enrich.FromLogContext()
+                .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+                .WriteTo.Console(formatProvider: System.Globalization.CultureInfo.InvariantCulture));
 
         return builder;
-    }
-
-    public static void ApplyCommonSerilogConfiguration(
-        HostBuilderContext context, IServiceProvider services, LoggerConfiguration configuration)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(configuration);
-
-        configuration
-            .ReadFrom.Configuration(context.Configuration)
-            .ReadFrom.Services(services)
-            .Enrich.FromLogContext()
-            .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning);
     }
 
     public static WebApplication Configure(this WebApplication app)

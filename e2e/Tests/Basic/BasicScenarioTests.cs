@@ -343,6 +343,30 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Hiding_an_app_moves_it_to_the_hidden_apps_dialog()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        // Hiding from the app's own menu removes its card from the dashboard.
+        await apps.HideAppAsync("web-stack");
+        (await apps.Card("web-stack").CountAsync()).Should().Be(0, "because the app was hidden");
+
+        // The dashboard menu's "View hidden apps" then lists it.
+        var dialog = await apps.OpenHiddenAppsDialogAsync();
+        await dialog.WaitForAsync();
+        await dialog
+            .GetByText("web-stack", new LocatorGetByTextOptions { Exact = true })
+            .WaitForAsync();
+
+        // Showing it from the dialog brings the card back to the dashboard.
+        await AppsPage.ShowHiddenAppAsync(dialog, "web-stack");
+        await apps.WaitForAppAsync("web-stack");
+    }
+
+    [Fact]
     public async Task Dashboard_menu_restarts_its_own_container()
     {
         await using var context = await browser.NewContextAsync();

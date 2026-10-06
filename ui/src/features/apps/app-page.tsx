@@ -7,6 +7,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { getLogs } from './api/get-logs';
 import { AppsGrid } from './components/apps-grid';
 import { DashboardMenu } from './components/dashboard-menu';
+import { HiddenAppsDialog } from './components/hidden-apps-dialog';
 import { LogsDialog } from './components/logs-dialog';
 import { RenameDialog } from './components/rename-dialog';
 import { ShortcutDialog } from './components/shortcut-dialog';
@@ -23,6 +24,7 @@ export const AppsPage = () => {
   const [logsOpen, setLogsOpen] = useState(false);
   const [shortcutOpen, setShortcutOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [hiddenAppsOpen, setHiddenAppsOpen] = useState(false);
 
   useAppsHub();
 
@@ -80,6 +82,11 @@ export const AppsPage = () => {
         onClose={() => setRenameOpen(false)}
       />
 
+      <HiddenAppsDialog
+        open={hiddenAppsOpen}
+        onClose={() => setHiddenAppsOpen(false)}
+      />
+
       <DashboardMenu
         // The whole area below the header (cards, gaps, and empty space)
         // is the dashboard menu's trigger zone.
@@ -87,6 +94,7 @@ export const AppsPage = () => {
         onAddShortcut={() => setShortcutOpen(true)}
         onViewLogs={() => setLogsOpen(true)}
         onRename={() => setRenameOpen(true)}
+        onViewHiddenApps={() => setHiddenAppsOpen(true)}
       >
         <main className="mx-auto max-w-7xl px-6 py-8">
           {isPending ? (

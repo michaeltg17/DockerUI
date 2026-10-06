@@ -1,4 +1,5 @@
 import {
+  EyeOff,
   Pencil,
   Play,
   RefreshCw,
@@ -12,7 +13,12 @@ import { AppMenu, type AppMenuItem } from '@/components/ui/app-menu';
 import { cn } from '@/utils/cn';
 
 import { getAppLogs } from '../api/get-logs';
-import { useRestartApp, useStartApp, useStopApp } from '../hooks/use-apps';
+import {
+  useRestartApp,
+  useSetAppVisibility,
+  useStartApp,
+  useStopApp,
+} from '../hooks/use-apps';
 import { useDeleteShortcut } from '../hooks/use-shortcuts';
 import type { App } from '../types';
 
@@ -49,6 +55,7 @@ export const AppCard = ({
   const startApp = useStartApp();
   const stopApp = useStopApp();
   const restartApp = useRestartApp();
+  const setVisibility = useSetAppVisibility();
   const deleteShortcut = useDeleteShortcut();
   const [logsOpen, setLogsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -182,6 +189,14 @@ export const AppCard = ({
       label: 'View logs',
       icon: <ScrollText className="size-4" aria-hidden="true" />,
       onSelect: () => setLogsOpen(true),
+    },
+    {
+      id: 'hide',
+      label: 'Hide',
+      icon: <EyeOff className="size-4" aria-hidden="true" />,
+      isLoading: setVisibility.isPending,
+      onSelect: () =>
+        void setVisibility.mutate({ name: app.name, hidden: true }),
     },
   ];
 

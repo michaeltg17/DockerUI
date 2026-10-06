@@ -25,13 +25,24 @@ namespace Api.Features.Apps
         {
             var settings = CurrentSettings;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            var apps = AppCatalog
-                .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots))
-                .ToList();
+            var (visible, _) = AppCatalog
+                .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
+            var apps = visible.ToList();
 
             apps.AddRange(BuildShortcutApps());
 
             return AppCatalog.OrderApps(apps, settings);
+        }
+
+        /// <summary>The apps currently hidden from the dashboard (explicitly hidden, or the dashboard's own project by default).</summary>
+        public async Task<IReadOnlyList<AppDto>> GetHiddenAppsAsync(CancellationToken cancellationToken = default)
+        {
+            var settings = CurrentSettings;
+            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+            var (_, hidden) = AppCatalog
+                .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
+
+            return AppCatalog.OrderApps([.. hidden], settings);
         }
 
         public async Task<AppDto> GetAppAsync(string appName, CancellationToken cancellationToken)

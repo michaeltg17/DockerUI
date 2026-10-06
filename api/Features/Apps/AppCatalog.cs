@@ -20,7 +20,7 @@ namespace Api.Features.Apps
             80, 8080, 3000, 8000, 5000, 8888, 9000, 9090, 5173, 4200, 443, 8443,
         ];
 
-        public static IReadOnlyList<AppDto> BuildApps(
+        public static (IReadOnlyList<AppDto> Visible, IReadOnlyList<AppDto> Hidden) BuildApps(
             ILogger logger,
             IEnumerable<ContainerSnapshot> containers,
             IAppIconCatalog? iconCatalog = null,
@@ -51,9 +51,9 @@ namespace Api.Features.Apps
                 }
             }
 
-            RemoveHidden(apps, settings, selfProject);
+            var hidden = RemoveHidden(apps, settings, selfProject);
 
-            return OrderApps(apps, settings);
+            return (OrderApps(apps, settings), hidden);
         }
 
         /// <summary>Resolves the containers that make up the given app, or an empty list if it doesn't exist.</summary>
@@ -172,14 +172,24 @@ namespace Api.Features.Apps
             };
         }
 
-        static void RemoveHidden(List<AppDto> apps, DockerUISettings? settings, string? selfProject)
+        static List<AppDto> RemoveHidden(List<AppDto> apps, DockerUISettings? settings, string? selfProject)
         {
             var appSettings = settings?.Apps;
+            var hidden = new List<AppDto>();
 
             apps.RemoveAll(app =>
-                appSettings is not null && appSettings.TryGetValue(app.Name, out var perApp)
+            {
+                var isHidden = appSettings is not null && appSettings.TryGetValue(app.Name, out var perApp)
                     ? perApp.Hidden
-                    : selfProject is not null && string.Equals(app.Name, selfProject, StringComparison.Ordinal));
+                    : selfProject is not null && string.Equals(app.Name, selfProject, StringComparison.Ordinal);
+
+                if (isHidden)
+                    hidden.Add(app);
+
+                return isHidden;
+            });
+
+            return hidden;
         }
 
         internal static List<AppDto> OrderApps(List<AppDto> apps, DockerUISettings? settings)

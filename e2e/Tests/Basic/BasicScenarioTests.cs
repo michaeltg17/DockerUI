@@ -469,7 +469,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .ToList();
 
         signalrTraces.Should().BeEmpty(
-            "because the SignalR client is configured to log nothing, so the production console stays clean");
+            "because the SignalR client logs only errors, so a healthy page keeps the console clean");
     }
 
     [Fact]

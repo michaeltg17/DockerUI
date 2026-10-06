@@ -27,11 +27,12 @@ export const useAppsHub = () => {
     const start = async () => {
       const builder = new HubConnectionBuilder().withUrl('/api/apps/hub');
 
-      // LogLevel.None: the client's default logger writes its connection
-      // trace/debug lines straight to the browser console.
+      // LogLevel.Error: the client's default logger writes its connection
+      // trace/debug lines straight to the browser console, but real failures
+      // (an unreachable hub) must still be visible there.
       connection = builder
         .withAutomaticReconnect()
-        .configureLogging(LogLevel.None)
+        .configureLogging(LogLevel.Error)
         .build();
 
       connection.on(APPS_UPDATED_EVENT, (apps: App[]) => {

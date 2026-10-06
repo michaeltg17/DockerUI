@@ -37,6 +37,21 @@ const isSaveableUrl = (value: string) => {
   }
 };
 
+/** The API reports problems as RFC 9457 documents; surface the human message. */
+const getErrorMessage = (error: unknown) => {
+  const data = (error as { response?: { data?: unknown } } | null)?.response
+    ?.data;
+
+  if (typeof data === 'object' && data !== null) {
+    const { detail, message } = data as { detail?: unknown; message?: unknown };
+
+    if (typeof detail === 'string' && detail.length > 0) return detail;
+    if (typeof message === 'string' && message.length > 0) return message;
+  }
+
+  return 'Could not save the shortcut. Try again.';
+};
+
 const fieldClasses =
   'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
@@ -57,6 +72,7 @@ export const ShortcutDialog = ({
   const [url, setUrl] = useState('');
   const [icon, setIcon] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +88,7 @@ export const ShortcutDialog = ({
     setUrl(initialUrl);
     setIcon(initialIcon ?? '');
     setPickerOpen(false);
+    setError(null);
   }, [open, initialName, initialIcon, initialUrl]);
 
   useEffect(() => {
@@ -131,6 +148,15 @@ export const ShortcutDialog = ({
   const trimmedName = name.trim();
   const canSave = trimmedName.length > 0 && isSaveableUrl(url) && !isSaving;
 
+  // While saving is blocked, say why: the disabled button would otherwise
+  // leave the user guessing what is missing.
+  const saveHint =
+    !canSave && !isSaving
+      ? trimmedName.length === 0
+        ? 'Enter a name.'
+        : 'Enter a valid URL, e.g. https://example.com.'
+      : null;
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSave) return;
@@ -148,8 +174,10 @@ export const ShortcutDialog = ({
         await addShortcut.mutateAsync(shortcut);
       }
       onClose();
-    } catch {
-      // The api-client interceptor already surfaces the error as a toast.
+    } catch (submitError) {
+      // The api-client interceptor also surfaces the error as a toast; the
+      // dialog stays open so the user can fix the input and retry.
+      setError(getErrorMessage(submitError));
     }
   };
 
@@ -205,7 +233,10 @@ export const ShortcutDialog = ({
                   type="text"
                   required
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setError(null);
+                  }}
                   placeholder="e.g. GitHub"
                   className={fieldClasses}
                 />
@@ -218,7 +249,10 @@ export const ShortcutDialog = ({
                   inputMode="url"
                   required
                   value={url}
-                  onChange={(event) => setUrl(event.target.value)}
+                  onChange={(event) => {
+                    setUrl(event.target.value);
+                    setError(null);
+                  }}
                   placeholder="e.g. https://example.com or example.com"
                   className={fieldClasses}
                 />
@@ -226,13 +260,28 @@ export const ShortcutDialog = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!canSave} isLoading={isSaving}>
-              {isEditing ? 'Save' : 'Create'}
-            </Button>
+          <div className="flex flex-col gap-2 pt-1">
+            {saveHint && (
+              <p className="text-sm text-muted-foreground">{saveHint}</p>
+            )}
+
+            {error && (
+              <p
+                role="alert"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                {error}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!canSave} isLoading={isSaving}>
+                {isEditing ? 'Save' : 'Create'}
+              </Button>
+            </div>
           </div>
         </form>
       </div>

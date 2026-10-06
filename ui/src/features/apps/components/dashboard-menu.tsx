@@ -12,10 +12,7 @@ import {
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
-import {
-  ContextMenu,
-  type ContextMenuItem,
-} from '@/components/ui/context-menu';
+import { AppMenu, type AppMenuItem } from '@/components/ui/app-menu';
 import { Spinner } from '@/components/ui/spinner';
 import { useTheme } from '@/hooks/use-theme';
 import { themes, type Theme } from '@/lib/theme';
@@ -127,7 +124,7 @@ export const DashboardMenu = ({
     }
   };
 
-  const items: ContextMenuItem[] = [
+  const items: AppMenuItem[] = [
     {
       id: 'add-shortcut',
       label: 'Add shortcut',
@@ -193,7 +190,7 @@ export const DashboardMenu = ({
   ];
 
   return (
-    <ContextMenu label="Dashboard actions" items={items} className={className}>
+    <AppMenu label="Dashboard actions" items={items} className={className}>
       {children}
 
       {selfAction === 'restarting' && (
@@ -217,6 +214,6 @@ export const DashboardMenu = ({
           </button>
         </div>
       )}
-    </ContextMenu>
+    </AppMenu>
   );
 };

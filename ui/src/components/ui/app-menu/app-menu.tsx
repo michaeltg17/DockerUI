@@ -15,7 +15,7 @@ import { cn } from '@/utils/cn';
 
 import { Spinner } from '../spinner';
 
-export type ContextMenuItem = {
+export type AppMenuItem = {
   id: string;
   label: string;
   icon?: ReactNode;
@@ -25,12 +25,12 @@ export type ContextMenuItem = {
   selected?: boolean;
   onSelect?: () => void;
   /** When present, the item opens a submenu with these entries instead of acting. */
-  children?: ContextMenuItem[];
+  children?: AppMenuItem[];
 };
 
-type ContextMenuProps = {
+type AppMenuProps = {
   children: ReactNode;
-  items: ContextMenuItem[];
+  items: AppMenuItem[];
   label?: string;
   /** Extra classes for the wrapper that defines the menu's trigger zone. */
   className?: string;
@@ -51,12 +51,12 @@ const toAnchor = (rect: DOMRect): SubmenuAnchor => ({
   right: rect.right,
 });
 
-export const ContextMenu = ({
+export const AppMenu = ({
   children,
   items,
   label = 'Actions',
   className,
-}: ContextMenuProps) => {
+}: AppMenuProps) => {
   const [position, setPosition] = useState<MenuPosition | null>(null);
   const [isReady, setIsReady] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -114,7 +114,7 @@ export const ContextMenu = ({
   }, [clearTimers, closeSubmenu]);
 
   const scheduleSubmenuOpen = useCallback(
-    (item: ContextMenuItem, anchor: HTMLElement) => {
+    (item: AppMenuItem, anchor: HTMLElement) => {
       clearTimers();
       openTimer.current = window.setTimeout(
         () => openSubmenu(item.id, toAnchor(anchor.getBoundingClientRect())),
@@ -210,7 +210,7 @@ export const ContextMenu = ({
     };
   }, [isOpen, close, clearTimers]);
 
-  const renderMenuItem = (item: ContextMenuItem) => {
+  const renderMenuItem = (item: AppMenuItem) => {
     const children = item.children;
     const hasChildren = children !== undefined;
 

@@ -8,10 +8,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, type DragEvent } from 'react';
 
-import {
-  ContextMenu,
-  type ContextMenuItem,
-} from '@/components/ui/context-menu';
+import { AppMenu, type AppMenuItem } from '@/components/ui/app-menu';
 import { cn } from '@/utils/cn';
 
 import { getAppLogs } from '../api/get-logs';
@@ -89,7 +86,7 @@ export const AppCard = ({
       : 'bg-red-500';
 
   if (app.isShortcut) {
-    const shortcutActions: ContextMenuItem[] = [
+    const shortcutActions: AppMenuItem[] = [
       {
         id: 'edit',
         label: 'Edit',
@@ -114,10 +111,7 @@ export const AppCard = ({
     return (
       <>
         <div className="relative size-full">
-          <ContextMenu
-            label={`Actions for ${app.name}`}
-            items={shortcutActions}
-          >
+          <AppMenu label={`Actions for ${app.name}`} items={shortcutActions}>
             <button
               type="button"
               onClick={openShortcut}
@@ -137,7 +131,7 @@ export const AppCard = ({
                 {app.name}
               </h3>
             </button>
-          </ContextMenu>
+          </AppMenu>
           {isDragging && <DropIndicator />}
         </div>
         <ShortcutDialog
@@ -149,7 +143,7 @@ export const AppCard = ({
     );
   }
 
-  const actions: ContextMenuItem[] = [
+  const actions: AppMenuItem[] = [
     {
       id: 'start',
       label: 'Start',
@@ -196,7 +190,7 @@ export const AppCard = ({
   return (
     <>
       <div className="relative size-full">
-        <ContextMenu label={`Actions for ${app.name}`} items={actions}>
+        <AppMenu label={`Actions for ${app.name}`} items={actions}>
           <button
             type="button"
             onClick={openApp}
@@ -267,7 +261,7 @@ export const AppCard = ({
               {app.name}
             </h3>
           </button>
-        </ContextMenu>
+        </AppMenu>
         {isDragging && <DropIndicator />}
       </div>
       <LogsDialog

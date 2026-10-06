@@ -63,14 +63,31 @@ export const ShortcutDialog = ({
   initial,
   onClose,
 }: ShortcutDialogProps) => {
+  if (!open) return null;
+  return <ShortcutDialogForm initial={initial} onClose={onClose} />;
+};
+
+/**
+ * Mounted fresh every time the dialog opens, so the fields, the saving flag
+ * and the icon picker always start clean instead of leaking state from the
+ * previous session (an async reset effect could race a fast re-open).
+ */
+const ShortcutDialogForm = ({
+  initial,
+  onClose,
+}: Omit<ShortcutDialogProps, 'open'>) => {
   const isEditing = isEditingShortcut(initial);
   const { data: icons = [] } = useIcons();
   const addShortcut = useAddShortcut();
   const updateShortcut = useUpdateShortcut();
 
-  const [name, setName] = useState('');
-  const [url, setUrl] = useState('');
-  const [icon, setIcon] = useState('');
+  const initialName = initial?.name ?? '';
+  const initialIcon = initial?.icon ?? null;
+  const initialUrl = initial?.url ?? '';
+
+  const [name, setName] = useState(initialName);
+  const [url, setUrl] = useState(initialUrl);
+  const [icon, setIcon] = useState(initialIcon ?? '');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,22 +95,8 @@ export const ShortcutDialog = ({
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const isSaving = addShortcut.isPending || updateShortcut.isPending;
-  const initialName = initial?.name ?? '';
-  const initialIcon = initial?.icon ?? null;
-  const initialUrl = initial?.url ?? '';
 
   useEffect(() => {
-    if (!open) return;
-    setName(initialName);
-    setUrl(initialUrl);
-    setIcon(initialIcon ?? '');
-    setPickerOpen(false);
-    setError(null);
-  }, [open, initialName, initialIcon, initialUrl]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
     const handleKeyDown = (event: KeyboardEvent) => {
       // Escape closes the icon picker first; the shortcut dialog closes
       // only when no other dialog is layered on top of it.
@@ -127,11 +130,9 @@ export const ShortcutDialog = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose, pickerOpen]);
+  }, [onClose, pickerOpen]);
 
   useEffect(() => {
-    if (!open) return undefined;
-
     const previouslyFocused =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -141,9 +142,7 @@ export const ShortcutDialog = ({
     return () => {
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
-  }, [open]);
-
-  if (!open) return null;
+  }, []);
 
   const trimmedName = name.trim();
   const canSave = trimmedName.length > 0 && isSaveableUrl(url) && !isSaving;

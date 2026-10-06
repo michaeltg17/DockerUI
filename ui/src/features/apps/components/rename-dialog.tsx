@@ -23,22 +23,27 @@ export const RenameDialog = ({
   currentName,
   onClose,
 }: RenameDialogProps) => {
+  if (!open) return null;
+  return <RenameDialogForm currentName={currentName} onClose={onClose} />;
+};
+
+/**
+ * Mounted fresh every time the dialog opens, so the field always starts from
+ * the current name instead of leaking state from the previous session (an
+ * async reset effect could race a fast re-open).
+ */
+const RenameDialogForm = ({
+  currentName,
+  onClose,
+}: Omit<RenameDialogProps, 'open'>) => {
   const rename = useRenameDashboard();
-  const [name, setName] = useState('');
+  const [name, setName] = useState(currentName);
   const [error, setError] = useState<string | null>(null);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!open) return;
-    setName(currentName);
-    setError(null);
-  }, [open, currentName]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
       if (event.key !== 'Tab' || !dialogRef.current) return;
@@ -67,11 +72,9 @@ export const RenameDialog = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
-    if (!open) return undefined;
-
     const previouslyFocused =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -82,9 +85,7 @@ export const RenameDialog = ({
     return () => {
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
-  }, [open]);
-
-  if (!open) return null;
+  }, []);
 
   const trimmedName = name.trim();
   const canSave = trimmedName.length > 0 && !rename.isPending;

@@ -6,11 +6,11 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { env } from '@/config/env';
-
 import type { App } from '../types';
 
 import { APPS_QUERY_KEY } from './use-apps';
+
+const APPS_UPDATED_EVENT = 'appsUpdated';
 
 /**
  * Subscribes to the SignalR hub and keeps the apps cache in sync
@@ -25,18 +25,17 @@ export const useAppsHub = () => {
     let isStopping = false;
 
     const start = async () => {
-      const builder = new HubConnectionBuilder().withUrl(
-        `${env.API_URL}/apps/hub`,
-      );
+      const builder = new HubConnectionBuilder().withUrl('/api/apps/hub');
 
-      // LogLevel.None: the client's default logger writes its connection
-      // trace/debug lines straight to the browser console.
+      // LogLevel.Error: the client's default logger writes its connection
+      // trace/debug lines straight to the browser console, but real failures
+      // (an unreachable hub) must still be visible there.
       connection = builder
         .withAutomaticReconnect()
-        .configureLogging(LogLevel.None)
+        .configureLogging(LogLevel.Error)
         .build();
 
-      connection.on('appsUpdated', (apps: App[]) => {
+      connection.on(APPS_UPDATED_EVENT, (apps: App[]) => {
         queryClient.setQueryData(APPS_QUERY_KEY, apps);
       });
 

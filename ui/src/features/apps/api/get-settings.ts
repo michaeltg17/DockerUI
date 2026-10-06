@@ -7,3 +7,6 @@ export type Settings = {
 };
 
 export const getSettings = () => http.get<Settings>('/settings');
+
+export const setDashboardName = (name: string) =>
+  http.put('/settings/name', { name });

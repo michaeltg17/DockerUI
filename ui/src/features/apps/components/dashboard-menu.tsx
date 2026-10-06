@@ -2,7 +2,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Eye,
   EyeOff,
+  Palette,
+  Pencil,
   Plus,
+  Power,
   PowerOff,
   RefreshCw,
   ScrollText,
@@ -14,7 +17,6 @@ import {
   type ContextMenuItem,
 } from '@/components/ui/context-menu';
 import { Spinner } from '@/components/ui/spinner';
-import { env } from '@/config/env';
 import { useTheme } from '@/hooks/use-theme';
 import { themes, type Theme } from '@/lib/theme';
 
@@ -35,12 +37,17 @@ const RESTART_POLL_MS = 1_000;
 type DashboardMenuProps = {
   onAddShortcut: () => void;
   onViewLogs: () => void;
+  onRename: () => void;
+  /** Extra classes for the wrapper that defines the menu's trigger zone. */
+  className?: string;
   children: ReactNode;
 };
 
 export const DashboardMenu = ({
   onAddShortcut,
   onViewLogs,
+  onRename,
+  className,
   children,
 }: DashboardMenuProps) => {
   const { theme, setTheme } = useTheme();
@@ -72,7 +79,7 @@ export const DashboardMenu = ({
     while (Date.now() < deadline) {
       let up = false;
       try {
-        const response = await fetch(`${env.API_URL}/settings`, {
+        const response = await fetch('/api/settings', {
           cache: 'no-store',
         });
 
@@ -89,7 +96,7 @@ export const DashboardMenu = ({
     // Wait for the dashboard to come back, then reload into the fresh instance.
     while (Date.now() < deadline) {
       try {
-        const response = await fetch(`${env.API_URL}/settings`, {
+        const response = await fetch('/api/settings', {
           cache: 'no-store',
         });
 
@@ -133,15 +140,26 @@ export const DashboardMenu = ({
       icon: <ScrollText className="size-4" aria-hidden="true" />,
       onSelect: onViewLogs,
     },
-    ...themes.map((t) => ({
-      id: `theme-${t}`,
-      label: themeLabels[t],
-      selected: theme === t,
-      onSelect: () => setTheme(t),
-    })),
+    {
+      id: 'rename',
+      label: 'Rename dashboard',
+      icon: <Pencil className="size-4" aria-hidden="true" />,
+      onSelect: onRename,
+    },
+    {
+      id: 'theme',
+      label: 'Theme',
+      icon: <Palette className="size-4" aria-hidden="true" />,
+      children: themes.map((t) => ({
+        id: `theme-${t}`,
+        label: themeLabels[t],
+        selected: theme === t,
+        onSelect: () => setTheme(t),
+      })),
+    },
     {
       id: 'toggle-visibility',
-      label: selfVisible ? 'Hide dashboard' : 'Show dashboard',
+      label: selfVisible ? 'Hide Docker UI' : 'Show Docker UI',
       icon: selfVisible ? (
         <EyeOff className="size-4" aria-hidden="true" />
       ) : (
@@ -153,23 +171,29 @@ export const DashboardMenu = ({
       onSelect: () => void setVisibility.mutate(selfVisible),
     },
     {
-      id: 'restart',
-      label: 'Restart dashboard',
-      icon: <RefreshCw className="size-4" aria-hidden="true" />,
+      id: 'power',
+      label: 'Power',
+      icon: <Power className="size-4" aria-hidden="true" />,
       disabled: selfProject === null,
-      onSelect: () => runSelfAction('restart'),
-    },
-    {
-      id: 'stop',
-      label: 'Stop dashboard',
-      icon: <PowerOff className="size-4" aria-hidden="true" />,
-      disabled: selfProject === null,
-      onSelect: () => runSelfAction('stop'),
+      children: [
+        {
+          id: 'restart',
+          label: 'Restart dashboard',
+          icon: <RefreshCw className="size-4" aria-hidden="true" />,
+          onSelect: () => runSelfAction('restart'),
+        },
+        {
+          id: 'stop',
+          label: 'Stop dashboard',
+          icon: <PowerOff className="size-4" aria-hidden="true" />,
+          onSelect: () => runSelfAction('stop'),
+        },
+      ],
     },
   ];
 
   return (
-    <ContextMenu label="Dashboard actions" items={items}>
+    <ContextMenu label="Dashboard actions" items={items} className={className}>
       {children}
 
       {selfAction === 'restarting' && (

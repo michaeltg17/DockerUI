@@ -30,11 +30,11 @@ cd ..
 
 echo
 echo "E2E: building the test project (Release)."
-dotnet build e2e/DockerUI.e2e.slnx --configuration Release
+dotnet build e2e/DockerUIE2E.slnx --configuration Release
 
 echo
 echo "E2E: running scenarios (docker daemon required)."
-dotnet e2e/DockerUI.E2ETests/bin/Release/net10.0/DockerUI.E2ETests.dll
+dotnet e2e/bin/Release/net10.0/E2E.dll
 
 echo
 echo "========================================="

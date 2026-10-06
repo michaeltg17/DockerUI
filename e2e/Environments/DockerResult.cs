@@ -1,0 +1,7 @@
+namespace E2E.Environments;
+
+/// <summary>The result of a Docker CLI invocation.</summary>
+public sealed record DockerResult(int ExitCode, string StandardOutput, string StandardError)
+{
+    public bool Succeeded => ExitCode == 0;
+}

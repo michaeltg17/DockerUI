@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
@@ -12,75 +12,149 @@ import {
 import type { Shortcut } from '../types';
 
 import { AppIcon } from './app-icon';
+import { IconPickerDialog } from './icon-picker-dialog';
 
 type ShortcutDialogProps = {
   open: boolean;
   /** The shortcut to edit; when null a new shortcut is created. */
-  initial: Shortcut | null;
+  initial?: Shortcut | null;
   onClose: () => void;
 };
 
-const isAbsoluteUrl = (value: string) => {
+const isEditingShortcut = (initial?: Shortcut | null) => Boolean(initial?.name);
+
+const normalizeUrl = (value: string) => {
+  const trimmed = value.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
+const isSaveableUrl = (value: string) => {
   try {
-    const url = new URL(value);
+    const url = new URL(normalizeUrl(value));
     return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
     return false;
   }
 };
 
-const iconLabel = (path: string) => {
-  const file = path.split('/').pop() ?? path;
-  return file.replace(/\.[a-z]+$/i, '');
+/** The API reports problems as RFC 9457 documents; surface the human message. */
+export const getErrorMessage = (error: unknown) => {
+  const data = (error as { response?: { data?: unknown } } | null)?.response
+    ?.data;
+
+  if (typeof data === 'object' && data !== null) {
+    const { detail, message } = data as { detail?: unknown; message?: unknown };
+
+    if (typeof detail === 'string' && detail.length > 0) return detail;
+    if (typeof message === 'string' && message.length > 0) return message;
+  }
+
+  return 'Could not save the shortcut. Try again.';
 };
 
 const fieldClasses =
-  'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30';
+  'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
+
+const focusableSelector =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export const ShortcutDialog = ({
   open,
   initial,
   onClose,
 }: ShortcutDialogProps) => {
+  if (!open) return null;
+  return <ShortcutDialogForm initial={initial} onClose={onClose} />;
+};
+
+/**
+ * Mounted fresh every time the dialog opens, so the fields, the saving flag
+ * and the icon picker always start clean instead of leaking state from the
+ * previous session (an async reset effect could race a fast re-open).
+ */
+const ShortcutDialogForm = ({
+  initial,
+  onClose,
+}: Omit<ShortcutDialogProps, 'open'>) => {
+  const isEditing = isEditingShortcut(initial);
   const { data: icons = [] } = useIcons();
   const addShortcut = useAddShortcut();
   const updateShortcut = useUpdateShortcut();
 
-  const [name, setName] = useState('');
-  const [url, setUrl] = useState('');
-  const [icon, setIcon] = useState('');
-
-  const isEditing = initial !== null;
-  const isSaving = addShortcut.isPending || updateShortcut.isPending;
-
   const initialName = initial?.name ?? '';
-  const initialIcon = initial?.icon ?? '';
+  const initialIcon = initial?.icon ?? null;
   const initialUrl = initial?.url ?? '';
 
-  useEffect(() => {
-    if (!open) return;
-    setName(initialName);
-    setUrl(initialUrl);
-    setIcon(initialIcon);
-  }, [open, initialName, initialIcon, initialUrl]);
+  const [name, setName] = useState(initialName);
+  const [url, setUrl] = useState(initialUrl);
+  const [icon, setIcon] = useState(initialIcon ?? '');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const isSaving = addShortcut.isPending || updateShortcut.isPending;
 
   useEffect(() => {
-    if (!open) return undefined;
-
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      // Escape closes the icon picker first; the shortcut dialog closes
+      // only when no other dialog is layered on top of it.
+      if (event.key === 'Escape' && !pickerOpen) onClose();
+
+      // While the picker is layered on top it owns the keyboard; otherwise
+      // keep Tab cycling inside the dialog.
+      if (event.key !== 'Tab' || pickerOpen || !dialogRef.current) return;
+
+      const focusable = [
+        ...dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector),
+      ];
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      const inside =
+        active instanceof HTMLElement && dialogRef.current.contains(active);
+
+      if (event.shiftKey) {
+        if (!inside || active === first) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (!inside || active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [onClose, pickerOpen]);
 
-  if (!open) return null;
+  useEffect(() => {
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    nameInputRef.current?.focus();
+
+    return () => {
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, []);
 
   const trimmedName = name.trim();
-  const trimmedUrl = url.trim();
-  const canSave =
-    trimmedName.length > 0 && isAbsoluteUrl(trimmedUrl) && !isSaving;
+  const canSave = trimmedName.length > 0 && isSaveableUrl(url) && !isSaving;
+
+  // While saving is blocked, say why: the disabled button would otherwise
+  // leave the user guessing what is missing.
+  const saveHint =
+    !canSave && !isSaving
+      ? trimmedName.length === 0
+        ? 'Enter a name.'
+        : 'Enter a valid URL, e.g. https://example.com.'
+      : null;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -89,7 +163,7 @@ export const ShortcutDialog = ({
     const shortcut: Shortcut = {
       name: trimmedName,
       icon: icon === '' ? null : icon,
-      url: trimmedUrl,
+      url: normalizeUrl(url),
     };
 
     try {
@@ -99,8 +173,10 @@ export const ShortcutDialog = ({
         await addShortcut.mutateAsync(shortcut);
       }
       onClose();
-    } catch {
-      // The api-client interceptor already surfaces the error as a toast.
+    } catch (submitError) {
+      // The api-client interceptor also surfaces the error as a toast; the
+      // dialog stays open so the user can fix the input and retry.
+      setError(getErrorMessage(submitError));
     }
   };
 
@@ -108,18 +184,19 @@ export const ShortcutDialog = ({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
       role="presentation"
-      onMouseDown={(event) => {
+      onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={isEditing ? `Edit ${initialName}` : 'Add shortcut'}
+        aria-labelledby="shortcut-dialog-title"
         className="w-full max-w-md overflow-hidden rounded-lg border border-border bg-background shadow-lg"
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold">
+          <h2 id="shortcut-dialog-title" className="text-sm font-semibold">
             {isEditing ? `Edit ${initialName}` : 'Add shortcut'}
           </h2>
           <button
@@ -133,61 +210,92 @@ export const ShortcutDialog = ({
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Name</span>
-            <input
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="e.g. GitHub"
-              className={fieldClasses}
-            />
-          </label>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              aria-label="Choose icon"
+              className="shrink-0 self-start rounded-2xl transition-shadow hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <AppIcon
+                icon={icon === '' ? null : icon}
+                name={trimmedName || '?'}
+                className="size-16 text-xl"
+              />
+            </button>
 
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">URL</span>
-            <input
-              type="url"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              placeholder="https://example.com"
-              className={fieldClasses}
-            />
-          </label>
+            <div className="flex min-w-0 flex-1 flex-col gap-4">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">Name</span>
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setError(null);
+                  }}
+                  placeholder="e.g. GitHub"
+                  className={fieldClasses}
+                />
+              </label>
 
-          <div className="flex items-center gap-3">
-            <AppIcon
-              icon={icon === '' ? null : icon}
-              name={trimmedName || '?'}
-              className="size-12 shrink-0 text-base"
-            />
-            <label className="flex flex-1 flex-col gap-1.5 text-sm">
-              <span className="font-medium">Icon</span>
-              <select
-                value={icon}
-                onChange={(event) => setIcon(event.target.value)}
-                className={fieldClasses}
-              >
-                <option value="">None</option>
-                {icons.map((path) => (
-                  <option key={path} value={path}>
-                    {iconLabel(path)}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">URL</span>
+                <input
+                  type="text"
+                  inputMode="url"
+                  required
+                  value={url}
+                  onChange={(event) => {
+                    setUrl(event.target.value);
+                    setError(null);
+                  }}
+                  placeholder="e.g. https://example.com or example.com"
+                  className={fieldClasses}
+                />
+              </label>
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!canSave} isLoading={isSaving}>
-              {isEditing ? 'Save' : 'Create'}
-            </Button>
+          <div className="flex flex-col gap-2 pt-1">
+            {saveHint && (
+              <p className="text-sm text-muted-foreground">{saveHint}</p>
+            )}
+
+            {error && (
+              <p
+                role="alert"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                {error}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!canSave} isLoading={isSaving}>
+                {isEditing ? 'Save' : 'Create'}
+              </Button>
+            </div>
           </div>
         </form>
       </div>
+
+      {pickerOpen && (
+        <IconPickerDialog
+          icons={icons}
+          selected={icon === '' ? null : icon}
+          onSelect={(path) => {
+            setIcon(path ?? '');
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>,
     document.body,
   );

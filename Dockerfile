@@ -13,10 +13,10 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api-build
 WORKDIR /src
 COPY .editorconfig ./
 COPY api/Directory.Build.props api/Directory.Packages.props api/global.json api/
-COPY api/src/Api/Api.csproj api/src/Api/
-RUN dotnet restore api/src/Api/Api.csproj
-COPY api/src/ ./api/src/
-RUN dotnet publish api/src/Api/Api.csproj -c Release -o /app/api /p:UseAppHost=false
+COPY api/Api.csproj api/
+RUN dotnet restore api/Api.csproj
+COPY api/ ./api/
+RUN dotnet publish api/Api.csproj -c Release -o /app/api /p:UseAppHost=false
 
 # ---- Stage 3: runtime -------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

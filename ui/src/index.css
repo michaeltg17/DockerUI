@@ -5,36 +5,39 @@
 @layer base {
   :root,
   [data-theme='light'] {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Off-white page so the white cards stand out; slate text instead of near-black. */
+    --background: 210 20% 98%;
+    --foreground: 222.2 47.4% 11.2%;
 
-    --header: 0 0% 100%;
-    --header-foreground: 222.2 84% 4.9%;
+    /* A subtly tinted header, like the other themes, separates the bar from the grid. */
+    --header: 210 40% 96%;
+    --header-foreground: 222.2 47.4% 11.2%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222.2 47.4% 11.2%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222.2 47.4% 11.2%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Docker-blue primary (4.6:1 against white text); the ring follows the brand. */
+    --primary: 204 74% 42%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
+    --secondary: 210 40% 94%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 210 40% 96.1%;
+    --muted: 210 40% 94%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
+    --accent: 204 60% 95%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 214.3 31.8% 87%;
+    --input: 214.3 31.8% 87%;
+    --ring: 204 74% 42%;
 
     --radius: 0.5rem;
   }
@@ -142,6 +145,12 @@
 /* The Docker Desktop bar fades from deep navy to bright blue. */
 [data-theme='docker-v2'] header {
   background-image: linear-gradient(to right, hsl(222 91% 18%), hsl(222 100% 27%));
+}
+
+/* Like the Docker Desktop search field: a lighter pill on the gradient bar. */
+[data-theme='docker-v2'] header input[type='search'] {
+  background-color: hsl(215 25% 18%);
+  border-color: hsl(215 22% 30%);
 }
 
 @layer base {

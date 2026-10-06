@@ -6,7 +6,7 @@
  *    docker-compose.yml to learn which container images the app uses.
  * 2. Shallow (sparse) clones getumbrel/umbrel-apps-gallery and copies each
  *    app's icon into ui/public/icons/<app-id>.<ext>.
- * 3. Writes api/src/Api/Features/Apps/Icons/app-icons.json mapping
+ * 3. Writes api/Features/Apps/Icons/app-icons.json mapping
  *    container image -> icon file (served at /icons/<file>).
  *
  * Run from the repository root:  yarn --cwd ui icons:sync
@@ -25,7 +25,7 @@ const GALLERY_REPO = 'https://github.com/getumbrel/umbrel-apps-gallery.git'
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(scriptDir, '..', '..')
 const iconsOutDir = path.join(repoRoot, 'ui', 'public', 'icons')
-const mappingOutFile = path.join(repoRoot, 'api', 'src', 'Api', 'Features', 'Apps', 'Icons', 'app-icons.json')
+const mappingOutFile = path.join(repoRoot, 'api', 'Features', 'Apps', 'Icons', 'app-icons.json')
 
 const ICON_EXTENSIONS = ['.svg', '.png', '.webp', '.jpg', '.jpeg']
 

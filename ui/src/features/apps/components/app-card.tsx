@@ -6,7 +6,7 @@ import {
   Square,
   Trash2,
 } from 'lucide-react';
-import { useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 
 import {
   ContextMenu,
@@ -57,8 +57,36 @@ export const AppCard = ({
   const [editing, setEditing] = useState(false);
 
   const isRunning = app.state === 'running';
-  const isBusy =
-    startApp.isPending || stopApp.isPending || restartApp.isPending;
+  const isStarting = startApp.isPending;
+  const isStopping = stopApp.isPending;
+  const isRestarting = restartApp.isPending;
+  const isBusy = isStarting || isStopping || isRestarting;
+
+  // As soon as a stop (or restart) is initiated the app is already treated
+  // as not running, so the icon darkens immediately — before the daemon
+  // reports the new state.
+  const isDimmed = !isRunning || isStopping || isRestarting;
+
+  // A restart first stops the app and then starts it. Track whether the
+  // stopped phase was observed so the progress bar can switch from red
+  // (stopping) to green (starting).
+  const [restartSawStopped, setRestartSawStopped] = useState(false);
+
+  useEffect(() => {
+    if (!isRestarting) {
+      setRestartSawStopped(false);
+      return;
+    }
+    if (app.state === 'stopped') setRestartSawStopped(true);
+  }, [isRestarting, app.state]);
+
+  const progressColor = isRestarting
+    ? restartSawStopped
+      ? 'bg-green-500'
+      : 'bg-red-500'
+    : isStarting
+      ? 'bg-green-500'
+      : 'bg-red-500';
 
   if (app.isShortcut) {
     const shortcutActions: ContextMenuItem[] = [
@@ -85,27 +113,33 @@ export const AppCard = ({
 
     return (
       <>
-        <ContextMenu label={`Actions for ${app.name}`} items={shortcutActions}>
-          <button
-            type="button"
-            onClick={openShortcut}
-            data-state={app.state}
-            {...cardDragProps}
-            className={cn(cardClasses, isDragging && 'opacity-50')}
+        <div className="relative size-full">
+          <ContextMenu
+            label={`Actions for ${app.name}`}
+            items={shortcutActions}
           >
-            <AppIcon
-              icon={app.icon}
-              name={app.name}
-              className="size-24 text-3xl"
-            />
-            <h3
-              className="max-w-full truncate text-sm font-medium"
-              title={app.name}
+            <button
+              type="button"
+              onClick={openShortcut}
+              data-state={app.state}
+              {...cardDragProps}
+              className={cn(cardClasses, isDragging && 'opacity-50')}
             >
-              {app.name}
-            </h3>
-          </button>
-        </ContextMenu>
+              <AppIcon
+                icon={app.icon}
+                name={app.name}
+                className="size-24 text-3xl"
+              />
+              <h3
+                className="max-w-full truncate text-sm font-medium"
+                title={app.name}
+              >
+                {app.name}
+              </h3>
+            </button>
+          </ContextMenu>
+          {isDragging && <DropIndicator />}
+        </div>
         <ShortcutDialog
           open={editing}
           initial={{ name: app.name, icon: app.icon, url: app.url ?? '' }}
@@ -161,67 +195,81 @@ export const AppCard = ({
 
   return (
     <>
-      <ContextMenu label={`Actions for ${app.name}`} items={actions}>
-        <button
-          type="button"
-          onClick={openApp}
-          data-state={app.state}
-          {...cardDragProps}
-          className={cn(cardClasses, isDragging && 'opacity-50')}
-        >
-          <div className="relative">
-            <AppIcon
-              icon={app.icon}
-              name={app.name}
-              className={cn(
-                'size-24 text-3xl transition-opacity',
-                app.state === 'stopped' && 'opacity-50 grayscale',
+      <div className="relative size-full">
+        <ContextMenu label={`Actions for ${app.name}`} items={actions}>
+          <button
+            type="button"
+            onClick={openApp}
+            data-state={app.state}
+            {...cardDragProps}
+            className={cn(cardClasses, isDragging && 'opacity-50')}
+          >
+            <div className="relative">
+              <AppIcon
+                icon={app.icon}
+                name={app.name}
+                className={cn(
+                  'size-24 text-3xl transition-[filter] duration-200',
+                  isDimmed && 'brightness-50',
+                )}
+              />
+              {app.state === 'stopped' && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Start ${app.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void startApp.mutate(app.name);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void startApp.mutate(app.name);
+                  }}
+                  className="absolute inset-0 flex cursor-pointer items-center justify-center"
+                >
+                  <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40 transition-opacity duration-150 group-hover:opacity-0">
+                    <Square
+                      className="size-4 fill-white text-white"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span className="absolute left-1/2 top-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-slate-900/40 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                    <Play
+                      className="size-4 fill-white text-white"
+                      aria-hidden="true"
+                    />
+                  </span>
+                </span>
               )}
-            />
-            {app.state === 'stopped' && (
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label={`Start ${app.name}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void startApp.mutate(app.name);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return;
-                  event.preventDefault();
-                  event.stopPropagation();
-                  void startApp.mutate(app.name);
-                }}
-                className="absolute inset-0 flex cursor-pointer items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
-              >
-                <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40">
-                  <Play
-                    className="size-4 fill-white text-white"
-                    aria-hidden="true"
+              {isBusy && (
+                <span
+                  role="progressbar"
+                  aria-label={`Updating ${app.name}`}
+                  className="absolute inset-x-3 bottom-2 h-1 overflow-hidden rounded-full bg-slate-900/30"
+                >
+                  <span
+                    className={cn(
+                      'block h-full w-1/3 animate-progress-slide rounded-full',
+                      progressColor,
+                    )}
                   />
                 </span>
-              </span>
-            )}
-            {isBusy && (
-              <span
-                role="progressbar"
-                aria-label={`Updating ${app.name}`}
-                className="absolute inset-x-3 bottom-2 h-1 overflow-hidden rounded-full bg-slate-900/30"
-              >
-                <span className="block h-full w-1/3 animate-progress-slide rounded-full bg-sky-500" />
-              </span>
-            )}
-          </div>
+              )}
+            </div>
 
-          <h3
-            className="max-w-full truncate text-sm font-medium"
-            title={app.name}
-          >
-            {app.name}
-          </h3>
-        </button>
-      </ContextMenu>
+            <h3
+              className="max-w-full truncate text-sm font-medium"
+              title={app.name}
+            >
+              {app.name}
+            </h3>
+          </button>
+        </ContextMenu>
+        {isDragging && <DropIndicator />}
+      </div>
       <LogsDialog
         open={logsOpen}
         title={`${app.name} logs`}
@@ -232,3 +280,12 @@ export const AppCard = ({
     </>
   );
 };
+
+/** The vertical bar marking where the dragged card will be placed. */
+const DropIndicator = () => (
+  <span
+    data-drop-indicator
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-y-3 -left-1.5 w-1 rounded-full bg-primary"
+  />
+);

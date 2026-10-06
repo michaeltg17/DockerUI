@@ -29,6 +29,8 @@ type ContextMenuProps = {
   children: ReactNode;
   items: ContextMenuItem[];
   label?: string;
+  /** Extra classes for the wrapper that defines the menu's trigger zone. */
+  className?: string;
 };
 
 const VIEWPORT_MARGIN = 8;
@@ -39,6 +41,7 @@ export const ContextMenu = ({
   children,
   items,
   label = 'Actions',
+  className,
 }: ContextMenuProps) => {
   const [position, setPosition] = useState<MenuPosition | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -110,7 +113,7 @@ export const ContextMenu = ({
   }, [isOpen, close]);
 
   return (
-    <div onContextMenu={handleContextMenu}>
+    <div className={cn(className)} onContextMenu={handleContextMenu}>
       {children}
       {isOpen &&
         position &&

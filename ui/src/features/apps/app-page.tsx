@@ -28,7 +28,7 @@ export const AppsPage = () => {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <Helmet>
         <title>{settings?.name}</title>
         <meta
@@ -73,6 +73,9 @@ export const AppsPage = () => {
       />
 
       <DashboardMenu
+        // The whole area below the header (cards, gaps, and empty space)
+        // is the dashboard menu's trigger zone.
+        className="flex-1"
         onAddShortcut={() => setShortcutOpen(true)}
         onViewLogs={() => setLogsOpen(true)}
       >

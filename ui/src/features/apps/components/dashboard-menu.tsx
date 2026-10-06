@@ -34,12 +34,15 @@ const RESTART_POLL_MS = 1_000;
 type DashboardMenuProps = {
   onAddShortcut: () => void;
   onViewLogs: () => void;
+  /** Extra classes for the wrapper that defines the menu's trigger zone. */
+  className?: string;
   children: ReactNode;
 };
 
 export const DashboardMenu = ({
   onAddShortcut,
   onViewLogs,
+  className,
   children,
 }: DashboardMenuProps) => {
   const { theme, setTheme } = useTheme();
@@ -168,7 +171,7 @@ export const DashboardMenu = ({
   ];
 
   return (
-    <ContextMenu label="Dashboard actions" items={items}>
+    <ContextMenu label="Dashboard actions" items={items} className={className}>
       {children}
 
       {selfAction === 'restarting' && (

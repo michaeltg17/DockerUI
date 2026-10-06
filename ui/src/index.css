@@ -147,6 +147,12 @@
   background-image: linear-gradient(to right, hsl(222 91% 18%), hsl(222 100% 27%));
 }
 
+/* Like the Docker Desktop search field: a lighter pill on the gradient bar. */
+[data-theme='docker-v2'] header input[type='search'] {
+  background-color: hsl(215 25% 18%);
+  border-color: hsl(215 22% 30%);
+}
+
 @layer base {
   * {
     @apply border-border;

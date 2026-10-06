@@ -31,18 +31,18 @@ namespace Api.Features.Apps.Icons
         const double WeakSuffixScore = 0.75;
         const double MinFuzzyScore = 0.8;
 
-        readonly FrozenDictionary<string, string> _byImage;
-        readonly FrozenDictionary<string, string> _byImageName;
-        readonly FrozenDictionary<string, string> _byName;
-        readonly KeyValuePair<string, string>[] _candidates;
-        readonly ILogger _logger;
+        readonly FrozenDictionary<string, string> byImage;
+        readonly FrozenDictionary<string, string> byImageName;
+        readonly FrozenDictionary<string, string> byName;
+        readonly KeyValuePair<string, string>[] candidates;
+        readonly ILogger logger;
 
         public AppIconCatalog(IReadOnlyCollection<AppIconMapping> mappings, ILogger logger)
         {
             ArgumentNullException.ThrowIfNull(mappings);
 
-            _logger = logger;
-            BuildMaps(mappings, out _byImage, out _byImageName, out _byName, out _candidates);
+            this.logger = logger;
+            BuildMaps(mappings, out byImage, out byImageName, out byName, out candidates);
         }
 
         public bool TryGetIcon(string? image, [NotNullWhen(true)] out string? icon)
@@ -54,11 +54,11 @@ namespace Api.Features.Apps.Icons
 
             var reference = NormalizeImage(image);
 
-            if (_byImage.TryGetValue(reference, out icon))
+            if (byImage.TryGetValue(reference, out icon))
                 return true;
 
             var name = LastSegment(reference);
-            return name.Length > 0 && _byImageName.TryGetValue(name, out icon);
+            return name.Length > 0 && byImageName.TryGetValue(name, out icon);
         }
 
         public bool TryGetIconForName(string? name, [NotNullWhen(true)] out string? icon)
@@ -73,13 +73,13 @@ namespace Api.Features.Apps.Icons
             if (normalized.Length == 0)
                 return false;
 
-            if (_byName.TryGetValue(normalized, out icon))
+            if (byName.TryGetValue(normalized, out icon))
                 return true;
 
             var best = string.Empty;
             var bestScore = 0.0;
 
-            foreach (var candidate in _candidates)
+            foreach (var candidate in candidates)
             {
                 var score = Score(normalized, candidate.Key);
 
@@ -93,9 +93,9 @@ namespace Api.Features.Apps.Icons
                 }
             }
 
-            if (bestScore >= MinFuzzyScore && _byName.TryGetValue(best, out icon))
+            if (bestScore >= MinFuzzyScore && byName.TryGetValue(best, out icon))
             {
-                LogFuzzyNameMatch(_logger, name, best);
+                LogFuzzyNameMatch(logger, name, best);
                 return true;
             }
 

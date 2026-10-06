@@ -15,13 +15,13 @@ internal sealed class SettingsStore(
     static readonly System.Text.Json.JsonSerializerOptions Json =
         new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
 
-    readonly Lock _gate = new();
-    readonly string _appSettingsPath = Path.Combine(environment.ContentRootPath, "appsettings.json");
+    readonly Lock gate = new();
+    readonly string appSettingsPath = Path.Combine(environment.ContentRootPath, "appsettings.json");
 
     /// <summary>Sets (or removes) the 'Hidden' override of the given app in the settings file.</summary>
     public void SetAppHidden(string appName, bool hidden)
     {
-        lock (_gate)
+        lock (gate)
         {
             var settings = LoadSettings();
 
@@ -54,7 +54,7 @@ internal sealed class SettingsStore(
     /// <summary>Persists the custom display order in the 'DockerUI:Order' section of the settings file.</summary>
     public void SetAppOrder(IReadOnlyCollection<string> order)
     {
-        lock (_gate)
+        lock (gate)
         {
             var settings = LoadSettings();
 
@@ -73,15 +73,15 @@ internal sealed class SettingsStore(
 
     JsonObject LoadSettings()
     {
-        JsonNode? root = File.Exists(_appSettingsPath)
-            ? JsonNode.Parse(File.ReadAllText(_appSettingsPath))
+        JsonNode? root = File.Exists(appSettingsPath)
+            ? JsonNode.Parse(File.ReadAllText(appSettingsPath))
             : new JsonObject();
 
         return root is JsonObject settings
             ? settings
-            : throw new InvalidOperationException($"The settings file '{_appSettingsPath}' must contain a JSON object.");
+            : throw new InvalidOperationException($"The settings file '{appSettingsPath}' must contain a JSON object.");
     }
 
     void SaveSettings(JsonObject settings) =>
-        File.WriteAllText(_appSettingsPath, settings.ToJsonString(Json) + Environment.NewLine);
+        File.WriteAllText(appSettingsPath, settings.ToJsonString(Json) + Environment.NewLine);
 }

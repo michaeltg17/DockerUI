@@ -16,8 +16,8 @@ internal sealed class ShortcutStore(
     static readonly System.Text.Json.JsonSerializerOptions Json =
         new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
 
-    readonly Lock _gate = new();
-    readonly string _appSettingsPath = Path.Combine(environment.ContentRootPath, "appsettings.json");
+    readonly Lock gate = new();
+    readonly string appSettingsPath = Path.Combine(environment.ContentRootPath, "appsettings.json");
 
     public IReadOnlyList<Shortcut> Load() =>
         configurationRoot.GetSection(DockerUISettings.Section).Get<DockerUISettings>()?.Shortcuts?.ToList() ?? [];
@@ -26,7 +26,7 @@ internal sealed class ShortcutStore(
     {
         var list = shortcuts.ToList();
 
-        lock (_gate)
+        lock (gate)
         {
             WriteToAppSettings(list);
             configurationRoot.Reload();
@@ -37,12 +37,12 @@ internal sealed class ShortcutStore(
 
     void WriteToAppSettings(List<Shortcut> shortcuts)
     {
-        JsonNode? root = File.Exists(_appSettingsPath)
-            ? JsonNode.Parse(File.ReadAllText(_appSettingsPath))
+        JsonNode? root = File.Exists(appSettingsPath)
+            ? JsonNode.Parse(File.ReadAllText(appSettingsPath))
             : new JsonObject();
 
         if (root is not JsonObject settings)
-            throw new InvalidOperationException($"The settings file '{_appSettingsPath}' must contain a JSON object.");
+            throw new InvalidOperationException($"The settings file '{appSettingsPath}' must contain a JSON object.");
 
         var section = settings[DockerUISettings.Section] as JsonObject ?? [];
         settings[DockerUISettings.Section] = section;
@@ -60,7 +60,7 @@ internal sealed class ShortcutStore(
             section[nameof(DockerUISettings.Shortcuts)] = array;
         }
 
-        File.WriteAllText(_appSettingsPath, root.ToJsonString(Json) + Environment.NewLine);
+        File.WriteAllText(appSettingsPath, root.ToJsonString(Json) + Environment.NewLine);
     }
 
     static JsonObject ToNode(Shortcut shortcut)

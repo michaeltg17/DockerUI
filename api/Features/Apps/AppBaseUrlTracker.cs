@@ -8,10 +8,10 @@ namespace Api.Features.Apps
     /// </summary>
     internal sealed class AppBaseUrlTracker
     {
-        Uri? _lastSeen;
+        Uri? lastSeen;
 
-        public void Set(Uri? baseUrl) => Interlocked.Exchange(ref _lastSeen, baseUrl);
+        public void Set(Uri? baseUrl) => Interlocked.Exchange(ref lastSeen, baseUrl);
 
-        public Uri? Current => Volatile.Read(ref _lastSeen);
+        public Uri? Current => Volatile.Read(ref lastSeen);
     }
 }

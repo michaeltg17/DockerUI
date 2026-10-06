@@ -27,15 +27,15 @@ namespace Api.Features.Apps.Background
     {
         static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-        readonly DateTimeOffset[] _lastConfigWrites = [DateTimeOffset.MinValue, DateTimeOffset.MinValue];
-        string? _lastSnapshot;
-        readonly Lock _gate = new();
+        readonly DateTimeOffset[] lastConfigWrites = [DateTimeOffset.MinValue, DateTimeOffset.MinValue];
+        string? lastSnapshot;
+        readonly Lock gate = new();
 
         public void ForgetLastSnapshot()
         {
-            lock (_gate)
+            lock (gate)
             {
-                _lastSnapshot = null;
+                lastSnapshot = null;
             }
         }
 
@@ -79,10 +79,10 @@ namespace Api.Features.Apps.Background
             var snapshot = JsonSerializer.Serialize(apps, JsonOptions);
 
             bool changed;
-            lock (_gate)
+            lock (gate)
             {
-                changed = snapshot != _lastSnapshot;
-                _lastSnapshot = snapshot;
+                changed = snapshot != lastSnapshot;
+                lastSnapshot = snapshot;
             }
 
             if (!changed)
@@ -116,15 +116,15 @@ namespace Api.Features.Apps.Background
 
                 var lastWrite = File.GetLastWriteTimeUtc(path);
 
-                if (_lastConfigWrites[i] == DateTimeOffset.MinValue)
+                if (lastConfigWrites[i] == DateTimeOffset.MinValue)
                 {
-                    _lastConfigWrites[i] = lastWrite;
+                    lastConfigWrites[i] = lastWrite;
                     continue;
                 }
 
-                if (lastWrite != _lastConfigWrites[i])
+                if (lastWrite != lastConfigWrites[i])
                 {
-                    _lastConfigWrites[i] = lastWrite;
+                    lastConfigWrites[i] = lastWrite;
                     changed = true;
                 }
             }

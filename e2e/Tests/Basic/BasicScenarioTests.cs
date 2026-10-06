@@ -852,6 +852,24 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Middle_clicking_card_with_url_opens_new_tab()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        // web-stack publishes 8081, so its card url is http://localhost:8081.
+        var openedPage = await apps.Page.RunAndWaitForPopupAsync(
+            () => apps.Card("web-stack").ClickAsync(new LocatorClickOptions { Button = MouseButton.Middle }));
+
+        await openedPage.WaitForLoadStateAsync();
+        openedPage.Url.Should().StartWith("http://localhost:8081", "because the app opens in a new tab");
+        await openedPage.GetByText("Welcome to nginx!").WaitForAsync();
+        await openedPage.CloseAsync();
+    }
+
+    [Fact]
     public async Task Clicking_card_without_url_opens_nothing()
     {
         await using var context = await browser.NewContextAsync();

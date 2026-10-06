@@ -6,7 +6,7 @@ import {
   Square,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent, type MouseEvent } from 'react';
 
 import { AppMenu, type AppMenuItem } from '@/components/ui/app-menu';
 import { cn } from '@/utils/cn';
@@ -85,6 +85,15 @@ export const AppCard = ({
       ? 'bg-green-500'
       : 'bg-red-500';
 
+  // A left click fires 'click'; a middle (wheel) click fires 'auxclick' instead, so the
+  // card listens to both and opens the app in a new tab either way.
+  const openUrl = (event: MouseEvent) => {
+    if (event.button !== 0 && event.button !== 1) return;
+    if (app.url) {
+      window.open(app.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   if (app.isShortcut) {
     const shortcutActions: AppMenuItem[] = [
       {
@@ -102,19 +111,14 @@ export const AppCard = ({
       },
     ];
 
-    const openShortcut = () => {
-      if (app.url) {
-        window.open(app.url, '_blank', 'noopener,noreferrer');
-      }
-    };
-
     return (
       <>
         <div className="relative size-full">
           <AppMenu label={`Actions for ${app.name}`} items={shortcutActions}>
             <button
               type="button"
-              onClick={openShortcut}
+              onClick={openUrl}
+              onAuxClick={openUrl}
               data-state={app.state}
               {...cardDragProps}
               className={cn(cardClasses, isDragging && 'opacity-50')}
@@ -181,19 +185,14 @@ export const AppCard = ({
     },
   ];
 
-  const openApp = () => {
-    if (app.url) {
-      window.open(app.url, '_blank', 'noopener,noreferrer');
-    }
-  };
-
   return (
     <>
       <div className="relative size-full">
         <AppMenu label={`Actions for ${app.name}`} items={actions}>
           <button
             type="button"
-            onClick={openApp}
+            onClick={openUrl}
+            onAuxClick={openUrl}
             data-state={app.state}
             {...cardDragProps}
             className={cn(cardClasses, isDragging && 'opacity-50')}

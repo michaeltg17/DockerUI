@@ -30,7 +30,7 @@ export const AppsPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>{settings?.name ?? 'Docker UI'}</title>
+        <title>{settings?.name}</title>
         <meta
           name="description"
           content="A lightweight user interface for your Docker stacks and more."

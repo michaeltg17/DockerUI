@@ -135,10 +135,7 @@ export const AppCard = ({
                 name={app.name}
                 className="size-24 text-3xl"
               />
-              <h3
-                className="max-w-full truncate text-sm font-medium"
-                title={app.name}
-              >
+              <h3 className="max-w-full truncate text-sm font-medium">
                 {app.name}
               </h3>
             </button>
@@ -268,10 +265,7 @@ export const AppCard = ({
               )}
             </div>
 
-            <h3
-              className="max-w-full truncate text-sm font-medium"
-              title={app.name}
-            >
+            <h3 className="max-w-full truncate text-sm font-medium">
               {app.name}
             </h3>
           </button>

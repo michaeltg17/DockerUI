@@ -367,6 +367,22 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task App_card_name_has_no_redundant_title_tooltip()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        // The name is already visible on the card, so the heading needs no native title tooltip.
+        var headingTitle = await apps.Page
+            .GetByRole(AriaRole.Heading, new PageGetByRoleOptions { Name = "web-stack", Exact = true })
+            .GetAttributeAsync("title");
+
+        headingTitle.Should().BeNull("because the app name is shown on the card");
+    }
+
+    [Fact]
     public async Task Dashboard_menu_restarts_its_own_container()
     {
         await using var context = await browser.NewContextAsync();

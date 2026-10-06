@@ -4,8 +4,8 @@ namespace E2E.Playwright;
 
 /// <summary>
 /// Locators and interactions for the dashboard's single page. The UI ships no data-testid
-/// attributes, so cards are addressed through the app name in the h3 title attribute and
-/// everything else through roles and accessible names.
+/// attributes, so cards are addressed through the app name heading and everything else
+/// through roles and accessible names.
 /// </summary>
 public sealed class AppsPage(IPage page)
 {
@@ -40,18 +40,18 @@ public sealed class AppsPage(IPage page)
     // 'paragraph' is not a name-from-content role, so this is addressed by text, not by role + name.
     public ILocator LoadError => Page.GetByText("Could not load apps. Is the Docker daemon reachable?", new PageGetByTextOptions { Exact = true });
 
-    /// <summary>The card (button) of the given app, addressed via the h3 title attribute.</summary>
-    public ILocator Card(string appName) => Page.Locator($"h3[title='{appName}']").Locator("xpath=..");
+    /// <summary>The card (button) of the given app, addressed via its name heading.</summary>
+    public ILocator Card(string appName) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator("xpath=..");
 
     /// <summary>The visible app card names in their current display order.</summary>
     public async Task<IReadOnlyList<string>> CardNamesAsync()
     {
-        var titles = Main.Locator("h3[title]");
-        var count = await titles.CountAsync();
+        var headings = Main.Locator("h3");
+        var count = await headings.CountAsync();
         var names = new List<string>(count);
 
         for (var i = 0; i < count; i++)
-            names.Add(await titles.Nth(i).GetAttributeAsync("title") ?? string.Empty);
+            names.Add(await headings.Nth(i).TextContentAsync() ?? string.Empty);
 
         return names;
     }
@@ -74,7 +74,8 @@ public sealed class AppsPage(IPage page)
         // boundary, so the drag events are created in the page next to it.
         await Page.EvaluateAsync(@"
             (name) => {
-                const button = document.querySelector(`h3[title=""${name}""]`).closest('button');
+                const heading = [...document.querySelectorAll('main h3')].find(el => el.textContent === name);
+                const button = heading.closest('button');
                 const dataTransfer = new DataTransfer();
                 button.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
                 button.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer }));
@@ -127,7 +128,7 @@ public sealed class AppsPage(IPage page)
     }
 
     /// <summary>The given app's card, matched only while the card's data-state attribute equals the given state.</summary>
-    public ILocator CardInState(string appName, string state) => Page.Locator($"h3[title='{appName}']").Locator($"xpath=parent::button[@data-state='{state}']");
+    public ILocator CardInState(string appName, string state) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator($"xpath=parent::button[@data-state='{state}']");
 
     /// <summary>The app card icon image (absent when the app falls back to its initials).</summary>
     public ILocator CardIconImage(string appName) => Card(appName).Locator("img");

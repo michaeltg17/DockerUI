@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Eye,
   EyeOff,
+  Palette,
   Plus,
   PowerOff,
   RefreshCw,
@@ -135,12 +136,17 @@ export const DashboardMenu = ({
       icon: <ScrollText className="size-4" aria-hidden="true" />,
       onSelect: onViewLogs,
     },
-    ...themes.map((t) => ({
-      id: `theme-${t}`,
-      label: themeLabels[t],
-      selected: theme === t,
-      onSelect: () => setTheme(t),
-    })),
+    {
+      id: 'theme',
+      label: 'Theme',
+      icon: <Palette className="size-4" aria-hidden="true" />,
+      children: themes.map((t) => ({
+        id: `theme-${t}`,
+        label: themeLabels[t],
+        selected: theme === t,
+        onSelect: () => setTheme(t),
+      })),
+    },
     {
       id: 'toggle-visibility',
       label: selfVisible ? 'Hide Docker UI' : 'Show Docker UI',

@@ -229,12 +229,22 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
 
         string[] expectedItems =
-            ["Add shortcut", "View logs", "Light", "Dark", "Docker", "Show Docker UI", "Restart dashboard", "Stop dashboard"];
+            ["Add shortcut", "View logs", "Theme", "Show Docker UI", "Restart dashboard", "Stop dashboard"];
 
         foreach (var label in expectedItems)
         {
             (await AppsPage.MenuItem(menu, label).CountAsync())
                 .Should().Be(1, $"because the dashboard menu offers '{label}'");
+        }
+
+        // The theme options are grouped under the 'Theme' item's submenu.
+        var themeMenu = await apps.OpenThemeSubmenuAsync(menu);
+        string[] themeOptions = ["Light", "Dark", "Docker", "Docker V2"];
+
+        foreach (var label in themeOptions)
+        {
+            (await AppsPage.MenuItem(themeMenu, label).CountAsync())
+                .Should().Be(1, $"because the theme submenu offers '{label}'");
         }
     }
 
@@ -339,7 +349,8 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForAppAsync("web-stack");
 
         var menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Docker").ClickAsync();
+        var themeMenu = await apps.OpenThemeSubmenuAsync(menu);
+        await AppsPage.MenuItem(themeMenu, "Docker").ClickAsync();
         (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
 
         await apps.Page.ReloadAsync();
@@ -356,7 +367,8 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForAppAsync("web-stack");
 
         var menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Docker V2").ClickAsync();
+        var themeMenu = await apps.OpenThemeSubmenuAsync(menu);
+        await AppsPage.MenuItem(themeMenu, "Docker V2").ClickAsync();
 
         (await apps.Page.Locator("html[data-theme='docker-v2']").CountAsync()).Should().Be(1);
         (await apps.Page

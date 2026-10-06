@@ -127,6 +127,18 @@ public sealed class AppsPage(IPage page)
         return Page.GetByRole(AriaRole.Menu, new PageGetByRoleOptions { Name = "Dashboard actions", Exact = true });
     }
 
+    /// <summary>Hovers the "Theme" item of the dashboard menu, opening its submenu of theme options.</summary>
+    public async Task<ILocator> OpenThemeSubmenuAsync(ILocator menu)
+    {
+        ArgumentNullException.ThrowIfNull(menu);
+
+        await MenuItem(menu, "Theme").HoverAsync();
+
+        var submenu = Page.GetByRole(AriaRole.Menu, new PageGetByRoleOptions { Name = "Theme", Exact = true });
+        await submenu.WaitForAsync(new LocatorWaitForOptions { Timeout = StateChangeTimeoutMs });
+        return submenu;
+    }
+
     /// <summary>
     /// Opens the "Add shortcut" dialog, fills in the name and url (and optionally an icon by
     /// value) and submits. The dialog is expected to close once the create call succeeds.

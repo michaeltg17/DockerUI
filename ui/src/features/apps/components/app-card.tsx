@@ -113,27 +113,33 @@ export const AppCard = ({
 
     return (
       <>
-        <ContextMenu label={`Actions for ${app.name}`} items={shortcutActions}>
-          <button
-            type="button"
-            onClick={openShortcut}
-            data-state={app.state}
-            {...cardDragProps}
-            className={cn(cardClasses, isDragging && 'opacity-50')}
+        <div className="relative size-full">
+          <ContextMenu
+            label={`Actions for ${app.name}`}
+            items={shortcutActions}
           >
-            <AppIcon
-              icon={app.icon}
-              name={app.name}
-              className="size-24 text-3xl"
-            />
-            <h3
-              className="max-w-full truncate text-sm font-medium"
-              title={app.name}
+            <button
+              type="button"
+              onClick={openShortcut}
+              data-state={app.state}
+              {...cardDragProps}
+              className={cn(cardClasses, isDragging && 'opacity-50')}
             >
-              {app.name}
-            </h3>
-          </button>
-        </ContextMenu>
+              <AppIcon
+                icon={app.icon}
+                name={app.name}
+                className="size-24 text-3xl"
+              />
+              <h3
+                className="max-w-full truncate text-sm font-medium"
+                title={app.name}
+              >
+                {app.name}
+              </h3>
+            </button>
+          </ContextMenu>
+          {isDragging && <DropIndicator />}
+        </div>
         <ShortcutDialog
           open={editing}
           initial={{ name: app.name, icon: app.icon, url: app.url ?? '' }}
@@ -189,78 +195,81 @@ export const AppCard = ({
 
   return (
     <>
-      <ContextMenu label={`Actions for ${app.name}`} items={actions}>
-        <button
-          type="button"
-          onClick={openApp}
-          data-state={app.state}
-          {...cardDragProps}
-          className={cn(cardClasses, isDragging && 'opacity-50')}
-        >
-          <div className="relative">
-            <AppIcon
-              icon={app.icon}
-              name={app.name}
-              className={cn(
-                'size-24 text-3xl transition-[filter] duration-200',
-                isDimmed && 'brightness-50',
-              )}
-            />
-            {app.state === 'stopped' && (
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label={`Start ${app.name}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void startApp.mutate(app.name);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return;
-                  event.preventDefault();
-                  event.stopPropagation();
-                  void startApp.mutate(app.name);
-                }}
-                className="absolute inset-0 flex cursor-pointer items-center justify-center"
-              >
-                <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40 transition-opacity duration-150 group-hover:opacity-0">
-                  <Square
-                    className="size-4 fill-white text-white"
-                    aria-hidden="true"
-                  />
-                </span>
-                <span className="absolute left-1/2 top-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-slate-900/40 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                  <Play
-                    className="size-4 fill-white text-white"
-                    aria-hidden="true"
-                  />
-                </span>
-              </span>
-            )}
-            {isBusy && (
-              <span
-                role="progressbar"
-                aria-label={`Updating ${app.name}`}
-                className="absolute inset-x-3 bottom-2 h-1 overflow-hidden rounded-full bg-slate-900/30"
-              >
-                <span
-                  className={cn(
-                    'block h-full w-1/3 animate-progress-slide rounded-full',
-                    progressColor,
-                  )}
-                />
-              </span>
-            )}
-          </div>
-
-          <h3
-            className="max-w-full truncate text-sm font-medium"
-            title={app.name}
+      <div className="relative size-full">
+        <ContextMenu label={`Actions for ${app.name}`} items={actions}>
+          <button
+            type="button"
+            onClick={openApp}
+            data-state={app.state}
+            {...cardDragProps}
+            className={cn(cardClasses, isDragging && 'opacity-50')}
           >
-            {app.name}
-          </h3>
-        </button>
-      </ContextMenu>
+            <div className="relative">
+              <AppIcon
+                icon={app.icon}
+                name={app.name}
+                className={cn(
+                  'size-24 text-3xl transition-[filter] duration-200',
+                  isDimmed && 'brightness-50',
+                )}
+              />
+              {app.state === 'stopped' && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Start ${app.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void startApp.mutate(app.name);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void startApp.mutate(app.name);
+                  }}
+                  className="absolute inset-0 flex cursor-pointer items-center justify-center"
+                >
+                  <span className="flex size-10 items-center justify-center rounded-full bg-slate-900/40 transition-opacity duration-150 group-hover:opacity-0">
+                    <Square
+                      className="size-4 fill-white text-white"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span className="absolute left-1/2 top-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-slate-900/40 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                    <Play
+                      className="size-4 fill-white text-white"
+                      aria-hidden="true"
+                    />
+                  </span>
+                </span>
+              )}
+              {isBusy && (
+                <span
+                  role="progressbar"
+                  aria-label={`Updating ${app.name}`}
+                  className="absolute inset-x-3 bottom-2 h-1 overflow-hidden rounded-full bg-slate-900/30"
+                >
+                  <span
+                    className={cn(
+                      'block h-full w-1/3 animate-progress-slide rounded-full',
+                      progressColor,
+                    )}
+                  />
+                </span>
+              )}
+            </div>
+
+            <h3
+              className="max-w-full truncate text-sm font-medium"
+              title={app.name}
+            >
+              {app.name}
+            </h3>
+          </button>
+        </ContextMenu>
+        {isDragging && <DropIndicator />}
+      </div>
       <LogsDialog
         open={logsOpen}
         title={`${app.name} logs`}
@@ -271,3 +280,12 @@ export const AppCard = ({
     </>
   );
 };
+
+/** The vertical bar marking where the dragged card will be placed. */
+const DropIndicator = () => (
+  <span
+    data-drop-indicator
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-y-3 -left-1.5 w-1 rounded-full bg-primary"
+  />
+);

@@ -570,6 +570,30 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Dragging_a_card_shows_the_drop_position_indicator()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var names = await apps.CardNamesAsync();
+        names.Count.Should().BeGreaterThan(1, "because the scenario runs several demo stacks");
+
+        // Playwright's DragToAsync runs the whole gesture at once, so the mid-drag
+        // indicator is exercised with raw drag events that keep the drag in flight.
+        await apps.BeginCardDragAsync(names[0]);
+
+        await apps.DropIndicator.WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+        await apps.EndCardDragAsync(names[0]);
+
+        await apps.DropIndicator.WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Hidden });
+    }
+
+    [Fact]
     public async Task Context_menu_of_running_app_disables_start()
     {
         await using var context = await browser.NewContextAsync();

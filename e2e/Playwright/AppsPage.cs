@@ -57,6 +57,32 @@ public sealed class AppsPage(IPage page)
     public async Task DragCardAsync(string from, string to)
         => await Card(from).DragToAsync(Card(to));
 
+    /// <summary>The vertical bar shown beside the card being dragged, marking its drop position.</summary>
+    public ILocator DropIndicator => Page.Locator("[data-drop-indicator]");
+
+    /// <summary>
+    /// Starts an HTML5 drag of the given card without dropping, sharing a single DataTransfer
+    /// across the events, so the card is treated as picked up and the grid shows its drop
+    /// position without the order changing.
+    /// </summary>
+    public async Task BeginCardDragAsync(string card)
+    {
+        // Playwright's dispatchEvent cannot carry a DataTransfer across the client
+        // boundary, so the drag events are created in the page next to it.
+        await Page.EvaluateAsync(@"
+            (name) => {
+                const button = document.querySelector(`h3[title=""${name}""]`).closest('button');
+                const dataTransfer = new DataTransfer();
+                button.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
+                button.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer }));
+            }
+        ", card);
+    }
+
+    /// <summary>Ends a drag started with <see cref="BeginCardDragAsync"/> without reordering.</summary>
+    public async Task EndCardDragAsync(string card)
+        => await Card(card).DispatchEventAsync("dragend");
+
     /// <summary>Waits until the cards are displayed in exactly the given order.</summary>
     public async Task WaitForCardOrderAsync(IReadOnlyList<string> order, int timeoutMs = 15_000)
     {

@@ -51,7 +51,7 @@ export const AppsPage = () => {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search apps…"
-              className="h-9 w-56 rounded-md border border-input bg-background pl-9 pr-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-64"
+              className="h-9 w-56 rounded-md border border-input bg-card pl-9 pr-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-64"
             />
           </label>
           <div aria-hidden="true" />

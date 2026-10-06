@@ -37,7 +37,7 @@ namespace Api.Features.Apps
         public async Task<AppDto> GetAppAsync(string appName, CancellationToken cancellationToken)
         {
             var apps = await GetAppsAsync(cancellationToken).ConfigureAwait(false);
-            return apps.FirstOrDefault(app => app.Name == appName)
+            return apps.SingleOrDefault(app => app.Name == appName)
                 ?? throw new NotFoundException($"The app '{appName}' was not found.");
         }
 
@@ -95,7 +95,7 @@ namespace Api.Features.Apps
             if (selfId is null)
                 return null;
 
-            var self = snapshots.FirstOrDefault(snapshot => snapshot.Id == selfId);
+            var self = snapshots.SingleOrDefault(snapshot => snapshot.Id == selfId);
 
             return self is { } && self.Labels.TryGetValue(AppCatalog.ComposeProjectLabel, out var project)
                 ? project

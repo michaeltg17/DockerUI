@@ -42,7 +42,7 @@ namespace Api.Features.Apps
                 apps.Add(BuildApp(group.Key!, [.. group], iconCatalog, liveIconCatalog, baseUrl, settings, logger));
             }
 
-            var standalone = groups.FirstOrDefault(group => group.Key is null);
+            var standalone = groups.SingleOrDefault(group => group.Key is null);
             if (standalone is not null)
             {
                 foreach (var container in standalone)
@@ -63,12 +63,12 @@ namespace Api.Features.Apps
 
             var group = list
                 .GroupBy(GetProject)
-                .FirstOrDefault(group => group.Key == appName);
+                .SingleOrDefault(group => group.Key == appName);
 
             if (group is not null)
                 return [.. group];
 
-            var standalone = list.FirstOrDefault(container =>
+            var standalone = list.SingleOrDefault(container =>
                 GetProject(container) is null &&
                 string.Equals(container.Name, appName, StringComparison.Ordinal));
 

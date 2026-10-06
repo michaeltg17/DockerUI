@@ -820,7 +820,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
                 .GetProperty("DockerUI")
                 .GetProperty("Shortcuts")
                 .EnumerateArray()
-                .FirstOrDefault(element =>
+                .SingleOrDefault(element =>
                     element.TryGetProperty("Name", out var shortcutName) &&
                     string.Equals(shortcutName.GetString(), name, StringComparison.Ordinal));
 

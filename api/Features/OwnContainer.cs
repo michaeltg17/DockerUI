@@ -12,6 +12,6 @@ internal static class OwnContainer
 
         return string.IsNullOrWhiteSpace(hostname)
             ? null
-            : containerIds.FirstOrDefault(id => id.StartsWith(hostname, StringComparison.OrdinalIgnoreCase));
+            : containerIds.SingleOrDefault(id => id.StartsWith(hostname, StringComparison.OrdinalIgnoreCase));
     }
 }

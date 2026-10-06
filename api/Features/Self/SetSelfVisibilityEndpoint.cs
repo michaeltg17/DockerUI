@@ -21,7 +21,7 @@ namespace Api.Features.Self
                 CancellationToken cancellationToken) =>
             {
                 var self = await appService.GetSelfProjectAsync(cancellationToken).ConfigureAwait(false)
-                    ?? throw new NotFoundException("The dashboard is not running in a container.");
+                    ?? throw new NotRunningInContainerException("The dashboard is not running in a container.");
 
                 settingsStore.SetAppHidden(self, input.Hidden);
                 await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);

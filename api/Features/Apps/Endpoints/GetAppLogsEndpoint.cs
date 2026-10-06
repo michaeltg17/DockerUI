@@ -30,7 +30,7 @@ namespace Api.Features.Apps.Endpoints
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    throw new DockerUIException(
+                    throw new DaemonUnavailableException(
                         "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
                 }
 

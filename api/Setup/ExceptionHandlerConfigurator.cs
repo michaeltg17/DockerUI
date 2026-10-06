@@ -25,7 +25,8 @@ namespace Api.Setup
                     BadHttpRequestException => (int)HttpStatusCode.BadRequest,
                     NotFoundException => (int)HttpStatusCode.NotFound,
                     ConflictException => (int)HttpStatusCode.Conflict,
-                    DockerUIException => (int)HttpStatusCode.ServiceUnavailable,
+                    DaemonUnavailableException => (int)HttpStatusCode.ServiceUnavailable,
+                    DockerUIException => (int)HttpStatusCode.InternalServerError,
                     _ => (int)HttpStatusCode.InternalServerError,
                 };
 
@@ -53,6 +54,7 @@ namespace Api.Setup
             {
                 (int)HttpStatusCode.BadRequest => "https://tools.ietf.org/html/rfc9110#section-15.5.1",
                 (int)HttpStatusCode.NotFound => "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+                (int)HttpStatusCode.ServiceUnavailable => "https://tools.ietf.org/html/rfc9110#section-15.6.4",
                 _ => "https://tools.ietf.org/html/rfc9110#section-15.6.1",
             };
 

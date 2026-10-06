@@ -82,8 +82,9 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   with `unix:///path/to.sock` or `npipe://./pipe/docker_engine` URIs.
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
-- `DockerUIException` → 503, `NotFoundException` → 404 (mapped in
-  `api/Extensions/ExceptionHandlerExtensions.cs`); problems are RFC 9457
+- `DockerUIException` → 500, `DaemonUnavailableException` → 503,
+  `NotFoundException` → 404, `ConflictException` → 409 (mapped in
+  `api/Setup/ExceptionHandlerConfigurator.cs`); problems are RFC 9457
   `application/problem+json` with the human message in `detail`.
 - The SignalR hub is at `/api/apps/hub`; the vite dev proxy must forward
   web sockets (`ws: true`) for live updates in development.

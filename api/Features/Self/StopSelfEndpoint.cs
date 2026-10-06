@@ -17,7 +17,7 @@ namespace Api.Features.Self
                 CancellationToken cancellationToken) =>
             {
                 var self = await appService.GetSelfProjectAsync(cancellationToken).ConfigureAwait(false)
-                    ?? throw new NotFoundException("The dashboard is not running in a container.");
+                    ?? throw new NotRunningInContainerException("The dashboard is not running in a container.");
                 var targets = await appService.ResolveAppContainersAsync(self, cancellationToken).ConfigureAwait(false);
 
                 foreach (var container in targets.Where(container => AppCatalog.IsRunningState(container.State)))

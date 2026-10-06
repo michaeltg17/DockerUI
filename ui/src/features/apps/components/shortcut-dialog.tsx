@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,9 @@ const isSaveableUrl = (value: string) => {
 const fieldClasses =
   'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
+const focusableSelector =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export const ShortcutDialog = ({
   open,
   initial,
@@ -54,6 +57,9 @@ export const ShortcutDialog = ({
   const [url, setUrl] = useState('');
   const [icon, setIcon] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const isSaving = addShortcut.isPending || updateShortcut.isPending;
   const initialName = initial?.name ?? '';
@@ -75,11 +81,50 @@ export const ShortcutDialog = ({
       // Escape closes the icon picker first; the shortcut dialog closes
       // only when no other dialog is layered on top of it.
       if (event.key === 'Escape' && !pickerOpen) onClose();
+
+      // While the picker is layered on top it owns the keyboard; otherwise
+      // keep Tab cycling inside the dialog.
+      if (event.key !== 'Tab' || pickerOpen || !dialogRef.current) return;
+
+      const focusable = [
+        ...dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector),
+      ];
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      const inside =
+        active instanceof HTMLElement && dialogRef.current.contains(active);
+
+      if (event.shiftKey) {
+        if (!inside || active === first) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (!inside || active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose, pickerOpen]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    nameInputRef.current?.focus();
+
+    return () => {
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -112,18 +157,19 @@ export const ShortcutDialog = ({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
       role="presentation"
-      onMouseDown={(event) => {
+      onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={isEditing ? `Edit ${initialName}` : 'Add shortcut'}
+        aria-labelledby="shortcut-dialog-title"
         className="w-full max-w-md overflow-hidden rounded-lg border border-border bg-background shadow-lg"
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold">
+          <h2 id="shortcut-dialog-title" className="text-sm font-semibold">
             {isEditing ? `Edit ${initialName}` : 'Add shortcut'}
           </h2>
           <button
@@ -155,7 +201,9 @@ export const ShortcutDialog = ({
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">Name</span>
                 <input
+                  ref={nameInputRef}
                   type="text"
+                  required
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="e.g. GitHub"
@@ -168,6 +216,7 @@ export const ShortcutDialog = ({
                 <input
                   type="text"
                   inputMode="url"
+                  required
                   value={url}
                   onChange={(event) => setUrl(event.target.value)}
                   placeholder="e.g. https://example.com or example.com"

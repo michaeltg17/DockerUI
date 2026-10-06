@@ -229,7 +229,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
 
         string[] expectedItems =
-            ["Add shortcut", "View logs", "Light", "Dark", "Docker", "Show dashboard", "Restart dashboard", "Stop dashboard"];
+            ["Add shortcut", "View logs", "Light", "Dark", "Docker", "Show Docker UI", "Restart dashboard", "Stop dashboard"];
 
         foreach (var label in expectedItems)
         {
@@ -249,14 +249,14 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         (await apps.Card("basic").CountAsync()).Should().Be(0, "because the dashboard's own stack starts hidden");
 
         var menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Show dashboard").ClickAsync();
+        await AppsPage.MenuItem(menu, "Show Docker UI").ClickAsync();
 
         // Showing the dashboard persists the setting and makes its own stack appear.
         await apps.WaitForAppAsync("basic", AppsPage.StateChangeTimeoutMs);
         await apps.WaitForStateAsync("basic", AppsPage.RunningState);
 
         menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Hide dashboard").ClickAsync();
+        await AppsPage.MenuItem(menu, "Hide Docker UI").ClickAsync();
         await apps.Card("basic").WaitForAsync(
             new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
     }

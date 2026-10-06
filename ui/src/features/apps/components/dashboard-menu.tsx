@@ -143,7 +143,7 @@ export const DashboardMenu = ({
     })),
     {
       id: 'toggle-visibility',
-      label: selfVisible ? 'Hide dashboard' : 'Show dashboard',
+      label: selfVisible ? 'Hide Docker UI' : 'Show Docker UI',
       icon: selfVisible ? (
         <EyeOff className="size-4" aria-hidden="true" />
       ) : (

@@ -454,6 +454,22 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Docker_v2_theme_search_field_uses_the_docker_blue()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var backgroundColor = await apps.Page.EvaluateAsync<string>(
+            "() => { for (const sheet of document.styleSheets) { let rules; try { rules = sheet.cssRules; } catch (e) { continue; } for (const rule of rules) { if (rule.selectorText && rule.selectorText.includes('docker-v2') && rule.selectorText.includes('search')) return rule.style.backgroundColor; } } return ''; }");
+
+        backgroundColor
+            .Should()
+            .Be("rgb(28, 58, 130)", "because the Docker V2 search field matches the Docker Desktop blue");
+    }
+
+    [Fact]
     public async Task Shows_running_apps_with_running_state()
     {
         await using var context = await browser.NewContextAsync();

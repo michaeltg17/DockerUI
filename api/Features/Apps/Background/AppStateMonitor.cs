@@ -143,7 +143,7 @@ namespace Api.Features.Apps.Background
 
         [LoggerMessage(
             Level = LogLevel.Information,
-            Message = "A settings file changed; configuration reloaded (changes apply from the next poll)")]
+            Message = "Settings file changed; configuration reloaded (changes apply from the next poll)")]
         static partial void LogConfigurationReloaded(ILogger logger);
     }
 }

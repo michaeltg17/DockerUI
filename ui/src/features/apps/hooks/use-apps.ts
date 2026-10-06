@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { restartApp, startApp, stopApp } from '../api/app-actions';
+import { setAppSettings, type AppSettings } from '../api/app-settings';
 import { getHiddenApps, setAppVisibility } from '../api/app-visibility';
 import { getApps } from '../api/get-apps';
 import { setAppOrder } from '../api/set-app-order';
@@ -52,6 +53,20 @@ export const useSetAppVisibility = () => {
       // gives immediate, authoritative feedback in the grid and the hidden-apps dialog.
       void queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: HIDDEN_APPS_QUERY_KEY });
+    },
+  });
+};
+
+export const useSetAppSettings = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ name, settings }: { name: string; settings: AppSettings }) =>
+      setAppSettings(name, settings),
+    onSuccess: () => {
+      // The server also pushes the change over SignalR; refetching makes the
+      // card's name, icon, and url update immediately.
+      void queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
     },
   });
 };

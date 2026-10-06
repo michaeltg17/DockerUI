@@ -81,6 +81,7 @@ namespace Api.Features.Apps
 
                 apps.Add(new AppDto(
                     shortcut.Name,
+                    shortcut.Name,
                     string.IsNullOrWhiteSpace(shortcut.Icon) ? null : shortcut.Icon,
                     AppState.Running,
                     url,

@@ -120,7 +120,9 @@ namespace Api.Features.Apps
                     ?? TryNameIcon(iconCatalog, name)
                     ?? GetCatalogIcon(containers, iconCatalog);
 
-            return new AppDto(name, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp, logger), services);
+            var displayName = !string.IsNullOrWhiteSpace(perApp?.Name) ? perApp.Name : name;
+
+            return new AppDto(name, displayName, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp, logger), services);
         }
 
         static Uri? ResolveAppUrl(

@@ -23,6 +23,7 @@ import { useDeleteShortcut } from '../hooks/use-shortcuts';
 import type { App } from '../types';
 
 import { AppIcon } from './app-icon';
+import { EditAppDialog } from './edit-app-dialog';
 import { LogsDialog } from './logs-dialog';
 import { ShortcutDialog } from './shortcut-dialog';
 
@@ -153,6 +154,12 @@ export const AppCard = ({
 
   const actions: AppMenuItem[] = [
     {
+      id: 'edit',
+      label: 'Edit',
+      icon: <Pencil className="size-4" aria-hidden="true" />,
+      onSelect: () => setEditing(true),
+    },
+    {
       id: 'start',
       label: 'Start',
       icon: <Play className="size-4" aria-hidden="true" />,
@@ -200,7 +207,7 @@ export const AppCard = ({
   return (
     <>
       <div className="relative size-full">
-        <AppMenu label={`Actions for ${app.name}`} items={actions}>
+        <AppMenu label={`Actions for ${app.displayName}`} items={actions}>
           <button
             type="button"
             onClick={openUrl}
@@ -212,7 +219,7 @@ export const AppCard = ({
             <div className="relative">
               <AppIcon
                 icon={app.icon}
-                name={app.name}
+                name={app.displayName}
                 className={cn(
                   'size-24 text-3xl transition-[filter] duration-200',
                   isDimmed && 'brightness-50',
@@ -266,12 +273,17 @@ export const AppCard = ({
             </div>
 
             <h3 className="max-w-full truncate text-sm font-medium">
-              {app.name}
+              {app.displayName}
             </h3>
           </button>
         </AppMenu>
         {isDragging && <DropIndicator />}
       </div>
+      <EditAppDialog
+        open={editing}
+        app={app}
+        onClose={() => setEditing(false)}
+      />
       <LogsDialog
         open={logsOpen}
         title={`${app.name} logs`}

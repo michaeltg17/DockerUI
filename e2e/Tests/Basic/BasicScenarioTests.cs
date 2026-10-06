@@ -383,6 +383,59 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Edit_dialog_changes_an_apps_name_icon_and_url()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        // Change the display name, icon, and url from the app's own menu.
+        await apps.OpenEditDialogAsync("web-stack");
+        var dialog = apps.EditAppDialog("web-stack");
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("My Stack");
+        var icon = await apps.PickFirstIconAsync(dialog);
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("example.org");
+        await AppsPage.SaveEditAsync(dialog);
+
+        // The card now shows the display name and the chosen icon; the project name is gone.
+        await apps.Card("web-stack").WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+        await apps.WaitForAppAsync("My Stack");
+        (await apps.CardInState("My Stack", AppsPage.RunningState).CountAsync()).Should().Be(1);
+        (await apps.CardIconImage("My Stack").GetAttributeAsync("src")).Should().Be(icon);
+
+        // The url override is resolved by the API.
+        using var client = new HttpClient();
+        var response = await client.GetStringAsync(
+            new Uri(environment.BaseUrl, "api/apps"), TestContext.Current.CancellationToken);
+        var renamed = JsonDocument.Parse(response).RootElement.EnumerateArray()
+            .Single(app => app.GetProperty("name").GetString() == "web-stack");
+        renamed.GetProperty("url").GetString().Should().Be("https://example.org");
+
+        // Restore the original name, icon, and url.
+        await apps.OpenEditDialogAsync("My Stack");
+        var restore = apps.EditAppDialog("My Stack");
+        await restore
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("");
+        await restore
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true }).ClickAsync();
+        await restore
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("");
+        await AppsPage.SaveEditAsync(restore);
+        await apps.WaitForAppAsync("web-stack");
+    }
+
+    [Fact]
     public async Task Dashboard_menu_restarts_its_own_container()
     {
         await using var context = await browser.NewContextAsync();

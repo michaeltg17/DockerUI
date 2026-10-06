@@ -45,6 +45,45 @@ internal sealed class SettingsStore(
         }
     }
 
+    /// <summary>
+    /// Persists the display name, icon, and url overrides of the given app. Empty values
+    /// clear the override so the app falls back to its resolved name/icon/url.
+    /// </summary>
+    public void SetAppSettings(string appName, string? displayName, string? icon, string? url)
+    {
+        lock (gate)
+        {
+            var settings = LoadSettings();
+
+            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
+            settings[DockerUISettings.Section] = section;
+
+            var apps = section["Apps"] as JsonObject ?? [];
+            section["Apps"] = apps;
+
+            var entry = apps[appName] as JsonObject ?? [];
+
+            entry.Remove("Name");
+            entry.Remove("Icon");
+            entry.Remove("Url");
+
+            if (!string.IsNullOrWhiteSpace(displayName) && !string.Equals(displayName, appName, StringComparison.Ordinal))
+                entry["Name"] = displayName;
+            if (!string.IsNullOrWhiteSpace(icon))
+                entry["Icon"] = icon;
+            if (!string.IsNullOrWhiteSpace(url))
+                entry["Url"] = url;
+
+            if (entry.Count == 0)
+                apps.Remove(appName);
+            else
+                apps[appName] = entry;
+
+            SaveSettings(settings);
+            configurationRoot.Reload();
+        }
+    }
+
     /// <summary>Persists the dashboard name in the 'DockerUI:Name' setting of the settings file.</summary>
     public void SetName(string name)
     {

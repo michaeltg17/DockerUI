@@ -9,6 +9,7 @@ namespace Api.Features.Apps.Models
     /// <summary>A docker compose stack (or a standalone container) as shown in the UI.</summary>
     internal sealed record AppDto(
         string Name,
+        string DisplayName,
         string? Icon,
         AppState State,
         Uri? Url,

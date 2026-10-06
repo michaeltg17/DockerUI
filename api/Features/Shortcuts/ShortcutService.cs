@@ -37,6 +37,7 @@ namespace Api.Features.Shortcuts
         public async Task<IReadOnlyList<Shortcut>> UpdateAsync(string name, Shortcut input, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(input);
+            var newName = ValidateName(input.Name);
             var url = ValidateUrl(input.Url);
             var shortcuts = store.Load().ToList();
             var index = FindIndex(shortcuts, name);
@@ -44,7 +45,13 @@ namespace Api.Features.Shortcuts
             if (index < 0)
                 throw new NotFoundException($"The shortcut '{name}' was not found.");
 
-            shortcuts[index] = new Shortcut(name, url, NormalizeIcon(input.Icon));
+            // Renaming onto another shortcut's name would make name lookups ambiguous.
+            if (shortcuts
+                    .Where((shortcut, position) => position != index)
+                    .Any(shortcut => string.Equals(shortcut.Name, newName, StringComparison.OrdinalIgnoreCase)))
+                throw new ConflictException($"A shortcut named '{newName}' already exists.");
+
+            shortcuts[index] = new Shortcut(newName, url, NormalizeIcon(input.Icon));
             return await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
         }
 

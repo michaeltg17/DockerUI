@@ -895,6 +895,43 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Edit_shortcut_renames_it()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Delta";
+        const string renamed = "E2E Delta Renamed";
+        await apps.CreateShortcutAsync(name, "https://example.com/delta");
+        await apps.WaitForAppAsync(name);
+
+        var menu = await apps.OpenCardMenuAsync(name);
+        await AppsPage.MenuItem(menu, "Edit").ClickAsync();
+
+        var dialog = apps.ShortcutDialog($"Edit {name}");
+        await dialog.WaitForAsync();
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync(renamed);
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Save", Exact = true })
+            .ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // The card is shown under the new name; the old name disappears.
+        await apps.WaitForAppAsync(renamed);
+        (await apps.Card(name).CountAsync()).Should().Be(0, "because the shortcut was renamed");
+
+        var updated = await GetShortcutAsync(renamed, TestContext.Current.CancellationToken);
+        updated.GetProperty("name").GetString().Should().Be(renamed, "because the edit saved the new name");
+
+        await apps.DeleteShortcutAsync(renamed);
+    }
+
+    [Fact]
     public async Task Delete_shortcut_removes_its_card()
     {
         await using var context = await browser.NewContextAsync();

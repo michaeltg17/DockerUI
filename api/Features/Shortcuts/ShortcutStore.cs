@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Api.Settings;
 
@@ -13,8 +14,8 @@ internal sealed class ShortcutStore(
     IWebHostEnvironment environment,
     IConfigurationRoot configurationRoot)
 {
-    static readonly System.Text.Json.JsonSerializerOptions Json =
-        new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
+    static readonly JsonSerializerOptions Json =
+        new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     readonly Lock gate = new();
     readonly string appSettingsPath = Path.Combine(environment.ContentRootPath, "appsettings.json");

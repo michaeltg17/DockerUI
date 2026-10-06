@@ -148,7 +148,7 @@ public sealed class AppsPage(IPage page)
 
         if (icon is not null)
         {
-            var label = System.IO.Path.GetFileNameWithoutExtension(icon);
+            var label = Path.GetFileNameWithoutExtension(icon);
             await dialog
                 .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
                 .ClickAsync();

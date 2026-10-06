@@ -10,6 +10,9 @@ using Docker.DotNet;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using Serilog;
+using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Api;
 
@@ -46,14 +49,14 @@ internal static class Program
 
         //Keep the hub payload shape identical to the HTTP endpoints (camelCase, enums as strings)
         builder.Services.Configure<JsonHubProtocolOptions>(options =>
-            options.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase)));
+            options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddHealthCheckDependencies();
         builder.Services.AddProblemDetails();
 
         builder.Services.ConfigureHttpJsonOptions(options =>
-            options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase)));
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 
         return builder;
     }
@@ -141,7 +144,7 @@ internal static class Program
                 .ReadFrom.Services(services)
                 .Enrich.FromLogContext()
                 .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
-                .WriteTo.Console(formatProvider: System.Globalization.CultureInfo.InvariantCulture));
+                .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture));
 
         return builder;
     }

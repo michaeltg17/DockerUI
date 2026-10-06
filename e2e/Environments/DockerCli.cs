@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace E2E.Environments;
 
 /// <summary>
@@ -13,7 +15,7 @@ public static class DockerCli
     {
         ArgumentNullException.ThrowIfNull(arguments);
 
-        using var process = new System.Diagnostics.Process
+        using var process = new Process
         {
             StartInfo =
             {

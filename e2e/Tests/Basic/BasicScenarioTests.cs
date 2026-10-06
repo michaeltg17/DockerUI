@@ -2,6 +2,8 @@ using AwesomeAssertions;
 using E2E.Environments;
 using E2E.Playwright;
 using Microsoft.Playwright;
+using System.Text;
+using System.Text.Json;
 using Xunit;
 
 namespace E2E.Tests.Basic;
@@ -478,14 +480,14 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
             try
             {
-                using var document = System.Text.Json.JsonDocument.Parse(
+                using var document = JsonDocument.Parse(
                     await File.ReadAllTextAsync(appSettingsPath, cancellationToken));
 
                 var order = document.RootElement
                     .GetProperty("DockerUI")
                     .TryGetProperty("Order", out var stored) ? stored : default;
 
-                if (order.ValueKind == System.Text.Json.JsonValueKind.Array)
+                if (order.ValueKind == JsonValueKind.Array)
                 {
                     var storedNames = order.EnumerateArray()
                         .Select(element => element.GetString() ?? string.Empty)
@@ -494,7 +496,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
                     persisted = storedNames.SequenceEqual(expected, StringComparer.Ordinal);
                 }
             }
-            catch (System.Text.Json.JsonException)
+            catch (JsonException)
             {
                 // The settings file is mid-rewrite; read it again.
             }
@@ -519,7 +521,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // Clear the persisted order so the scenario's settings file is left as found.
         using var client = new HttpClient();
-        using var content = new StringContent("{\"order\":[]}", System.Text.Encoding.UTF8, "application/json");
+        using var content = new StringContent("{\"order\":[]}", Encoding.UTF8, "application/json");
         var response = await client.PutAsync(
             new Uri(environment.BaseUrl, "api/apps/order"),
             content,
@@ -530,7 +532,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         while (true)
         {
-            using var document = System.Text.Json.JsonDocument.Parse(
+            using var document = JsonDocument.Parse(
                 await File.ReadAllTextAsync(appSettingsPath, cancellationToken));
 
             if (!document.RootElement.GetProperty("DockerUI").TryGetProperty("Order", out _))
@@ -787,7 +789,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // Shortcuts live in the scenario's appsettings.json, bind-mounted into the dashboard.
         var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
 
-        using (var document = System.Text.Json.JsonDocument.Parse(
+        using (var document = JsonDocument.Parse(
                    await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken)))
         {
             var stored = document.RootElement
@@ -798,13 +800,13 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
                     element.TryGetProperty("Name", out var shortcutName) &&
                     string.Equals(shortcutName.GetString(), name, StringComparison.Ordinal));
 
-            stored.ValueKind.Should().Be(System.Text.Json.JsonValueKind.Object, "because the shortcut is stored in appsettings");
+            stored.ValueKind.Should().Be(JsonValueKind.Object, "because the shortcut is stored in appsettings");
             stored.GetProperty("Url").GetString().Should().Be("https://example.com/zeta");
         }
 
         await apps.DeleteShortcutAsync(name);
 
-        using var after = System.Text.Json.JsonDocument.Parse(
+        using var after = JsonDocument.Parse(
             await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken));
         after.RootElement
             .GetProperty("DockerUI")
@@ -871,7 +873,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         using var client = new HttpClient();
         var cancellationToken = TestContext.Current.CancellationToken;
         var iconsJson = await client.GetStringAsync(new Uri(environment.BaseUrl, "api/icons"), cancellationToken);
-        using var iconsDocument = System.Text.Json.JsonDocument.Parse(iconsJson);
+        using var iconsDocument = JsonDocument.Parse(iconsJson);
         var iconPath = iconsDocument.RootElement
             .EnumerateArray()
             .Select(element => element.GetString())
@@ -1138,12 +1140,12 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         return string.Empty;
     }
 
-    async Task<System.Text.Json.JsonElement> GetShortcutAsync(string name, CancellationToken cancellationToken)
+    async Task<JsonElement> GetShortcutAsync(string name, CancellationToken cancellationToken)
     {
         using var client = new HttpClient();
         var json = await client.GetStringAsync(new Uri(environment.BaseUrl, "api/shortcuts"), cancellationToken);
 
-        using var document = System.Text.Json.JsonDocument.Parse(json);
+        using var document = JsonDocument.Parse(json);
 
         foreach (var element in document.RootElement.EnumerateArray())
         {

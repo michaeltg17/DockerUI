@@ -3,8 +3,6 @@ import {
   Palette,
   Pencil,
   Plus,
-  Power,
-  PowerOff,
   RefreshCw,
   ScrollText,
 } from 'lucide-react';
@@ -15,7 +13,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useTheme } from '@/hooks/use-theme';
 import { themes, type Theme } from '@/lib/theme';
 
-import { restartSelf, stopSelf } from '../api/self-actions';
+import { restartSelf } from '../api/self-actions';
 import { useSettings } from '../hooks/use-settings';
 
 const themeLabels: Record<Theme, string> = {
@@ -99,16 +97,11 @@ export const DashboardMenu = ({
     setSelfAction('stopped');
   };
 
-  const runSelfAction = (action: 'restart' | 'stop') => {
-    setSelfAction(action === 'restart' ? 'restarting' : 'stopped');
+  const runRestart = () => {
+    setSelfAction('restarting');
     // The dashboard goes down while this request is in flight, so the error is expected.
-    void (action === 'restart' ? restartSelf() : stopSelf()).catch(
-      () => undefined,
-    );
-
-    if (action === 'restart') {
-      void waitForDashboard();
-    }
+    void restartSelf().catch(() => undefined);
+    void waitForDashboard();
   };
 
   const items: AppMenuItem[] = [
@@ -126,7 +119,7 @@ export const DashboardMenu = ({
     },
     {
       id: 'rename',
-      label: 'Rename dashboard',
+      label: 'Rename',
       icon: <Pencil className="size-4" aria-hidden="true" />,
       onSelect: onRename,
     },
@@ -148,24 +141,11 @@ export const DashboardMenu = ({
       })),
     },
     {
-      id: 'power',
-      label: 'Power',
-      icon: <Power className="size-4" aria-hidden="true" />,
+      id: 'restart',
+      label: 'Restart',
+      icon: <RefreshCw className="size-4" aria-hidden="true" />,
       disabled: selfProject === null,
-      children: [
-        {
-          id: 'restart',
-          label: 'Restart dashboard',
-          icon: <RefreshCw className="size-4" aria-hidden="true" />,
-          onSelect: () => runSelfAction('restart'),
-        },
-        {
-          id: 'stop',
-          label: 'Stop dashboard',
-          icon: <PowerOff className="size-4" aria-hidden="true" />,
-          onSelect: () => runSelfAction('stop'),
-        },
-      ],
+      onSelect: runRestart,
     },
   ];
 

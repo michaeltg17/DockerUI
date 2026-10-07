@@ -153,6 +153,11 @@
   border-color: hsl(222 60% 40%);
 }
 
+/* The search bar renders its own clear button, styled like the dialog close. */
+input[type='search']::-webkit-search-cancel-button {
+  display: none;
+}
+
 @layer base {
   * {
     @apply border-border;

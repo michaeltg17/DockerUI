@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { isValidUrl, normalizeUrl } from '@/lib/url';
 
 import {
   useAddShortcut,
@@ -21,20 +22,6 @@ type ShortcutDialogProps = {
 };
 
 const isEditingShortcut = (initial?: Shortcut | null) => Boolean(initial?.name);
-
-const normalizeUrl = (value: string) => {
-  const trimmed = value.trim();
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-};
-
-const isSaveableUrl = (value: string) => {
-  try {
-    const url = new URL(normalizeUrl(value));
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
 
 /** The API reports problems as RFC 9457 documents; surface the human message. */
 export const getErrorMessage = (error: unknown) => {
@@ -92,7 +79,7 @@ const ShortcutDialogForm = ({
   const isSaving = addShortcut.isPending || updateShortcut.isPending;
 
   const trimmedName = name.trim();
-  const canSave = trimmedName.length > 0 && isSaveableUrl(url) && !isSaving;
+  const canSave = trimmedName.length > 0 && isValidUrl(url) && !isSaving;
 
   // Anything that would survive a save differs from what was shown on open;
   // while that is the case the backdrop must not close the dialog and lose it.
@@ -101,13 +88,13 @@ const ShortcutDialogForm = ({
     url.trim() !== initialUrl.trim() ||
     (icon === '' ? null : icon) !== initialIcon;
 
-  // While saving is blocked, say why: the disabled button would otherwise
-  // leave the user guessing what is missing.
-  const saveHint =
-    !canSave && !isSaving
-      ? trimmedName.length === 0
-        ? 'Enter a name.'
-        : 'Enter a valid URL, e.g. https://example.com.'
+  // While saving is blocked, say why below the offending field: the disabled
+  // button would otherwise leave the user guessing what is missing. The name is
+  // checked first, so its message wins until the name is filled in.
+  const nameError = trimmedName.length === 0 ? 'Enter a name.' : null;
+  const urlError =
+    nameError === null && !isValidUrl(url)
+      ? 'Enter a valid URL, e.g. https://example.com.'
       : null;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -152,7 +139,7 @@ const ShortcutDialogForm = ({
             <AppIcon
               icon={icon === '' ? null : icon}
               name={trimmedName || '?'}
-              className="size-16 text-xl"
+              className="size-24 text-3xl"
             />
           </button>
 
@@ -163,6 +150,8 @@ const ShortcutDialogForm = ({
                 ref={nameInputRef}
                 type="text"
                 required
+                aria-label="Name"
+                aria-invalid={nameError !== null}
                 value={name}
                 onChange={(event) => {
                   setName(event.target.value);
@@ -171,6 +160,9 @@ const ShortcutDialogForm = ({
                 placeholder="e.g. GitHub"
                 className={fieldClasses}
               />
+              {nameError && (
+                <p className="text-xs text-destructive">{nameError}</p>
+              )}
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm">
@@ -179,6 +171,8 @@ const ShortcutDialogForm = ({
                 type="text"
                 inputMode="url"
                 required
+                aria-label="URL"
+                aria-invalid={urlError !== null}
                 value={url}
                 onChange={(event) => {
                   setUrl(event.target.value);
@@ -187,15 +181,14 @@ const ShortcutDialogForm = ({
                 placeholder="e.g. https://example.com or example.com"
                 className={fieldClasses}
               />
+              {urlError && (
+                <p className="text-xs text-destructive">{urlError}</p>
+              )}
             </label>
           </div>
         </div>
 
         <div className="flex flex-col gap-2 pt-1">
-          {saveHint && (
-            <p className="text-sm text-muted-foreground">{saveHint}</p>
-          )}
-
           {error && (
             <p
               role="alert"

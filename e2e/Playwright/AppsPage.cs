@@ -256,12 +256,13 @@ public sealed class AppsPage(IPage page)
         return HiddenAppsDialog;
     }
 
-    /// <summary>Clicks the "Show" button next to the given app in the hidden apps dialog.</summary>
+    /// <summary>Clicks the given app's card in the hidden apps dialog to show it again.</summary>
     public static async Task ShowHiddenAppAsync(ILocator dialog, string appName)
     {
         ArgumentNullException.ThrowIfNull(dialog);
-        var row = dialog.GetByText(appName, new LocatorGetByTextOptions { Exact = true }).Locator("xpath=..");
-        await row.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Show", Exact = true }).ClickAsync();
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = $"Show {appName}", Exact = true })
+            .ClickAsync();
     }
 
     /// <summary>The app edit dialog, addressed by its accessible name ('Edit {name}').</summary>

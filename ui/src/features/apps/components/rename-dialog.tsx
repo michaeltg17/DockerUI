@@ -48,6 +48,9 @@ const RenameDialogForm = ({
   const canSave = trimmedName.length > 0 && !rename.isPending;
   const dirty = trimmedName !== currentName.trim();
 
+  // Say why saving is blocked instead of leaving the button silently disabled.
+  const nameError = trimmedName.length === 0 ? 'Enter a name.' : null;
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSave) return;
@@ -75,6 +78,7 @@ const RenameDialogForm = ({
               ref={nameInputRef}
               type="text"
               required
+              aria-invalid={nameError !== null}
               value={name}
               onChange={(event) => {
                 setName(event.target.value);
@@ -82,6 +86,9 @@ const RenameDialogForm = ({
               }}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
+            {nameError && (
+              <p className="text-xs text-destructive">{nameError}</p>
+            )}
           </label>
           <p className="text-xs text-muted-foreground">
             Shown as the page title and saved to the dashboard settings.

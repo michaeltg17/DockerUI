@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { isValidUrl, normalizeUrl } from '@/lib/url';
 
 import { useSetAppSettings } from '../hooks/use-apps';
 import { useIcons } from '../hooks/use-shortcuts';
@@ -16,20 +17,9 @@ type EditAppDialogProps = {
   onClose: () => void;
 };
 
-const normalizeUrl = (value: string) => {
-  const trimmed = value.trim();
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-};
-
-const isSaveableUrl = (value: string) => {
-  if (value.trim().length === 0) return true;
-  try {
-    const url = new URL(normalizeUrl(value));
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
+// The url is optional (empty auto-detects); when present it must be valid.
+const isSaveableUrl = (value: string) =>
+  value.trim().length === 0 || isValidUrl(value);
 
 /** The API reports problems as RFC 9457 documents; surface the human message. */
 const getErrorMessage = (error: unknown) => {
@@ -80,6 +70,11 @@ const EditAppDialogForm = ({
   const isSaving = setSettings.isPending;
 
   const canSave = isSaveableUrl(url) && !isSaving;
+
+  // An empty url is allowed (auto-detect); only a non-empty invalid one is an error.
+  const urlError = !isSaveableUrl(url)
+    ? 'Enter a valid URL, e.g. https://example.com.'
+    : null;
 
   // Anything that would survive a save differs from what was shown on open;
   // while that is the case the backdrop must not close the dialog and lose it.
@@ -152,6 +147,7 @@ const EditAppDialogForm = ({
               <input
                 type="text"
                 inputMode="url"
+                aria-invalid={urlError !== null}
                 value={url}
                 onChange={(event) => {
                   setUrl(event.target.value);
@@ -160,6 +156,9 @@ const EditAppDialogForm = ({
                 placeholder="Leave empty to auto-detect"
                 className={fieldClasses}
               />
+              {urlError && (
+                <p className="text-xs text-destructive">{urlError}</p>
+              )}
             </label>
           </div>
         </div>

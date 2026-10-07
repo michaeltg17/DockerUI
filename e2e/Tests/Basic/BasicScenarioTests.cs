@@ -229,7 +229,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
 
         string[] expectedItems =
-            ["Add shortcut", "View logs", "Rename dashboard", "Theme", "Power"];
+            ["Add shortcut", "View logs", "Rename", "Theme", "Restart"];
 
         foreach (var label in expectedItems)
         {
@@ -246,16 +246,6 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             (await AppsPage.MenuItem(themeMenu, label).CountAsync())
                 .Should().Be(1, $"because the theme submenu offers '{label}'");
         }
-
-        // The self-actions are grouped under the 'Power' item's submenu.
-        var powerMenu = await apps.OpenGroupSubmenuAsync(menu, "Power");
-        string[] powerActions = ["Restart dashboard", "Stop dashboard"];
-
-        foreach (var label in powerActions)
-        {
-            (await AppsPage.MenuItem(powerMenu, label).CountAsync())
-                .Should().Be(1, $"because the power submenu offers '{label}'");
-        }
     }
 
     [Fact]
@@ -270,7 +260,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var dialog = apps.RenameDialog;
 
         var menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Rename dashboard").ClickAsync();
+        await AppsPage.MenuItem(menu, "Rename").ClickAsync();
         await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
         await dialog
@@ -288,7 +278,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // Restoring the default name clears the setting from the scenario's appsettings.
         menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Rename dashboard").ClickAsync();
+        await AppsPage.MenuItem(menu, "Rename").ClickAsync();
         await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
         await dialog
@@ -475,8 +465,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var startedAtBefore = await ContainerStartedAtAsync("docker-ui-e2e-basic", cancellationToken);
 
         var menu = await apps.OpenDashboardMenuAsync();
-        var powerMenu = await apps.OpenGroupSubmenuAsync(menu, "Power");
-        await AppsPage.MenuItem(powerMenu, "Restart dashboard").ClickAsync();
+        await AppsPage.MenuItem(menu, "Restart").ClickAsync();
 
         // The overlay takes over while the container comes back; the page reloads itself
         // once the API responds.
@@ -494,44 +483,6 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         startedAtAfter
             .Should().NotBe(startedAtBefore, "because the restart action restarts the dashboard's own container");
-    }
-
-    [Fact]
-    public async Task Dashboard_menu_stops_its_own_container()
-    {
-        await using var context = await browser.NewContextAsync();
-        var apps = new AppsPage(await context.NewPageAsync());
-        await apps.LoadAsync(environment.BaseUrl);
-        await apps.WaitForAppAsync("web-stack");
-
-        var cancellationToken = TestContext.Current.CancellationToken;
-
-        var menu = await apps.OpenDashboardMenuAsync();
-        var powerMenu = await apps.OpenGroupSubmenuAsync(menu, "Power");
-        await AppsPage.MenuItem(powerMenu, "Stop dashboard").ClickAsync();
-
-        // The overlay offers a manual reload once the container has been started again.
-        await apps.Page
-            .GetByText("Dashboard stopped. Start its container to continue.")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
-        await WaitUntilDashboardApiDownAsync(environment.BaseUrl, cancellationToken);
-
-        // The API refuses connections as soon as the stop begins, but the container is still
-        // shutting down; 'docker start' issued while a stop is in flight is dropped, so wait
-        // for the container to have fully stopped first.
-        await WaitUntilContainerStoppedAsync("docker-ui-e2e-basic", cancellationToken);
-
-        // Start the container from the CLI and let the dashboard come back.
-        await DockerCli.EnsureSucceededAsync(
-            Paths.RepoRoot,
-            ["start", "docker-ui-e2e-basic"],
-            cancellationToken);
-        await WaitForDashboardApiAsync(environment.BaseUrl, cancellationToken);
-
-        await apps.Page
-            .GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Reload", Exact = true })
-            .ClickAsync();
-        await apps.WaitForAppAsync("web-stack", AppsPage.StateChangeTimeoutMs);
     }
 
     [Fact]
@@ -1279,6 +1230,99 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Shortcut_dialog_rejects_a_word_only_url()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        var create = dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Create", Exact = true });
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("Word Only");
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("dfdfdf");
+
+        // A bare word is not a usable url: the field explains why and Create stays disabled.
+        await dialog
+            .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await create.IsEnabledAsync()).Should().BeFalse("because 'dfdfdf' has no domain");
+
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Cancel", Exact = true }).ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
+    public async Task Renaming_a_shortcut_keeps_its_place_in_the_order()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+        const string shortcut = "E2E Order";
+        await apps.CreateShortcutAsync(shortcut, "https://example.com/order");
+        await apps.WaitForAppAsync(shortcut);
+
+        // Pin the shortcut to the front with an explicit order so its position is user-defined.
+        var names = await apps.CardNamesAsync();
+        var pinned = new List<string> { shortcut };
+        pinned.AddRange(names.Where(name => name != shortcut));
+
+        using var client = new HttpClient();
+        using var content = new StringContent(
+            JsonSerializer.Serialize(new { order = pinned }),
+            Encoding.UTF8,
+            "application/json");
+        var response = await client.PutAsync(
+            new Uri(environment.BaseUrl, "api/apps/order"),
+            content,
+            cancellationToken);
+        response.IsSuccessStatusCode.Should().BeTrue("because the order endpoint accepts the pinned order");
+        await apps.WaitForCardOrderAsync(pinned);
+
+        // Rename the shortcut from its card; the pinned position must be preserved.
+        const string renamed = "E2E Renamed";
+        var menu = await apps.OpenCardMenuAsync(shortcut);
+        await AppsPage.MenuItem(menu, "Edit").ClickAsync();
+
+        var dialog = apps.ShortcutDialog($"Edit {shortcut}");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync(renamed);
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Save", Exact = true })
+            .ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        var expected = new List<string> { renamed };
+        expected.AddRange(pinned.Skip(1));
+        await apps.WaitForCardOrderAsync(expected);
+
+        // Restore the scenario's defaults: delete the shortcut and clear the pinned order.
+        await apps.DeleteShortcutAsync(renamed);
+
+        using var clearContent = new StringContent("{\"order\":[]}", Encoding.UTF8, "application/json");
+        var clearResponse = await client.PutAsync(
+            new Uri(environment.BaseUrl, "api/apps/order"),
+            clearContent,
+            cancellationToken);
+        clearResponse.IsSuccessStatusCode.Should().BeTrue("because the order endpoint accepts an empty order");
+    }
+
+    [Fact]
     public async Task Shortcut_dialog_keeps_unsaved_changes_when_clicking_outside()
     {
         await using var context = await browser.NewContextAsync();
@@ -1653,57 +1697,6 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
             if (DateTime.UtcNow >= deadline)
                 throw new TimeoutException($"Container {containerName} was not restarted within {SelfActionTimeoutSeconds}s.");
-
-            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-        }
-    }
-
-    static async Task WaitUntilContainerStoppedAsync(string containerName, CancellationToken cancellationToken)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(SelfActionTimeoutSeconds);
-
-        while (true)
-        {
-            var result = await DockerCli.RunAsync(
-                Paths.RepoRoot,
-                ["inspect", "-f", "{{.State.Status}}", containerName],
-                cancellationToken);
-
-            if (result.Succeeded && result.StandardOutput.Trim() is "exited" or "created" or "dead")
-                return;
-
-            if (DateTime.UtcNow >= deadline)
-                throw new TimeoutException($"Container {containerName} did not stop within {SelfActionTimeoutSeconds}s.");
-
-            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-        }
-    }
-
-    static async Task WaitUntilDashboardApiDownAsync(Uri baseUrl, CancellationToken cancellationToken)
-    {
-        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        var settingsUrl = new Uri(baseUrl, "api/settings");
-        var deadline = DateTime.UtcNow.AddSeconds(SelfActionTimeoutSeconds);
-
-        while (true)
-        {
-            try
-            {
-                using var response = await client.GetAsync(settingsUrl, cancellationToken);
-                if (!response.IsSuccessStatusCode)
-                    return;
-            }
-            catch (HttpRequestException)
-            {
-                return; // The dashboard is down, as expected.
-            }
-            catch (TaskCanceledException)
-            {
-                // The request timed out; treat the dashboard as still up.
-            }
-
-            if (DateTime.UtcNow >= deadline)
-                throw new TimeoutException($"The dashboard at {baseUrl} did not go down within {SelfActionTimeoutSeconds}s.");
 
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
         }

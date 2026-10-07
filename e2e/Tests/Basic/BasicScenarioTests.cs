@@ -1251,6 +1251,47 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Shortcut_dialog_keeps_unsaved_changes_when_clicking_outside()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // Without unsaved changes, clicking outside still closes the dialog.
+        await apps.ClickDialogBackdropAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // Once the user has typed a name, clicking outside must not discard it.
+        menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("Outside click");
+
+        await apps.ClickDialogBackdropAsync();
+
+        (await dialog.CountAsync())
+            .Should().Be(1, "because the dialog still holds the unsaved name");
+        (await dialog
+                .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+                .InputValueAsync())
+            .Should().Be("Outside click", "because the field keeps its unsaved value");
+
+        // An explicit close still discards the unsaved changes.
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Cancel", Exact = true }).ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
     public async Task Shortcut_dialog_shows_the_error_when_the_name_is_taken()
     {
         await using var context = await browser.NewContextAsync();

@@ -12,10 +12,7 @@ import {
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
-import {
-  ContextMenu,
-  type ContextMenuItem,
-} from '@/components/ui/context-menu';
+import { AppMenu, type AppMenuItem } from '@/components/ui/app-menu';
 import { Spinner } from '@/components/ui/spinner';
 import { useTheme } from '@/hooks/use-theme';
 import { themes, type Theme } from '@/lib/theme';
@@ -38,6 +35,7 @@ type DashboardMenuProps = {
   onAddShortcut: () => void;
   onViewLogs: () => void;
   onRename: () => void;
+  onViewHiddenApps: () => void;
   /** Extra classes for the wrapper that defines the menu's trigger zone. */
   className?: string;
   children: ReactNode;
@@ -47,6 +45,7 @@ export const DashboardMenu = ({
   onAddShortcut,
   onViewLogs,
   onRename,
+  onViewHiddenApps,
   className,
   children,
 }: DashboardMenuProps) => {
@@ -127,7 +126,7 @@ export const DashboardMenu = ({
     }
   };
 
-  const items: ContextMenuItem[] = [
+  const items: AppMenuItem[] = [
     {
       id: 'add-shortcut',
       label: 'Add shortcut',
@@ -145,6 +144,12 @@ export const DashboardMenu = ({
       label: 'Rename dashboard',
       icon: <Pencil className="size-4" aria-hidden="true" />,
       onSelect: onRename,
+    },
+    {
+      id: 'hidden-apps',
+      label: 'View hidden apps',
+      icon: <EyeOff className="size-4" aria-hidden="true" />,
+      onSelect: onViewHiddenApps,
     },
     {
       id: 'theme',
@@ -193,7 +198,7 @@ export const DashboardMenu = ({
   ];
 
   return (
-    <ContextMenu label="Dashboard actions" items={items} className={className}>
+    <AppMenu label="Dashboard actions" items={items} className={className}>
       {children}
 
       {selfAction === 'restarting' && (
@@ -217,6 +222,6 @@ export const DashboardMenu = ({
           </button>
         </div>
       )}
-    </ContextMenu>
+    </AppMenu>
   );
 };

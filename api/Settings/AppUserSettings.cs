@@ -4,6 +4,9 @@ namespace Api.Settings
 #pragma warning disable CA1056 // URL-like members stay strings so one bad value degrades gracefully instead of invalidating the whole settings
     internal sealed record AppUserSettings
     {
+        /// <summary>Display name shown on the card (wins over the compose project name).</summary>
+        public string? Name { get; set; }
+
         /// <summary>Full URL the app should open with (wins over port-based resolution).</summary>
         public string? Url { get; set; }
 

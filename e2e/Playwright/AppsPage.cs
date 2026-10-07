@@ -4,8 +4,8 @@ namespace E2E.Playwright;
 
 /// <summary>
 /// Locators and interactions for the dashboard's single page. The UI ships no data-testid
-/// attributes, so cards are addressed through the app name in the h3 title attribute and
-/// everything else through roles and accessible names.
+/// attributes, so cards are addressed through the app name heading and everything else
+/// through roles and accessible names.
 /// </summary>
 public sealed class AppsPage(IPage page)
 {
@@ -40,18 +40,18 @@ public sealed class AppsPage(IPage page)
     // 'paragraph' is not a name-from-content role, so this is addressed by text, not by role + name.
     public ILocator LoadError => Page.GetByText("Could not load apps. Is the Docker daemon reachable?", new PageGetByTextOptions { Exact = true });
 
-    /// <summary>The card (button) of the given app, addressed via the h3 title attribute.</summary>
-    public ILocator Card(string appName) => Page.Locator($"h3[title='{appName}']").Locator("xpath=..");
+    /// <summary>The card (button) of the given app, addressed via its name heading.</summary>
+    public ILocator Card(string appName) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator("xpath=..");
 
     /// <summary>The visible app card names in their current display order.</summary>
     public async Task<IReadOnlyList<string>> CardNamesAsync()
     {
-        var titles = Main.Locator("h3[title]");
-        var count = await titles.CountAsync();
+        var headings = Main.Locator("h3");
+        var count = await headings.CountAsync();
         var names = new List<string>(count);
 
         for (var i = 0; i < count; i++)
-            names.Add(await titles.Nth(i).GetAttributeAsync("title") ?? string.Empty);
+            names.Add(await headings.Nth(i).TextContentAsync() ?? string.Empty);
 
         return names;
     }
@@ -74,7 +74,8 @@ public sealed class AppsPage(IPage page)
         // boundary, so the drag events are created in the page next to it.
         await Page.EvaluateAsync(@"
             (name) => {
-                const button = document.querySelector(`h3[title=""${name}""]`).closest('button');
+                const heading = [...document.querySelectorAll('main h3')].find(el => el.textContent === name);
+                const button = heading.closest('button');
                 const dataTransfer = new DataTransfer();
                 button.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
                 button.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer }));
@@ -127,7 +128,7 @@ public sealed class AppsPage(IPage page)
     }
 
     /// <summary>The given app's card, matched only while the card's data-state attribute equals the given state.</summary>
-    public ILocator CardInState(string appName, string state) => Page.Locator($"h3[title='{appName}']").Locator($"xpath=parent::button[@data-state='{state}']");
+    public ILocator CardInState(string appName, string state) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator($"xpath=parent::button[@data-state='{state}']");
 
     /// <summary>The app card icon image (absent when the app falls back to its initials).</summary>
     public ILocator CardIconImage(string appName) => Card(appName).Locator("img");
@@ -234,6 +235,69 @@ public sealed class AppsPage(IPage page)
         var menu = await OpenCardMenuAsync(name);
         await MenuItem(menu, "Delete").ClickAsync();
         await Card(name).WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
+    }
+
+    /// <summary>The hidden apps dialog, addressed by its accessible name.</summary>
+    public ILocator HiddenAppsDialog => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Hidden apps", Exact = true });
+
+    /// <summary>Right-clicks the given app's card and hides it, waiting for the card to leave the page.</summary>
+    public async Task HideAppAsync(string appName, int timeoutMs = StateChangeTimeoutMs)
+    {
+        var menu = await OpenCardMenuAsync(appName);
+        await MenuItem(menu, "Hide").ClickAsync();
+        await Card(appName).WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
+    }
+
+    /// <summary>Opens the "View hidden apps" dialog from the dashboard menu and returns it.</summary>
+    public async Task<ILocator> OpenHiddenAppsDialogAsync()
+    {
+        var menu = await OpenDashboardMenuAsync();
+        await MenuItem(menu, "View hidden apps").ClickAsync();
+        return HiddenAppsDialog;
+    }
+
+    /// <summary>Clicks the "Show" button next to the given app in the hidden apps dialog.</summary>
+    public static async Task ShowHiddenAppAsync(ILocator dialog, string appName)
+    {
+        ArgumentNullException.ThrowIfNull(dialog);
+        var row = dialog.GetByText(appName, new LocatorGetByTextOptions { Exact = true }).Locator("xpath=..");
+        await row.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Show", Exact = true }).ClickAsync();
+    }
+
+    /// <summary>The app edit dialog, addressed by its accessible name ('Edit {name}').</summary>
+    public ILocator EditAppDialog(string name) => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = $"Edit {name}", Exact = true });
+
+    /// <summary>Opens the app edit dialog from the given app's card menu and waits for it.</summary>
+    public async Task OpenEditDialogAsync(string displayName, int timeoutMs = StateChangeTimeoutMs)
+    {
+        var menu = await OpenCardMenuAsync(displayName);
+        await MenuItem(menu, "Edit").ClickAsync();
+        await EditAppDialog(displayName).WaitForAsync(new LocatorWaitForOptions { Timeout = timeoutMs });
+    }
+
+    /// <summary>
+    /// Opens the icon picker inside the edit dialog, selects the first available icon,
+    /// and returns its path so the caller can assert the card uses it afterwards.
+    /// </summary>
+    public async Task<string> PickFirstIconAsync(ILocator dialog)
+    {
+        ArgumentNullException.ThrowIfNull(dialog);
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true }).ClickAsync();
+        var picker = Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.WaitForAsync();
+
+        var firstIcon = picker.Locator("img").Nth(0);
+        var src = await firstIcon.GetAttributeAsync("src");
+        await firstIcon.ClickAsync();
+        return src ?? string.Empty;
+    }
+
+    /// <summary>Saves the edit dialog and waits for it to close.</summary>
+    public static async Task SaveEditAsync(ILocator dialog, int timeoutMs = StateChangeTimeoutMs)
+    {
+        ArgumentNullException.ThrowIfNull(dialog);
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Save", Exact = true }).ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
     }
 
     public static ILocator MenuItem(ILocator menu, string label)

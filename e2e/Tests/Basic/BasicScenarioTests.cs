@@ -343,6 +343,99 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Hiding_an_app_moves_it_to_the_hidden_apps_dialog()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        // Hiding from the app's own menu removes its card from the dashboard.
+        await apps.HideAppAsync("web-stack");
+        (await apps.Card("web-stack").CountAsync()).Should().Be(0, "because the app was hidden");
+
+        // The dashboard menu's "View hidden apps" then lists it.
+        var dialog = await apps.OpenHiddenAppsDialogAsync();
+        await dialog.WaitForAsync();
+        await dialog
+            .GetByText("web-stack", new LocatorGetByTextOptions { Exact = true })
+            .WaitForAsync();
+
+        // Showing it from the dialog brings the card back to the dashboard.
+        await AppsPage.ShowHiddenAppAsync(dialog, "web-stack");
+        await apps.WaitForAppAsync("web-stack");
+    }
+
+    [Fact]
+    public async Task App_card_name_has_no_redundant_title_tooltip()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        // The name is already visible on the card, so the heading needs no native title tooltip.
+        var headingTitle = await apps.Page
+            .GetByRole(AriaRole.Heading, new PageGetByRoleOptions { Name = "web-stack", Exact = true })
+            .GetAttributeAsync("title");
+
+        headingTitle.Should().BeNull("because the app name is shown on the card");
+    }
+
+    [Fact]
+    public async Task Edit_dialog_changes_an_apps_name_icon_and_url()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        // Change the display name, icon, and url from the app's own menu.
+        await apps.OpenEditDialogAsync("web-stack");
+        var dialog = apps.EditAppDialog("web-stack");
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("My Stack");
+        var icon = await apps.PickFirstIconAsync(dialog);
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("example.org");
+        await AppsPage.SaveEditAsync(dialog);
+
+        // The card now shows the display name and the chosen icon; the project name is gone.
+        await apps.Card("web-stack").WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+        await apps.WaitForAppAsync("My Stack");
+        (await apps.CardInState("My Stack", AppsPage.RunningState).CountAsync()).Should().Be(1);
+        (await apps.CardIconImage("My Stack").GetAttributeAsync("src")).Should().Be(icon);
+
+        // The url override is resolved by the API.
+        using var client = new HttpClient();
+        var response = await client.GetStringAsync(
+            new Uri(environment.BaseUrl, "api/apps"), TestContext.Current.CancellationToken);
+        var renamed = JsonDocument.Parse(response).RootElement.EnumerateArray()
+            .Single(app => app.GetProperty("name").GetString() == "web-stack");
+        renamed.GetProperty("url").GetString().Should().Be("https://example.org");
+
+        // Restore the original name, icon, and url.
+        await apps.OpenEditDialogAsync("My Stack");
+        var restore = apps.EditAppDialog("My Stack");
+        await restore
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("");
+        await restore
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true }).ClickAsync();
+        await restore
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("");
+        await AppsPage.SaveEditAsync(restore);
+        await apps.WaitForAppAsync("web-stack");
+    }
+
+    [Fact]
     public async Task Dashboard_menu_restarts_its_own_container()
     {
         await using var context = await browser.NewContextAsync();
@@ -451,6 +544,22 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .Contain(
                 "linear-gradient",
                 "because the Docker V2 theme matches the Docker Desktop gradient bar");
+    }
+
+    [Fact]
+    public async Task Docker_v2_theme_search_field_uses_the_docker_blue()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var backgroundColor = await apps.Page.EvaluateAsync<string>(
+            "() => { for (const sheet of document.styleSheets) { let rules; try { rules = sheet.cssRules; } catch (e) { continue; } for (const rule of rules) { if (rule.selectorText && rule.selectorText.includes('docker-v2') && rule.selectorText.includes('search')) return rule.style.backgroundColor; } } return ''; }");
+
+        backgroundColor
+            .Should()
+            .Be("rgb(28, 58, 130)", "because the Docker V2 search field matches the Docker Desktop blue");
     }
 
     [Fact]
@@ -847,6 +956,24 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         await openedPage.WaitForLoadStateAsync();
         openedPage.Url.Should().StartWith("http://localhost:8081");
+        await openedPage.GetByText("Welcome to nginx!").WaitForAsync();
+        await openedPage.CloseAsync();
+    }
+
+    [Fact]
+    public async Task Middle_clicking_card_with_url_opens_new_tab()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        // web-stack publishes 8081, so its card url is http://localhost:8081.
+        var openedPage = await apps.Page.RunAndWaitForPopupAsync(
+            () => apps.Card("web-stack").ClickAsync(new LocatorClickOptions { Button = MouseButton.Middle }));
+
+        await openedPage.WaitForLoadStateAsync();
+        openedPage.Url.Should().StartWith("http://localhost:8081", "because the app opens in a new tab");
         await openedPage.GetByText("Welcome to nginx!").WaitForAsync();
         await openedPage.CloseAsync();
     }

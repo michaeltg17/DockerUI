@@ -9,6 +9,8 @@ export interface AppService {
 
 export interface App {
   name: string;
+  /** The name shown on the card: the per-app override, or `name` when unset. */
+  displayName: string;
   icon: string | null;
   state: AppState;
   url: string | null;

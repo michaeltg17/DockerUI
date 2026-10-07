@@ -1,4 +1,5 @@
 import {
+  EyeOff,
   Pencil,
   Play,
   RefreshCw,
@@ -6,20 +7,23 @@ import {
   Square,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent, type MouseEvent } from 'react';
 
-import {
-  ContextMenu,
-  type ContextMenuItem,
-} from '@/components/ui/context-menu';
+import { AppMenu, type AppMenuItem } from '@/components/ui/app-menu';
 import { cn } from '@/utils/cn';
 
 import { getAppLogs } from '../api/get-logs';
-import { useRestartApp, useStartApp, useStopApp } from '../hooks/use-apps';
+import {
+  useRestartApp,
+  useSetAppVisibility,
+  useStartApp,
+  useStopApp,
+} from '../hooks/use-apps';
 import { useDeleteShortcut } from '../hooks/use-shortcuts';
 import type { App } from '../types';
 
 import { AppIcon } from './app-icon';
+import { EditAppDialog } from './edit-app-dialog';
 import { LogsDialog } from './logs-dialog';
 import { ShortcutDialog } from './shortcut-dialog';
 
@@ -52,6 +56,7 @@ export const AppCard = ({
   const startApp = useStartApp();
   const stopApp = useStopApp();
   const restartApp = useRestartApp();
+  const setVisibility = useSetAppVisibility();
   const deleteShortcut = useDeleteShortcut();
   const [logsOpen, setLogsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -88,8 +93,17 @@ export const AppCard = ({
       ? 'bg-green-500'
       : 'bg-red-500';
 
+  // A left click fires 'click'; a middle (wheel) click fires 'auxclick' instead, so the
+  // card listens to both and opens the app in a new tab either way.
+  const openUrl = (event: MouseEvent) => {
+    if (event.button !== 0 && event.button !== 1) return;
+    if (app.url) {
+      window.open(app.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   if (app.isShortcut) {
-    const shortcutActions: ContextMenuItem[] = [
+    const shortcutActions: AppMenuItem[] = [
       {
         id: 'edit',
         label: 'Edit',
@@ -105,22 +119,14 @@ export const AppCard = ({
       },
     ];
 
-    const openShortcut = () => {
-      if (app.url) {
-        window.open(app.url, '_blank', 'noopener,noreferrer');
-      }
-    };
-
     return (
       <>
         <div className="relative size-full">
-          <ContextMenu
-            label={`Actions for ${app.name}`}
-            items={shortcutActions}
-          >
+          <AppMenu label={`Actions for ${app.name}`} items={shortcutActions}>
             <button
               type="button"
-              onClick={openShortcut}
+              onClick={openUrl}
+              onAuxClick={openUrl}
               data-state={app.state}
               {...cardDragProps}
               className={cn(cardClasses, isDragging && 'opacity-50')}
@@ -130,14 +136,11 @@ export const AppCard = ({
                 name={app.name}
                 className="size-24 text-3xl"
               />
-              <h3
-                className="max-w-full truncate text-sm font-medium"
-                title={app.name}
-              >
+              <h3 className="max-w-full truncate text-sm font-medium">
                 {app.name}
               </h3>
             </button>
-          </ContextMenu>
+          </AppMenu>
           {isDragging && <DropIndicator />}
         </div>
         <ShortcutDialog
@@ -149,7 +152,13 @@ export const AppCard = ({
     );
   }
 
-  const actions: ContextMenuItem[] = [
+  const actions: AppMenuItem[] = [
+    {
+      id: 'edit',
+      label: 'Edit',
+      icon: <Pencil className="size-4" aria-hidden="true" />,
+      onSelect: () => setEditing(true),
+    },
     {
       id: 'start',
       label: 'Start',
@@ -185,21 +194,24 @@ export const AppCard = ({
       icon: <ScrollText className="size-4" aria-hidden="true" />,
       onSelect: () => setLogsOpen(true),
     },
+    {
+      id: 'hide',
+      label: 'Hide',
+      icon: <EyeOff className="size-4" aria-hidden="true" />,
+      isLoading: setVisibility.isPending,
+      onSelect: () =>
+        void setVisibility.mutate({ name: app.name, hidden: true }),
+    },
   ];
-
-  const openApp = () => {
-    if (app.url) {
-      window.open(app.url, '_blank', 'noopener,noreferrer');
-    }
-  };
 
   return (
     <>
       <div className="relative size-full">
-        <ContextMenu label={`Actions for ${app.name}`} items={actions}>
+        <AppMenu label={`Actions for ${app.displayName}`} items={actions}>
           <button
             type="button"
-            onClick={openApp}
+            onClick={openUrl}
+            onAuxClick={openUrl}
             data-state={app.state}
             {...cardDragProps}
             className={cn(cardClasses, isDragging && 'opacity-50')}
@@ -207,7 +219,7 @@ export const AppCard = ({
             <div className="relative">
               <AppIcon
                 icon={app.icon}
-                name={app.name}
+                name={app.displayName}
                 className={cn(
                   'size-24 text-3xl transition-[filter] duration-200',
                   isDimmed && 'brightness-50',
@@ -260,16 +272,18 @@ export const AppCard = ({
               )}
             </div>
 
-            <h3
-              className="max-w-full truncate text-sm font-medium"
-              title={app.name}
-            >
-              {app.name}
+            <h3 className="max-w-full truncate text-sm font-medium">
+              {app.displayName}
             </h3>
           </button>
-        </ContextMenu>
+        </AppMenu>
         {isDragging && <DropIndicator />}
       </div>
+      <EditAppDialog
+        open={editing}
+        app={app}
+        onClose={() => setEditing(false)}
+      />
       <LogsDialog
         open={logsOpen}
         title={`${app.name} logs`}

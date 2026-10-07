@@ -239,7 +239,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // The theme options are grouped under the 'Theme' item's submenu.
         var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
-        string[] themeOptions = ["Light", "Dark", "Docker", "Docker V2"];
+        string[] themeOptions = ["Light", "Dark", "Dark blue", "Docker"];
 
         foreach (var label in themeOptions)
         {
@@ -516,7 +516,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         var menu = await apps.OpenDashboardMenuAsync();
         var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
-        await AppsPage.MenuItem(themeMenu, "Docker").ClickAsync();
+        await AppsPage.MenuItem(themeMenu, "Dark blue").ClickAsync();
         (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
 
         await apps.Page.ReloadAsync();
@@ -534,7 +534,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         var menu = await apps.OpenDashboardMenuAsync();
         var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
-        await AppsPage.MenuItem(themeMenu, "Docker V2").ClickAsync();
+        await AppsPage.MenuItem(themeMenu, "Docker").ClickAsync();
 
         (await apps.Page.Locator("html[data-theme='docker-v2']").CountAsync()).Should().Be(1);
         (await apps.Page

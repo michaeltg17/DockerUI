@@ -139,7 +139,7 @@ const ShortcutDialogForm = ({
             <AppIcon
               icon={icon === '' ? null : icon}
               name={trimmedName || '?'}
-              className="size-16 text-xl"
+              className="size-24 text-3xl"
             />
           </button>
 

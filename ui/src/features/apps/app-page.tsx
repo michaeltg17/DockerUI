@@ -55,6 +55,7 @@ export const AppsPage = () => {
             <input
               ref={searchInputRef}
               type="search"
+              aria-label="Search apps"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search apps…"

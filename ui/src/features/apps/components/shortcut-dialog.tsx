@@ -150,6 +150,7 @@ const ShortcutDialogForm = ({
                 ref={nameInputRef}
                 type="text"
                 required
+                aria-label="Name"
                 aria-invalid={nameError !== null}
                 value={name}
                 onChange={(event) => {
@@ -170,6 +171,7 @@ const ShortcutDialogForm = ({
                 type="text"
                 inputMode="url"
                 required
+                aria-label="URL"
                 aria-invalid={urlError !== null}
                 value={url}
                 onChange={(event) => {

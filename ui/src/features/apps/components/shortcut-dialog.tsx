@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { isValidUrl, normalizeUrl } from '@/lib/url';
 
 import {
   useAddShortcut,
@@ -21,20 +22,6 @@ type ShortcutDialogProps = {
 };
 
 const isEditingShortcut = (initial?: Shortcut | null) => Boolean(initial?.name);
-
-const normalizeUrl = (value: string) => {
-  const trimmed = value.trim();
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-};
-
-const isSaveableUrl = (value: string) => {
-  try {
-    const url = new URL(normalizeUrl(value));
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
 
 /** The API reports problems as RFC 9457 documents; surface the human message. */
 export const getErrorMessage = (error: unknown) => {
@@ -92,7 +79,7 @@ const ShortcutDialogForm = ({
   const isSaving = addShortcut.isPending || updateShortcut.isPending;
 
   const trimmedName = name.trim();
-  const canSave = trimmedName.length > 0 && isSaveableUrl(url) && !isSaving;
+  const canSave = trimmedName.length > 0 && isValidUrl(url) && !isSaving;
 
   // Anything that would survive a save differs from what was shown on open;
   // while that is the case the backdrop must not close the dialog and lose it.
@@ -106,7 +93,7 @@ const ShortcutDialogForm = ({
   // checked first, so its message wins until the name is filled in.
   const nameError = trimmedName.length === 0 ? 'Enter a name.' : null;
   const urlError =
-    nameError === null && !isSaveableUrl(url)
+    nameError === null && !isValidUrl(url)
       ? 'Enter a valid URL, e.g. https://example.com.'
       : null;
 

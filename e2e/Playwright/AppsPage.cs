@@ -305,4 +305,10 @@ public sealed class AppsPage(IPage page)
         ArgumentNullException.ThrowIfNull(menu);
         return menu.GetByRole(AriaRole.Menuitem, new LocatorGetByRoleOptions { Name = label, Exact = true });
     }
+
+    /// <summary>
+    /// Clicks the top-left corner of the viewport: on the backdrop of any open
+    /// (centered) dialog, outside its panel.
+    /// </summary>
+    public Task ClickDialogBackdropAsync() => Page.Mouse.ClickAsync(5, 5);
 }

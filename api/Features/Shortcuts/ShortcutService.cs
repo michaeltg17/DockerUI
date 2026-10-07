@@ -51,8 +51,28 @@ namespace Api.Features.Shortcuts
                     .Any(shortcut => string.Equals(shortcut.Name, newName, StringComparison.OrdinalIgnoreCase)))
                 throw new ConflictException($"A shortcut named '{newName}' already exists.");
 
-            shortcuts[index] = new Shortcut(newName, url, NormalizeIcon(input.Icon));
+            shortcuts[index] = shortcuts[index] with
+            {
+                Name = newName,
+                Url = url,
+                Icon = NormalizeIcon(input.Icon),
+            };
+
             return await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>Sets the hidden state of the shortcut with the given name; false when no such shortcut exists.</summary>
+        public bool SetHidden(string name, bool hidden)
+        {
+            var shortcuts = store.Load().ToList();
+            var index = FindIndex(shortcuts, name);
+
+            if (index < 0)
+                return false;
+
+            shortcuts[index] = shortcuts[index] with { Hidden = hidden };
+            store.Save(shortcuts);
+            return true;
         }
 
         public async Task DeleteAsync(string name, CancellationToken cancellationToken)

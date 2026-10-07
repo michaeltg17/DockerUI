@@ -229,7 +229,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
 
         string[] expectedItems =
-            ["Add shortcut", "View logs", "Rename dashboard", "Theme", "Show Docker UI", "Power"];
+            ["Add shortcut", "View logs", "Rename dashboard", "Theme", "Power"];
 
         foreach (var label in expectedItems)
         {
@@ -239,7 +239,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // The theme options are grouped under the 'Theme' item's submenu.
         var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
-        string[] themeOptions = ["Light", "Dark", "Docker", "Docker V2"];
+        string[] themeOptions = ["Light", "Dark", "Dark blue", "Docker"];
 
         foreach (var label in themeOptions)
         {
@@ -320,29 +320,6 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
-    public async Task Dashboard_menu_toggles_visibility_of_its_own_stack()
-    {
-        await using var context = await browser.NewContextAsync();
-        var apps = new AppsPage(await context.NewPageAsync());
-        await apps.LoadAsync(environment.BaseUrl);
-        await apps.WaitForAppAsync("web-stack");
-
-        (await apps.Card("basic").CountAsync()).Should().Be(0, "because the dashboard's own stack starts hidden");
-
-        var menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Show Docker UI").ClickAsync();
-
-        // Showing the dashboard persists the setting and makes its own stack appear.
-        await apps.WaitForAppAsync("basic", AppsPage.StateChangeTimeoutMs);
-        await apps.WaitForStateAsync("basic", AppsPage.RunningState);
-
-        menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Hide Docker UI").ClickAsync();
-        await apps.Card("basic").WaitForAsync(
-            new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
-    }
-
-    [Fact]
     public async Task Hiding_an_app_moves_it_to_the_hidden_apps_dialog()
     {
         await using var context = await browser.NewContextAsync();
@@ -364,6 +341,57 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // Showing it from the dialog brings the card back to the dashboard.
         await AppsPage.ShowHiddenAppAsync(dialog, "web-stack");
         await apps.WaitForAppAsync("web-stack");
+    }
+
+    [Fact]
+    public async Task Hiding_a_shortcut_moves_it_to_the_hidden_apps_dialog()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Eta";
+        await apps.CreateShortcutAsync(name, "https://example.com/eta");
+        await apps.WaitForAppAsync(name);
+
+        // Hiding from the shortcut's own menu removes its card from the dashboard.
+        await apps.HideAppAsync(name);
+        (await apps.Card(name).CountAsync()).Should().Be(0, "because the shortcut was hidden");
+
+        // The hidden state is persisted into the scenario's appsettings.json.
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+        using (var document = JsonDocument.Parse(
+                   await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken)))
+        {
+            var stored = document.RootElement
+                .GetProperty("DockerUI")
+                .GetProperty("Shortcuts")
+                .EnumerateArray()
+                .SingleOrDefault(element =>
+                    element.TryGetProperty("Name", out var shortcutName) &&
+                    string.Equals(shortcutName.GetString(), name, StringComparison.Ordinal));
+
+            stored.ValueKind.Should().Be(JsonValueKind.Object, "because the hidden shortcut is stored in appsettings");
+            stored.GetProperty("Hidden").GetBoolean().Should().BeTrue();
+        }
+
+        // The dashboard menu's "View hidden apps" then lists it.
+        var dialog = await apps.OpenHiddenAppsDialogAsync();
+        await dialog.WaitForAsync();
+        await dialog
+            .GetByText(name, new LocatorGetByTextOptions { Exact = true })
+            .WaitForAsync();
+
+        // Showing it from the dialog brings the card back to the dashboard.
+        await AppsPage.ShowHiddenAppAsync(dialog, name);
+
+        // Close the dialog so the card menu is clickable again.
+        await apps.ClickDialogBackdropAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await apps.WaitForAppAsync(name);
+        await apps.DeleteShortcutAsync(name);
     }
 
     [Fact]
@@ -516,7 +544,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         var menu = await apps.OpenDashboardMenuAsync();
         var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
-        await AppsPage.MenuItem(themeMenu, "Docker").ClickAsync();
+        await AppsPage.MenuItem(themeMenu, "Dark blue").ClickAsync();
         (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
 
         await apps.Page.ReloadAsync();
@@ -534,7 +562,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         var menu = await apps.OpenDashboardMenuAsync();
         var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
-        await AppsPage.MenuItem(themeMenu, "Docker V2").ClickAsync();
+        await AppsPage.MenuItem(themeMenu, "Docker").ClickAsync();
 
         (await apps.Page.Locator("html[data-theme='docker-v2']").CountAsync()).Should().Be(1);
         (await apps.Page
@@ -1246,6 +1274,47 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
         (await create.IsEnabledAsync()).Should().BeTrue("because both fields are valid");
 
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Cancel", Exact = true }).ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
+    public async Task Shortcut_dialog_keeps_unsaved_changes_when_clicking_outside()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // Without unsaved changes, clicking outside still closes the dialog.
+        await apps.ClickDialogBackdropAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // Once the user has typed a name, clicking outside must not discard it.
+        menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("Outside click");
+
+        await apps.ClickDialogBackdropAsync();
+
+        (await dialog.CountAsync())
+            .Should().Be(1, "because the dialog still holds the unsaved name");
+        (await dialog
+                .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+                .InputValueAsync())
+            .Should().Be("Outside click", "because the field keeps its unsaved value");
+
+        // An explicit close still discards the unsaved changes.
         await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Cancel", Exact = true }).ClickAsync();
         await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
     }

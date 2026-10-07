@@ -1,6 +1,8 @@
+using Api.Exceptions;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Hubs;
 using Api.Features.Settings;
+using Api.Features.Shortcuts;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Api.Features.Apps.Endpoints
@@ -15,6 +17,7 @@ namespace Api.Features.Apps.Endpoints
                 string name,
                 AppVisibility input,
                 SettingsStore settingsStore,
+                ShortcutService shortcutService,
                 AppService appService,
                 IHubContext<AppAppsHub> hubContext,
                 IAppStateMonitor monitor,
@@ -22,10 +25,17 @@ namespace Api.Features.Apps.Endpoints
             {
                 AppNameValidator.Validate(name);
 
-                // Resolve against the raw container list so hidden apps still count as existing.
-                await appService.ResolveAppContainersAsync(name, cancellationToken).ConfigureAwait(false);
+                // Resolve against the raw container list so hidden apps still count as existing;
+                // shortcuts live in the settings file and are resolved the same way.
+                if (await appService.TryResolveAppAsync(name, cancellationToken).ConfigureAwait(false))
+                {
+                    settingsStore.SetAppHidden(name, input.Hidden);
+                }
+                else if (!shortcutService.SetHidden(name, input.Hidden))
+                {
+                    throw new NotFoundException($"The app '{name}' was not found.");
+                }
 
-                settingsStore.SetAppHidden(name, input.Hidden);
                 await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();
             });

@@ -111,6 +111,14 @@ export const AppCard = ({
         onSelect: () => setEditing(true),
       },
       {
+        id: 'hide',
+        label: 'Hide',
+        icon: <EyeOff className="size-4" aria-hidden="true" />,
+        isLoading: setVisibility.isPending,
+        onSelect: () =>
+          void setVisibility.mutate({ name: app.name, hidden: true }),
+      },
+      {
         id: 'delete',
         label: 'Delete',
         icon: <Trash2 className="size-4" aria-hidden="true" />,

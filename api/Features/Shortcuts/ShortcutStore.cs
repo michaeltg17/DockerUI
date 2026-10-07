@@ -75,6 +75,9 @@ internal sealed class ShortcutStore(
         if (!string.IsNullOrWhiteSpace(shortcut.Icon))
             node["Icon"] = shortcut.Icon;
 
+        if (shortcut.Hidden)
+            node["Hidden"] = true;
+
         return node;
     }
 }

@@ -181,9 +181,9 @@ namespace Api.Features.Apps
 
             apps.RemoveAll(app =>
             {
-                var isHidden = appSettings is not null && appSettings.TryGetValue(app.Name, out var perApp)
-                    ? perApp.Hidden
-                    : selfProject is not null && string.Equals(app.Name, selfProject, StringComparison.Ordinal);
+                var isSelf = selfProject is not null && string.Equals(app.Name, selfProject, StringComparison.Ordinal);
+                var isHidden = isSelf
+                    || (appSettings is not null && appSettings.TryGetValue(app.Name, out var perApp) && perApp.Hidden);
 
                 if (isHidden)
                     hidden.Add(app);

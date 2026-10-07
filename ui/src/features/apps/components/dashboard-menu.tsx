@@ -1,6 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Eye,
   EyeOff,
   Palette,
   Pencil,
@@ -17,15 +15,14 @@ import { Spinner } from '@/components/ui/spinner';
 import { useTheme } from '@/hooks/use-theme';
 import { themes, type Theme } from '@/lib/theme';
 
-import { restartSelf, setSelfVisibility, stopSelf } from '../api/self-actions';
-import { APPS_QUERY_KEY, useApps } from '../hooks/use-apps';
+import { restartSelf, stopSelf } from '../api/self-actions';
 import { useSettings } from '../hooks/use-settings';
 
 const themeLabels: Record<Theme, string> = {
   light: 'Light',
   dark: 'Dark',
-  docker: 'Docker',
-  'docker-v2': 'Docker V2',
+  docker: 'Dark blue',
+  'docker-v2': 'Docker',
 };
 
 const RESTART_TIMEOUT_MS = 120_000;
@@ -51,23 +48,11 @@ export const DashboardMenu = ({
 }: DashboardMenuProps) => {
   const { theme, setTheme } = useTheme();
   const { data: settings } = useSettings();
-  const { data: apps } = useApps();
-  const queryClient = useQueryClient();
   const [selfAction, setSelfAction] = useState<'restarting' | 'stopped' | null>(
     null,
   );
 
   const selfProject = settings?.self ?? null;
-  const selfVisible =
-    selfProject !== null &&
-    (apps ?? []).some((app) => app.name === selfProject);
-
-  const setVisibility = useMutation({
-    mutationFn: (hidden: boolean) => setSelfVisibility(hidden),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
-    },
-  });
 
   const waitForDashboard = async () => {
     const deadline = Date.now() + RESTART_TIMEOUT_MS;
@@ -161,19 +146,6 @@ export const DashboardMenu = ({
         selected: theme === t,
         onSelect: () => setTheme(t),
       })),
-    },
-    {
-      id: 'toggle-visibility',
-      label: selfVisible ? 'Hide Docker UI' : 'Show Docker UI',
-      icon: selfVisible ? (
-        <EyeOff className="size-4" aria-hidden="true" />
-      ) : (
-        <Eye className="size-4" aria-hidden="true" />
-      ),
-      disabled: selfProject === null,
-      isLoading: setVisibility.isPending,
-      // Toggling: the new 'hidden' value is the current visibility state.
-      onSelect: () => void setVisibility.mutate(selfVisible),
     },
     {
       id: 'power',

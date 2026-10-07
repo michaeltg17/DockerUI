@@ -1,8 +1,8 @@
-import { Check, Search, X } from 'lucide-react';
+import { Check, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 
 import { AppIcon } from './app-icon';
 
@@ -31,17 +31,9 @@ export const IconPickerDialog = ({
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // The base dialog focuses the search box on open.
     searchRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   const visibleIcons = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -51,89 +43,64 @@ export const IconPickerDialog = ({
     );
   }, [icons, search]);
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-6"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+  return (
+    <Dialog
+      title="Choose an icon"
+      layered
+      onClose={onClose}
+      className="flex max-h-[80vh] max-w-2xl flex-col"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Choose an icon"
-        className="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-background shadow-lg"
-      >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold">Choose an icon</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
+      <div className="flex items-center gap-2 border-b border-border p-3">
+        <div className="relative min-w-0 flex-1">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <input
+            ref={searchRef}
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search icons by name"
+            placeholder="Search icons by name"
+            className={searchInputClasses}
+          />
         </div>
-
-        <div className="flex items-center gap-2 border-b border-border p-3">
-          <div className="relative min-w-0 flex-1">
-            <Search
-              className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <input
-              ref={searchRef}
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              aria-label="Search icons by name"
-              placeholder="Search icons by name"
-              className={searchInputClasses}
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onSelect(null)}
-          >
-            None
-          </Button>
-        </div>
-
-        <div className="grid flex-1 grid-cols-3 content-start gap-2 overflow-auto p-4 sm:grid-cols-4">
-          {visibleIcons.map((path) => (
-            <button
-              key={path}
-              type="button"
-              onClick={() => onSelect(path)}
-              title={iconLabel(path)}
-              className="relative flex flex-col items-center gap-2 rounded-lg p-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <AppIcon
-                icon={path}
-                name={iconLabel(path)}
-                className="size-24 text-3xl"
-              />
-              <span className="max-w-full truncate text-xs text-muted-foreground">
-                {iconLabel(path)}
-              </span>
-              {selected === path && (
-                <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <Check className="size-3" aria-hidden="true" />
-                </span>
-              )}
-            </button>
-          ))}
-          {visibleIcons.length === 0 && (
-            <p className="col-span-full py-8 text-center text-sm text-muted-foreground">
-              No icons match &ldquo;{search.trim()}&rdquo;.
-            </p>
-          )}
-        </div>
+        <Button type="button" variant="outline" onClick={() => onSelect(null)}>
+          None
+        </Button>
       </div>
-    </div>,
-    document.body,
+
+      <div className="grid flex-1 grid-cols-3 content-start gap-2 overflow-auto p-4 sm:grid-cols-4">
+        {visibleIcons.map((path) => (
+          <button
+            key={path}
+            type="button"
+            onClick={() => onSelect(path)}
+            title={iconLabel(path)}
+            className="relative flex flex-col items-center gap-2 rounded-lg p-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <AppIcon
+              icon={path}
+              name={iconLabel(path)}
+              className="size-24 text-3xl"
+            />
+            <span className="max-w-full truncate text-xs text-muted-foreground">
+              {iconLabel(path)}
+            </span>
+            {selected === path && (
+              <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Check className="size-3" aria-hidden="true" />
+              </span>
+            )}
+          </button>
+        ))}
+        {visibleIcons.length === 0 && (
+          <p className="col-span-full py-8 text-center text-sm text-muted-foreground">
+            No icons match &ldquo;{search.trim()}&rdquo;.
+          </p>
+        )}
+      </div>
+    </Dialog>
   );
 };

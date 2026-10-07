@@ -45,7 +45,6 @@ internal static class EndpointsMapper
         var self = app.MapGroup(SelfPath);
         RestartSelfEndpoint.Map(self);
         StopSelfEndpoint.Map(self);
-        SetSelfVisibilityEndpoint.Map(self);
 
         app.MapHub<AppAppsHub>(AppsHubPath);
 

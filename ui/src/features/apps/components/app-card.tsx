@@ -192,7 +192,7 @@ export const AppCard = ({
           aria-hidden="true"
         />
       ),
-      disabled: isBusy,
+      disabled: isBusy || !isRunning,
       isLoading: restartApp.isPending,
       onSelect: () => void restartApp.mutate(app.name),
     },

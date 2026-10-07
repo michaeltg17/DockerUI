@@ -806,7 +806,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
-    public async Task Context_menu_of_stopped_app_disables_stop()
+    public async Task Context_menu_of_stopped_app_disables_stop_and_restart()
     {
         await using var context = await browser.NewContextAsync();
         var apps = new AppsPage(await context.NewPageAsync());
@@ -816,7 +816,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenCardMenuAsync("stopped-stack");
         (await AppsPage.MenuItem(menu, "Start").IsDisabledAsync()).Should().BeFalse();
         (await AppsPage.MenuItem(menu, "Stop").IsDisabledAsync()).Should().BeTrue();
-        (await AppsPage.MenuItem(menu, "Restart").IsDisabledAsync()).Should().BeFalse();
+        (await AppsPage.MenuItem(menu, "Restart").IsDisabledAsync()).Should().BeTrue("because restarting a stopped app would only start it");
     }
 
     [Fact]

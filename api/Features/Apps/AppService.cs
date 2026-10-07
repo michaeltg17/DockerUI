@@ -29,20 +29,29 @@ namespace Api.Features.Apps
                 .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
             var apps = visible.ToList();
 
-            apps.AddRange(BuildShortcutApps());
+            var (shortcutApps, _) = BuildShortcutApps();
+            apps.AddRange(shortcutApps);
 
             return AppCatalog.OrderApps(apps, settings);
         }
 
-        /// <summary>The apps currently hidden from the dashboard (explicitly hidden, or the dashboard's own project by default).</summary>
+        /// <summary>The apps currently hidden from the dashboard: hidden apps and hidden shortcuts.</summary>
         public async Task<IReadOnlyList<AppDto>> GetHiddenAppsAsync(CancellationToken cancellationToken = default)
         {
             var settings = CurrentSettings;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+            var selfProject = ResolveSelfProject(snapshots);
             var (_, hidden) = AppCatalog
-                .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
+                .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, selfProject);
 
-            return AppCatalog.OrderApps([.. hidden], settings);
+            // The dashboard's own project is always hidden with no way to show it, so it is not listed.
+            var hiddenApps = hidden
+                .Where(app => !string.Equals(app.Name, selfProject, StringComparison.Ordinal))
+                .ToList();
+
+            var (_, hiddenShortcuts) = BuildShortcutApps();
+
+            return AppCatalog.OrderApps([.. hiddenApps, .. hiddenShortcuts], settings);
         }
 
         public async Task<AppDto> GetAppAsync(string appName, CancellationToken cancellationToken)
@@ -62,6 +71,13 @@ namespace Api.Features.Apps
                 : targets;
         }
 
+        /// <summary>Whether a docker app (stack or standalone container) exists under the given name, hidden or not.</summary>
+        public async Task<bool> TryResolveAppAsync(string appName, CancellationToken cancellationToken)
+        {
+            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+            return AppCatalog.ResolveApp(snapshots, appName).Count > 0;
+        }
+
         /// <summary>The compose project this dashboard runs in, or null when not running in a container.</summary>
         public async Task<string?> GetSelfProjectAsync(CancellationToken cancellationToken)
         {
@@ -70,16 +86,17 @@ namespace Api.Features.Apps
         }
 
         /// <summary>User-defined shortcuts, surfaced as always-available apps in the same grid as the docker stacks.</summary>
-        List<AppDto> BuildShortcutApps()
+        (IReadOnlyList<AppDto> Visible, IReadOnlyList<AppDto> Hidden) BuildShortcutApps()
         {
-            var apps = new List<AppDto>();
+            var visible = new List<AppDto>();
+            var hidden = new List<AppDto>();
 
             foreach (var shortcut in shortcutStore.Load())
             {
                 if (!Uri.TryCreate(shortcut.Url, UriKind.Absolute, out var url))
                     continue;
 
-                apps.Add(new AppDto(
+                var app = new AppDto(
                     shortcut.Name,
                     shortcut.Name,
                     string.IsNullOrWhiteSpace(shortcut.Icon) ? null : shortcut.Icon,
@@ -88,10 +105,12 @@ namespace Api.Features.Apps
                     [])
                 {
                     IsShortcut = true,
-                });
+                };
+
+                (shortcut.Hidden ? hidden : visible).Add(app);
             }
 
-            return apps;
+            return (visible, hidden);
         }
 
         /// <summary>

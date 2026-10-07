@@ -229,7 +229,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
 
         string[] expectedItems =
-            ["Add shortcut", "View logs", "Rename dashboard", "Theme", "Show Docker UI", "Power"];
+            ["Add shortcut", "View logs", "Rename dashboard", "Theme", "Power"];
 
         foreach (var label in expectedItems)
         {
@@ -320,29 +320,6 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
-    public async Task Dashboard_menu_toggles_visibility_of_its_own_stack()
-    {
-        await using var context = await browser.NewContextAsync();
-        var apps = new AppsPage(await context.NewPageAsync());
-        await apps.LoadAsync(environment.BaseUrl);
-        await apps.WaitForAppAsync("web-stack");
-
-        (await apps.Card("basic").CountAsync()).Should().Be(0, "because the dashboard's own stack starts hidden");
-
-        var menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Show Docker UI").ClickAsync();
-
-        // Showing the dashboard persists the setting and makes its own stack appear.
-        await apps.WaitForAppAsync("basic", AppsPage.StateChangeTimeoutMs);
-        await apps.WaitForStateAsync("basic", AppsPage.RunningState);
-
-        menu = await apps.OpenDashboardMenuAsync();
-        await AppsPage.MenuItem(menu, "Hide Docker UI").ClickAsync();
-        await apps.Card("basic").WaitForAsync(
-            new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
-    }
-
-    [Fact]
     public async Task Hiding_an_app_moves_it_to_the_hidden_apps_dialog()
     {
         await using var context = await browser.NewContextAsync();
@@ -364,6 +341,57 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // Showing it from the dialog brings the card back to the dashboard.
         await AppsPage.ShowHiddenAppAsync(dialog, "web-stack");
         await apps.WaitForAppAsync("web-stack");
+    }
+
+    [Fact]
+    public async Task Hiding_a_shortcut_moves_it_to_the_hidden_apps_dialog()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Eta";
+        await apps.CreateShortcutAsync(name, "https://example.com/eta");
+        await apps.WaitForAppAsync(name);
+
+        // Hiding from the shortcut's own menu removes its card from the dashboard.
+        await apps.HideAppAsync(name);
+        (await apps.Card(name).CountAsync()).Should().Be(0, "because the shortcut was hidden");
+
+        // The hidden state is persisted into the scenario's appsettings.json.
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+        using (var document = JsonDocument.Parse(
+                   await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken)))
+        {
+            var stored = document.RootElement
+                .GetProperty("DockerUI")
+                .GetProperty("Shortcuts")
+                .EnumerateArray()
+                .SingleOrDefault(element =>
+                    element.TryGetProperty("Name", out var shortcutName) &&
+                    string.Equals(shortcutName.GetString(), name, StringComparison.Ordinal));
+
+            stored.ValueKind.Should().Be(JsonValueKind.Object, "because the hidden shortcut is stored in appsettings");
+            stored.GetProperty("Hidden").GetBoolean().Should().BeTrue();
+        }
+
+        // The dashboard menu's "View hidden apps" then lists it.
+        var dialog = await apps.OpenHiddenAppsDialogAsync();
+        await dialog.WaitForAsync();
+        await dialog
+            .GetByText(name, new LocatorGetByTextOptions { Exact = true })
+            .WaitForAsync();
+
+        // Showing it from the dialog brings the card back to the dashboard.
+        await AppsPage.ShowHiddenAppAsync(dialog, name);
+
+        // Close the dialog so the card menu is clickable again.
+        await apps.ClickDialogBackdropAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await apps.WaitForAppAsync(name);
+        await apps.DeleteShortcutAsync(name);
     }
 
     [Fact]

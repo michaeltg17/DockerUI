@@ -124,6 +124,41 @@ internal sealed class SettingsStore(
         }
     }
 
+    /// <summary>
+    /// Renames an entry in the custom display order so a renamed app (e.g. a shortcut)
+    /// keeps its position. Does nothing when there is no custom order.
+    /// </summary>
+    public void RenameInAppOrder(string oldName, string newName)
+    {
+        lock (gate)
+        {
+            var settings = LoadSettings();
+
+            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
+            settings[DockerUISettings.Section] = section;
+
+            if (section["Order"] is not JsonArray order)
+                return;
+
+            var changed = false;
+            for (var i = 0; i < order.Count; i++)
+            {
+                if (order[i]?.GetValue<string>() is { } entry &&
+                    string.Equals(entry, oldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    order[i] = newName;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                SaveSettings(settings);
+                configurationRoot.Reload();
+            }
+        }
+    }
+
     JsonObject LoadSettings()
     {
         JsonNode? root = File.Exists(appSettingsPath)

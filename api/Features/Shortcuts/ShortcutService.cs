@@ -2,6 +2,7 @@ using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Endpoints;
 using Api.Features.Apps.Hubs;
+using Api.Features.Settings;
 using Api.Exceptions;
 using Api.Settings;
 using Microsoft.AspNetCore.SignalR;
@@ -14,6 +15,7 @@ namespace Api.Features.Shortcuts
     /// </summary>
     internal sealed class ShortcutService(
         ShortcutStore store,
+        SettingsStore settingsStore,
         AppService appService,
         IHubContext<AppAppsHub> hub,
         IAppStateMonitor monitor)
@@ -57,6 +59,11 @@ namespace Api.Features.Shortcuts
                 Url = url,
                 Icon = NormalizeIcon(input.Icon),
             };
+
+            // A renamed shortcut must keep its place in the user's custom order, so the
+            // order entry is rewritten to the new name before the change is broadcast.
+            if (!string.Equals(name, newName, StringComparison.OrdinalIgnoreCase))
+                settingsStore.RenameInAppOrder(name, newName);
 
             return await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
         }

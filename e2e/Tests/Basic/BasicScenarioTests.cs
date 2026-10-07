@@ -1263,6 +1263,66 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Renaming_a_shortcut_keeps_its_place_in_the_order()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+        const string shortcut = "E2E Order";
+        await apps.CreateShortcutAsync(shortcut, "https://example.com/order");
+        await apps.WaitForAppAsync(shortcut);
+
+        // Pin the shortcut to the front with an explicit order so its position is user-defined.
+        var names = await apps.CardNamesAsync();
+        var pinned = new List<string> { shortcut };
+        pinned.AddRange(names.Where(name => name != shortcut));
+
+        using var client = new HttpClient();
+        using var content = new StringContent(
+            JsonSerializer.Serialize(new { order = pinned }),
+            Encoding.UTF8,
+            "application/json");
+        var response = await client.PutAsync(
+            new Uri(environment.BaseUrl, "api/apps/order"),
+            content,
+            cancellationToken);
+        response.IsSuccessStatusCode.Should().BeTrue("because the order endpoint accepts the pinned order");
+        await apps.WaitForCardOrderAsync(pinned);
+
+        // Rename the shortcut from its card; the pinned position must be preserved.
+        const string renamed = "E2E Renamed";
+        var menu = await apps.OpenCardMenuAsync(shortcut);
+        await AppsPage.MenuItem(menu, "Edit").ClickAsync();
+
+        var dialog = apps.ShortcutDialog($"Edit {shortcut}");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync(renamed);
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Save", Exact = true })
+            .ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        var expected = new List<string> { renamed };
+        expected.AddRange(pinned.Skip(1));
+        await apps.WaitForCardOrderAsync(expected);
+
+        // Restore the scenario's defaults: delete the shortcut and clear the pinned order.
+        await apps.DeleteShortcutAsync(renamed);
+
+        using var clearContent = new StringContent("{\"order\":[]}", Encoding.UTF8, "application/json");
+        var clearResponse = await client.PutAsync(
+            new Uri(environment.BaseUrl, "api/apps/order"),
+            clearContent,
+            cancellationToken);
+        clearResponse.IsSuccessStatusCode.Should().BeTrue("because the order endpoint accepts an empty order");
+    }
+
+    [Fact]
     public async Task Shortcut_dialog_keeps_unsaved_changes_when_clicking_outside()
     {
         await using var context = await browser.NewContextAsync();

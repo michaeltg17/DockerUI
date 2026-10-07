@@ -1,8 +1,9 @@
-import { Search, Ship } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Search, Ship, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
 import { Spinner } from '@/components/ui/spinner';
+import { cn } from '@/utils/cn';
 
 import { getLogs } from './api/get-logs';
 import { AppsGrid } from './components/apps-grid';
@@ -21,6 +22,7 @@ export const AppsPage = () => {
   const setOrder = useSetAppOrder();
   const { data: settings } = useSettings();
   const [query, setQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [logsOpen, setLogsOpen] = useState(false);
   const [shortcutOpen, setShortcutOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -51,12 +53,29 @@ export const AppsPage = () => {
               aria-hidden="true"
             />
             <input
+              ref={searchInputRef}
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search apps…"
-              className="h-9 w-56 rounded-md border border-input bg-card pl-9 pr-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-64"
+              className={cn(
+                'h-9 w-56 rounded-md border border-input bg-card pl-9 pr-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-64',
+                hasQuery && 'pr-8',
+              )}
             />
+            {hasQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery('');
+                  searchInputRef.current?.focus();
+                }}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            )}
           </label>
           <div aria-hidden="true" />
         </div>

@@ -81,6 +81,11 @@ const EditAppDialogForm = ({
 
   const canSave = isSaveableUrl(url) && !isSaving;
 
+  // An empty url is allowed (auto-detect); only a non-empty invalid one is an error.
+  const urlError = !isSaveableUrl(url)
+    ? 'Enter a valid URL, e.g. https://example.com.'
+    : null;
+
   // Anything that would survive a save differs from what was shown on open;
   // while that is the case the backdrop must not close the dialog and lose it.
   const dirty =
@@ -152,6 +157,7 @@ const EditAppDialogForm = ({
               <input
                 type="text"
                 inputMode="url"
+                aria-invalid={urlError !== null}
                 value={url}
                 onChange={(event) => {
                   setUrl(event.target.value);
@@ -160,6 +166,9 @@ const EditAppDialogForm = ({
                 placeholder="Leave empty to auto-detect"
                 className={fieldClasses}
               />
+              {urlError && (
+                <p className="text-xs text-destructive">{urlError}</p>
+              )}
             </label>
           </div>
         </div>

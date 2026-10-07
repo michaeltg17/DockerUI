@@ -101,13 +101,13 @@ const ShortcutDialogForm = ({
     url.trim() !== initialUrl.trim() ||
     (icon === '' ? null : icon) !== initialIcon;
 
-  // While saving is blocked, say why: the disabled button would otherwise
-  // leave the user guessing what is missing.
-  const saveHint =
-    !canSave && !isSaving
-      ? trimmedName.length === 0
-        ? 'Enter a name.'
-        : 'Enter a valid URL, e.g. https://example.com.'
+  // While saving is blocked, say why below the offending field: the disabled
+  // button would otherwise leave the user guessing what is missing. The name is
+  // checked first, so its message wins until the name is filled in.
+  const nameError = trimmedName.length === 0 ? 'Enter a name.' : null;
+  const urlError =
+    nameError === null && !isSaveableUrl(url)
+      ? 'Enter a valid URL, e.g. https://example.com.'
       : null;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -163,6 +163,7 @@ const ShortcutDialogForm = ({
                 ref={nameInputRef}
                 type="text"
                 required
+                aria-invalid={nameError !== null}
                 value={name}
                 onChange={(event) => {
                   setName(event.target.value);
@@ -171,6 +172,9 @@ const ShortcutDialogForm = ({
                 placeholder="e.g. GitHub"
                 className={fieldClasses}
               />
+              {nameError && (
+                <p className="text-xs text-destructive">{nameError}</p>
+              )}
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm">
@@ -179,6 +183,7 @@ const ShortcutDialogForm = ({
                 type="text"
                 inputMode="url"
                 required
+                aria-invalid={urlError !== null}
                 value={url}
                 onChange={(event) => {
                   setUrl(event.target.value);
@@ -187,15 +192,14 @@ const ShortcutDialogForm = ({
                 placeholder="e.g. https://example.com or example.com"
                 className={fieldClasses}
               />
+              {urlError && (
+                <p className="text-xs text-destructive">{urlError}</p>
+              )}
             </label>
           </div>
         </div>
 
         <div className="flex flex-col gap-2 pt-1">
-          {saveHint && (
-            <p className="text-sm text-muted-foreground">{saveHint}</p>
-          )}
-
           {error && (
             <p
               role="alert"

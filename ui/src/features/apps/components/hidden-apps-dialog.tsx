@@ -101,7 +101,7 @@ const HiddenAppsDialogContent = ({ onClose }: { onClose: () => void }) => {
                 <div className="relative">
                   <AppIcon
                     icon={app.icon}
-                    name={app.name}
+                    name={app.displayName}
                     className="size-24 text-3xl"
                   />
                   {/* The eye is the affordance for re-showing the app on hover. */}
@@ -115,7 +115,7 @@ const HiddenAppsDialogContent = ({ onClose }: { onClose: () => void }) => {
                   </span>
                 </div>
                 <h3 className="max-w-full truncate text-sm font-medium">
-                  {app.name}
+                  {app.displayName}
                 </h3>
               </button>
             ))}

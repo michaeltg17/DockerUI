@@ -1,6 +1,7 @@
 ﻿using Api.Features.Apps.Endpoints;
 using Api.Features.Apps.Hubs;
 using Api.Features.Health;
+using Api.Features.Lan.Endpoints;
 using Api.Features.Logging;
 using Api.Features.Self;
 using Api.Features.Settings;
@@ -16,6 +17,7 @@ internal static class EndpointsMapper
     public const string AppsHubPath = $"{AppsPath}/hub";
     public const string ShortcutsPath = $"{BasePath}/shortcuts";
     public const string SelfPath = $"{BasePath}/self";
+    public const string LanPath = $"{BasePath}/lan";
 
     public static WebApplication MapEndpoints(this WebApplication app)
     {
@@ -41,6 +43,10 @@ internal static class EndpointsMapper
         CreateShortcutEndpoint.Map(shortcuts);
         UpdateShortcutEndpoint.Map(shortcuts);
         DeleteShortcutEndpoint.Map(shortcuts);
+
+        var lan = app.MapGroup(LanPath);
+        ScanLanEndpoint.Map(lan);
+        RescanLanEndpoint.Map(lan);
 
         var self = app.MapGroup(SelfPath);
         RestartSelfEndpoint.Map(self);

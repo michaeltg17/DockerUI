@@ -19,6 +19,7 @@ import {
   useStartApp,
   useStopApp,
 } from '../hooks/use-apps';
+import { useRescanLan } from '../hooks/use-lan';
 import { useDeleteShortcut } from '../hooks/use-shortcuts';
 import type { App } from '../types';
 
@@ -58,6 +59,7 @@ export const AppCard = ({
   const restartApp = useRestartApp();
   const setVisibility = useSetAppVisibility();
   const deleteShortcut = useDeleteShortcut();
+  const rescanLan = useRescanLan();
   const [logsOpen, setLogsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -102,8 +104,21 @@ export const AppCard = ({
     }
   };
 
-  if (app.isShortcut) {
+  if (app.source !== 'docker') {
+    const isLan = app.source === 'lan';
+
     const shortcutActions: AppMenuItem[] = [
+      ...(isLan
+        ? [
+            {
+              id: 'rescan',
+              label: 'Rescan',
+              icon: <RefreshCw className="size-4" aria-hidden="true" />,
+              isLoading: rescanLan.isPending,
+              onSelect: () => void rescanLan.mutate(app.name),
+            },
+          ]
+        : []),
       {
         id: 'edit',
         label: 'Edit',
@@ -130,7 +145,10 @@ export const AppCard = ({
     return (
       <>
         <div className="relative size-full">
-          <AppMenu label={`Actions for ${app.name}`} items={shortcutActions}>
+          <AppMenu
+            label={`Actions for ${app.displayName}`}
+            items={shortcutActions}
+          >
             <button
               type="button"
               onClick={openUrl}
@@ -141,11 +159,11 @@ export const AppCard = ({
             >
               <AppIcon
                 icon={app.icon}
-                name={app.name}
+                name={app.displayName}
                 className="size-24 text-3xl"
               />
               <h3 className="max-w-full truncate text-sm font-medium">
-                {app.name}
+                {app.displayName}
               </h3>
             </button>
           </AppMenu>

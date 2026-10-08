@@ -94,6 +94,16 @@ namespace Api.Features.Shortcuts
             await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Persists the given (already validated) shortcut list and broadcasts. The LAN scan uses
+        /// this to add many shortcuts and apply enrichment in a single write.
+        /// </summary>
+        public async Task<IReadOnlyList<Shortcut>> SaveManyAsync(List<Shortcut> shortcuts, CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(shortcuts);
+            return await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
+        }
+
         static int FindIndex(List<Shortcut> shortcuts, string name) =>
             shortcuts.FindIndex(shortcut => string.Equals(shortcut.Name, name, StringComparison.OrdinalIgnoreCase));
 

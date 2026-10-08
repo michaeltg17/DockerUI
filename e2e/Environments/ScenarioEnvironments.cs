@@ -23,3 +23,11 @@ public sealed class ErrorEnvironment : ScenarioEnvironment
     {
     }
 }
+
+/// <summary>The <see cref="ScenarioEnvironment"/> for the LAN discovery scenario (on-demand scan).</summary>
+public sealed class LanEnvironment : ScenarioEnvironment
+{
+    public LanEnvironment() : base(Scenarios.Lan)
+    {
+    }
+}

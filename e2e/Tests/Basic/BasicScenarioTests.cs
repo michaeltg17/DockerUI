@@ -229,7 +229,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
 
         string[] expectedItems =
-            ["Add shortcut", "View logs", "Rename", "Theme", "Restart"];
+            ["Add shortcut", "Scan LAN", "View logs", "Rename", "Theme", "Restart"];
 
         foreach (var label in expectedItems)
         {

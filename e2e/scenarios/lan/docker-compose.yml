@@ -1,0 +1,36 @@
+# The dashboard and a demo web service share a private /28 so the on-demand LAN scan has a
+# known subnet to probe. The dashboard hides its own compose project, so only the scanned
+# shortcut (172.30.0.2) shows up on the grid.
+networks:
+  lan_net:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/28
+
+services:
+  docker-ui:
+    image: docker-ui-e2e:latest
+    container_name: docker-ui-e2e-lan
+    ports:
+      - "5013:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Read-write: the LAN scan persists discovered shortcuts into this file.
+      - ./appsettings.json:/app/appsettings.json
+    depends_on:
+      - lan-demo
+    networks:
+      lan_net:
+        ipv4_address: 172.30.0.3
+
+  # A minimal HTTP server on a fixed address; the LAN scan must discover it on port 80 and
+  # enrich the card with its page title.
+  lan-demo:
+    image: busybox:1.36
+    container_name: e2e-lan-demo
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "mkdir -p /www && echo '<!doctype html><html><head><title>E2E LAN Service</title></head><body>LAN demo</body></html>' > /www/index.html && exec httpd -f -p 80 -h /www"
+    networks:
+      lan_net:
+        ipv4_address: 172.30.0.2

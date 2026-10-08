@@ -34,11 +34,17 @@ internal sealed class SettingsStore(
 
             var entry = apps[appName] as JsonObject ?? [];
 
-            // Always write the explicit value: a shown app must keep a 'Hidden: false'
-            // entry, otherwise the dashboard's own project would fall back to its
-            // default-hidden state.
-            entry["Hidden"] = hidden;
-            apps[appName] = entry;
+            // The default is false, so only the non-default value is persisted; the
+            // dashboard's own project stays hidden by self-detection, not by settings.
+            if (hidden)
+                entry["Hidden"] = true;
+            else
+                entry.Remove("Hidden");
+
+            if (entry.Count == 0)
+                apps.Remove(appName);
+            else
+                apps[appName] = entry;
 
             SaveSettings(settings);
             configurationRoot.Reload();

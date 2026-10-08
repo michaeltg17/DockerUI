@@ -331,6 +331,18 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // Showing it from the dialog brings the card back to the dashboard.
         await AppsPage.ShowHiddenAppAsync(dialog, "web-stack");
         await apps.WaitForAppAsync("web-stack");
+
+        // Showing it again drops the 'Hidden' override entirely: false is the default,
+        // so the settings file stays free of redundant entries.
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+        using var document = JsonDocument.Parse(
+            await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken));
+        var hasHiddenOverride = document.RootElement
+            .TryGetProperty("DockerUI", out var dockerUi) &&
+            dockerUi.TryGetProperty("Apps", out var appsSection) &&
+            appsSection.TryGetProperty("web-stack", out var webStack) &&
+            webStack.TryGetProperty("Hidden", out _);
+        hasHiddenOverride.Should().BeFalse("because the default 'Hidden: false' is not persisted");
     }
 
     [Fact]

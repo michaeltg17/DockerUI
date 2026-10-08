@@ -152,7 +152,16 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             var url = new Uri("http://localhost:8081/e2e-log-check");
             for (var i = 0; i < 300; i++)
             {
-                using var response = await client.GetAsync(url, cancellationToken);
+                // nginx may still be reloading right after the config change, so an
+                // early connection can be reset; a few failures are fine because the
+                // wait below polls until generated lines reach the container log.
+                try
+                {
+                    using var response = await client.GetAsync(url, cancellationToken);
+                }
+                catch (HttpRequestException)
+                {
+                }
             }
 
             // Wait until a generated line is within the tail the dialog will fetch. The reload
@@ -355,16 +364,31 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForAppAsync("web-stack");
 
         // Showing it again drops the 'Hidden' override entirely: false is the default,
-        // so the settings file stays free of redundant entries.
+        // so the settings file stays free of redundant entries. Poll because the
+        // container's write is only visible to the host once file sharing catches up.
         var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
-        using var document = JsonDocument.Parse(
-            await File.ReadAllTextAsync(appSettingsPath, TestContext.Current.CancellationToken));
-        var hasHiddenOverride = document.RootElement
-            .TryGetProperty("DockerUI", out var dockerUi) &&
-            dockerUi.TryGetProperty("Apps", out var appsSection) &&
-            appsSection.TryGetProperty("web-stack", out var webStack) &&
-            webStack.TryGetProperty("Hidden", out _);
-        hasHiddenOverride.Should().BeFalse("because the default 'Hidden: false' is not persisted");
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+
+        while (true)
+        {
+            using var document = JsonDocument.Parse(
+                await File.ReadAllTextAsync(appSettingsPath, cancellationToken));
+            var hasHiddenOverride = document.RootElement
+                .TryGetProperty("DockerUI", out var dockerUi) &&
+                dockerUi.TryGetProperty("Apps", out var appsSection) &&
+                appsSection.TryGetProperty("web-stack", out var webStack) &&
+                webStack.TryGetProperty("Hidden", out _);
+
+            if (!hasHiddenOverride)
+                break;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException(
+                    "The 'Hidden' override was not removed from appsettings after showing the app.");
+
+            await Task.Delay(200, cancellationToken);
+        }
     }
 
     [Fact]

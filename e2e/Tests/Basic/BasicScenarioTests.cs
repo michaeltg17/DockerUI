@@ -193,6 +193,28 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             (await logArea.EvaluateAsync<bool>(
                    "(el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2"))
                 .Should().BeTrue("because the dialog starts at the most recent logs");
+
+            // Reopening shows the cached logs immediately, so the dialog must still
+            // start pinned to the most recent lines rather than at the top.
+            await apps.ClickDialogBackdropAsync();
+            await dialog.WaitForAsync(
+                new LocatorWaitForOptions
+                {
+                    State = WaitForSelectorState.Hidden,
+                    Timeout = AppsPage.StateChangeTimeoutMs,
+                });
+
+            var reopenedMenu = await apps.OpenCardMenuAsync("web-stack");
+            await AppsPage.MenuItem(reopenedMenu, "View logs").ClickAsync();
+            await dialog.WaitForAsync();
+            await dialog
+                .GetByText("e2e-log-check")
+                .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+            (await logArea.EvaluateAsync<bool>(
+                   "(el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2"))
+                .Should().BeTrue(
+                    "because reopening the logs stays pinned to the most recent lines");
         }
         finally
         {

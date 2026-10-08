@@ -37,16 +37,49 @@ export const LogsDialog = ({
     fetchLogs,
   );
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLPreElement>(null);
+  // While true the view stays pinned to the newest lines; the user scrolling
+  // up releases the pin so their position is respected.
+  const stickToBottomRef = useRef(true);
 
-  // Start at the most recent lines once the logs have loaded.
+  // Re-arm the pin every time the dialog opens, so a freshly mounted scroll
+  // area starts at the end even when the logs are served from the cache.
   useEffect(() => {
-    if (!data?.logs) return;
+    if (open) stickToBottomRef.current = true;
+  }, [open]);
 
-    const element = scrollRef.current;
-    if (element) {
-      element.scrollTop = element.scrollHeight;
-    }
-  }, [data]);
+  // Pin to the most recent lines as the content is laid out and grows. A
+  // requestAnimationFrame covers the initial layout and a ResizeObserver
+  // covers late reflows (font swap) and appended log lines.
+  useEffect(() => {
+    if (!open) return;
+
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+
+    const stick = () => {
+      if (stickToBottomRef.current) scroller.scrollTop = scroller.scrollHeight;
+    };
+    stick();
+    const frame = requestAnimationFrame(stick);
+
+    const content = contentRef.current;
+    if (!content) return () => cancelAnimationFrame(frame);
+
+    const observer = new ResizeObserver(stick);
+    observer.observe(content);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [open, data]);
+
+  const releasePinIfScrolledUp = () => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    stickToBottomRef.current =
+      scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4;
+  };
 
   if (!open) return null;
 
@@ -56,7 +89,11 @@ export const LogsDialog = ({
       onClose={onClose}
       className="flex max-h-[80vh] max-w-3xl flex-col"
     >
-      <div ref={scrollRef} className="overflow-auto p-4">
+      <div
+        ref={scrollRef}
+        onScroll={releasePinIfScrolledUp}
+        className="overflow-auto p-4"
+      >
         {isPending ? (
           <div className="flex justify-center py-16">
             <Spinner size="xl" />
@@ -80,7 +117,10 @@ export const LogsDialog = ({
             container.
           </p>
         ) : data?.logs ? (
-          <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-5">
+          <pre
+            ref={contentRef}
+            className="whitespace-pre-wrap break-words font-mono text-xs leading-5"
+          >
             {data.logs}
           </pre>
         ) : (

@@ -102,6 +102,7 @@ const HiddenAppsDialogContent = ({ onClose }: { onClose: () => void }) => {
                   <AppIcon
                     icon={app.icon}
                     name={app.displayName}
+                    hue={app.color}
                     className="size-24 text-3xl"
                   />
                   {/* The eye is the affordance for re-showing the app on hover. */}

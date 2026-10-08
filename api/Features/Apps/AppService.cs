@@ -103,7 +103,8 @@ namespace Api.Features.Apps
                     AppState.Running,
                     url,
                     [],
-                    shortcut.Source == ShortcutSource.Lan ? AppSource.Lan : AppSource.Shortcut);
+                    shortcut.Source == ShortcutSource.Lan ? AppSource.Lan : AppSource.Shortcut,
+                    shortcut.Color);
 
                 (shortcut.Hidden ? hidden : visible).Add(app);
             }

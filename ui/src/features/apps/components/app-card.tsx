@@ -7,7 +7,7 @@ import {
   Square,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useState, type DragEvent, type MouseEvent } from 'react';
+import { useState, type DragEvent, type MouseEvent } from 'react';
 
 import { AppMenu, type AppMenuItem } from '@/components/ui/app-menu';
 import { cn } from '@/utils/cn';
@@ -32,22 +32,29 @@ type AppCardProps = {
   app: App;
   draggable: boolean;
   isDragging: boolean;
+  /** True while any card is being dragged; suppresses the hover highlight. */
+  dragActive: boolean;
   onDragStart: (event: DragEvent<HTMLButtonElement>) => void;
   onDragEnter: (event: DragEvent<HTMLButtonElement>) => void;
   onDragEnd: (event: DragEvent<HTMLButtonElement>) => void;
 };
 
-const cardClasses =
-  'group flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-
 export const AppCard = ({
   app,
   draggable,
   isDragging,
+  dragActive,
   onDragStart,
   onDragEnter,
   onDragEnd,
 }: AppCardProps) => {
+  const cardClasses = cn(
+    'group flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    // While dragging, the cursor hovers other cards and would light them up;
+    // drop the hover highlight so only the dragged card looks active.
+    !dragActive && 'hover:bg-accent hover:shadow-sm',
+  );
+
   const cardDragProps = {
     draggable,
     onDragStart,
@@ -74,26 +81,9 @@ export const AppCard = ({
   // reports the new state.
   const isDimmed = !isRunning || isStopping || isRestarting;
 
-  // A restart first stops the app and then starts it. Track whether the
-  // stopped phase was observed so the progress bar can switch from red
-  // (stopping) to green (starting).
-  const [restartSawStopped, setRestartSawStopped] = useState(false);
-
-  useEffect(() => {
-    if (!isRestarting) {
-      setRestartSawStopped(false);
-      return;
-    }
-    if (app.state === 'stopped') setRestartSawStopped(true);
-  }, [isRestarting, app.state]);
-
-  const progressColor = isRestarting
-    ? restartSawStopped
-      ? 'bg-green-500'
-      : 'bg-red-500'
-    : isStarting
-      ? 'bg-green-500'
-      : 'bg-red-500';
+  // Starting and restarting both move toward "running" (green); stopping moves
+  // away (red). A restart shows the same green as a start.
+  const progressColor = isStopping ? 'bg-red-500' : 'bg-green-500';
 
   // A left click fires 'click'; a middle (wheel) click fires 'auxclick' instead, so the
   // card listens to both and opens the app in a new tab either way.
@@ -160,6 +150,7 @@ export const AppCard = ({
               <AppIcon
                 icon={app.icon}
                 name={app.displayName}
+                hue={app.color}
                 className="size-24 text-3xl"
               />
               <h3 className="max-w-full truncate text-sm font-medium">
@@ -171,7 +162,12 @@ export const AppCard = ({
         </div>
         <ShortcutDialog
           open={editing}
-          initial={{ name: app.name, icon: app.icon, url: app.url ?? '' }}
+          initial={{
+            name: app.name,
+            icon: app.icon,
+            url: app.url ?? '',
+            color: app.color,
+          }}
           onClose={() => setEditing(false)}
         />
       </>
@@ -246,6 +242,7 @@ export const AppCard = ({
               <AppIcon
                 icon={app.icon}
                 name={app.displayName}
+                hue={app.color}
                 className={cn(
                   'size-24 text-3xl transition-[filter] duration-200',
                   isDimmed && 'brightness-50',

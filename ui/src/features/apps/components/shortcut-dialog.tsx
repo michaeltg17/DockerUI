@@ -11,7 +11,7 @@ import {
 } from '../hooks/use-shortcuts';
 import type { Shortcut } from '../types';
 
-import { AppIcon } from './app-icon';
+import { AppIcon, getHue } from './app-icon';
 import { IconPickerDialog } from './icon-picker-dialog';
 
 type ShortcutDialogProps = {
@@ -73,6 +73,15 @@ const ShortcutDialogForm = ({
   const [icon, setIcon] = useState(initialIcon ?? '');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameTouched, setNameTouched] = useState(false);
+  const [urlTouched, setUrlTouched] = useState(false);
+
+  // The icon color is decided once so it never shifts while the name is typed:
+  // an edited shortcut keeps its stored color (or the hue its current name
+  // already yields), a new one settles from the name when the name field is left.
+  const [settledHue, setSettledHue] = useState<number | null>(
+    () => initial?.color ?? (isEditing ? getHue(initialName) : null),
+  );
 
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,23 +97,41 @@ const ShortcutDialogForm = ({
     url.trim() !== initialUrl.trim() ||
     (icon === '' ? null : icon) !== initialIcon;
 
-  // While saving is blocked, say why below the offending field: the disabled
-  // button would otherwise leave the user guessing what is missing. The name is
-  // checked first, so its message wins until the name is filled in.
+  // A field's message shows once the user has typed in it or left it, and keeps
+  // showing (recomputed) until the value is valid; both fields validate together
+  // instead of one at a time.
   const nameError = trimmedName.length === 0 ? 'Enter a name.' : null;
-  const urlError =
-    nameError === null && !isValidUrl(url)
-      ? 'Enter a valid URL, e.g. https://example.com.'
-      : null;
+  const urlError = !isValidUrl(url)
+    ? 'Enter a valid URL, e.g. https://example.com.'
+    : null;
+  const showNameError =
+    (name !== initialName || nameTouched) && nameError !== null;
+  const showUrlError = (url !== initialUrl || urlTouched) && urlError !== null;
+
+  // The icon shown in the preview: a settled hue, or the neutral placeholder
+  // hue until a new shortcut's name is first committed.
+  const displayHue = settledHue ?? getHue('?');
+
+  const settleNameHue = () => {
+    setNameTouched(true);
+    if (!isEditing) setSettledHue(getHue(trimmedName || '?'));
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSave) return;
 
+    // Persist the decided color: an edit keeps its existing hue, a create uses
+    // the hue derived from the final name.
+    const color = isEditing
+      ? (initial?.color ?? getHue(initialName))
+      : getHue(trimmedName);
+
     const shortcut: Shortcut = {
       name: trimmedName,
       icon: icon === '' ? null : icon,
       url: normalizeUrl(url),
+      color,
     };
 
     try {
@@ -139,6 +166,7 @@ const ShortcutDialogForm = ({
             <AppIcon
               icon={icon === '' ? null : icon}
               name={trimmedName || '?'}
+              hue={displayHue}
               className="size-24 text-3xl"
             />
           </button>
@@ -151,18 +179,19 @@ const ShortcutDialogForm = ({
                 type="text"
                 required
                 aria-label="Name"
-                aria-invalid={nameError !== null}
+                aria-invalid={showNameError}
                 value={name}
                 onChange={(event) => {
                   setName(event.target.value);
                   setError(null);
                 }}
+                onBlur={settleNameHue}
                 placeholder="e.g. GitHub"
                 className={fieldClasses}
               />
-              {nameError && (
-                <p className="text-xs text-destructive">{nameError}</p>
-              )}
+              <p className="min-h-4 text-xs text-destructive">
+                {showNameError ? nameError : ''}
+              </p>
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm">
@@ -172,18 +201,19 @@ const ShortcutDialogForm = ({
                 inputMode="url"
                 required
                 aria-label="URL"
-                aria-invalid={urlError !== null}
+                aria-invalid={showUrlError}
                 value={url}
                 onChange={(event) => {
                   setUrl(event.target.value);
                   setError(null);
                 }}
+                onBlur={() => setUrlTouched(true)}
                 placeholder="e.g. https://example.com or example.com"
                 className={fieldClasses}
               />
-              {urlError && (
-                <p className="text-xs text-destructive">{urlError}</p>
-              )}
+              <p className="min-h-4 text-xs text-destructive">
+                {showUrlError ? urlError : ''}
+              </p>
             </label>
           </div>
         </div>

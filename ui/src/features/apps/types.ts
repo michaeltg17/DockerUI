@@ -21,10 +21,17 @@ export interface App {
   url: string | null;
   services: AppService[];
   source: AppSource;
+  /**
+   * The hue of the initials icon, persisted for shortcuts so renaming never
+   * changes the color. Null for docker apps (derived from the name) and for
+   * shortcuts that predate the field.
+   */
+  color: number | null;
 }
 
 export interface Shortcut {
   name: string;
   icon: string | null;
   url: string;
+  color: number | null;
 }

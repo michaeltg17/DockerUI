@@ -1203,23 +1203,33 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         (await create.IsEnabledAsync())
             .Should().BeFalse("because the dialog opens with empty fields");
 
-        // The dialog says what is missing instead of leaving the button silently disabled.
+        // No error on first open: a field is only explained once the user has typed in
+        // it or left it, and both fields validate independently.
+        (await dialog.GetByText("Enter a name.", new LocatorGetByTextOptions { Exact = true }).CountAsync())
+            .Should().Be(0, "because an untouched field shows no error");
+
+        var name = dialog.GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true });
+        var url = dialog.GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true });
+
+        // Leaving the empty name field explains why it is required.
+        await name.BlurAsync();
         await dialog.GetByText("Enter a name.", new LocatorGetByTextOptions { Exact = true }).WaitForAsync(
             new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-        await dialog
-            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
-            .FillAsync("E2E Hint");
+        // Typing a valid name clears that hint.
+        await name.FillAsync("E2E Hint");
+        await dialog.GetByText("Enter a name.", new LocatorGetByTextOptions { Exact = true })
+            .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
 
+        // Typing into the empty url field explains why it is required (validate on input).
+        await url.FillAsync("dfdfdf");
         await dialog
             .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         (await create.IsEnabledAsync()).Should().BeFalse("because the url is still missing");
 
-        await dialog
-            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
-            .FillAsync("https://example.com");
-
+        // Typing a valid url clears it and enables Create.
+        await url.FillAsync("https://example.com");
         await dialog
             .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });

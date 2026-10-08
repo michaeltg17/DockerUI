@@ -32,7 +32,7 @@ namespace Api.Features.Shortcuts
             if (shortcuts.Any(shortcut => string.Equals(shortcut.Name, name, StringComparison.OrdinalIgnoreCase)))
                 throw new ConflictException($"A shortcut named '{name}' already exists.");
 
-            shortcuts.Add(new Shortcut(name, url, NormalizeIcon(input.Icon)));
+            shortcuts.Add(new Shortcut(name, url, NormalizeIcon(input.Icon), Color: input.Color));
             return await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
         }
 

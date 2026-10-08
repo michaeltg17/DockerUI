@@ -84,6 +84,9 @@ internal sealed class ShortcutStore(
         if (!string.IsNullOrWhiteSpace(shortcut.DisplayName))
             node["DisplayName"] = shortcut.DisplayName;
 
+        if (shortcut.Color is { } color)
+            node["Color"] = color;
+
         return node;
     }
 }

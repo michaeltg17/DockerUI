@@ -24,6 +24,7 @@ namespace Api.Settings
         string? Icon = null,
         bool Hidden = false,
         string Source = ShortcutSource.Manual,
-        string? DisplayName = null);
+        string? DisplayName = null,
+        int? Color = null);
 #pragma warning restore CA1054, CA1056
 }

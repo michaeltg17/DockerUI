@@ -25,7 +25,8 @@ namespace Api.Features.Apps.Models
         AppState State,
         Uri? Url,
         IReadOnlyList<AppServiceDto> Services,
-        AppSource Source);
+        AppSource Source,
+        int? Color = null);
 
     internal sealed record AppServiceDto(
         string Name,

@@ -38,8 +38,8 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         content.Should().StartWith("<svg");
         content.Should().Contain(
-            "M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6",
-            "because the favicon is the project's ship logo");
+            "<rect x=\"8\" y=\"2.8\" width=\"8\" height=\"2.4\" />",
+            "because the favicon is the project's grid logo");
     }
 
     [Fact]

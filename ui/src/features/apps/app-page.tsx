@@ -35,18 +35,32 @@ export const AppsPage = () => {
   const scanLan = useScanLan();
 
   const runScanLan = () => {
+    // A LAN scan can take a while, so show a persistent notification with a
+    // spinner while it runs and update it in place once the result arrives.
+    const pendingId = useNotifications.getState().addNotification({
+      type: 'info',
+      title: 'Scanning LAN…',
+      message: 'Looking for services on your network.',
+      pending: true,
+    });
+
     void scanLan
       .mutateAsync()
       .then((result) => {
-        useNotifications.getState().addNotification({
+        useNotifications.getState().updateNotification(pendingId, {
           type: 'success',
           title: 'LAN scan complete',
           message: `Found ${result.found} service${
             result.found === 1 ? '' : 's'
           } and added ${result.added} new.`,
+          pending: false,
         });
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // The api-client interceptor already surfaces the error as a toast;
+        // clear the in-progress notification so its spinner doesn't linger.
+        useNotifications.getState().dismissNotification(pendingId);
+      });
   };
 
   const apps = useMemo(() => filterApps(data ?? [], query), [data, query]);

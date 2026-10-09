@@ -1,2 +1,16 @@
 .git/
-api/.vs/DockerUI.slnx/FileContentIndex/*
+bin/
+obj/
+node_modules/
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.env
+*.log
+.github/
+.opencode/
+Dockerfile*
+docker-compose*

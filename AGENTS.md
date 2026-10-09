@@ -34,15 +34,20 @@ through its socket.
 - Central package management: add package versions in the solution's
   `Directory.Packages.props` (`api/` for the API, `e2e/` for tests),
   references in csproj files.
-- C# style: file-scoped namespaces, primary constructors, expression bodies
-  where short. Analysis rules are enforced (`AnalysisMode=AllEnabledByDefault`)
-  and `TreatWarningsAsErrors` is on in both solutions, so the build must stay
-  warning-free.
-- TypeScript: strict mode, `@/` path alias to `ui/src`, kebab-case file and
-  folder names, LF line endings. Tailwind for styling; shadcn-style theme
-  tokens from `index.css`.
 - The API response interceptor in the UI unwraps `response.data`; use the
   `http.get/post` helpers from `ui/src/lib/api-client.ts` for typed calls.
+
+## Code standards
+
+- C#: `using` directives and short type names (not inline fully-qualified
+  names); file-scoped namespaces, primary constructors, expression bodies
+  where short.
+- C#: no magic strings or numbers; prefer `nameof`, constants, or well-named
+  variables.
+- Both solutions build warning-free (`AnalysisMode=AllEnabledByDefault` +
+  `TreatWarningsAsErrors`), so new code must not add analyzer warnings.
+- TypeScript: strict mode, kebab-case files/folders, LF line endings, `@/`
+  alias to `ui/src`, Tailwind with the shadcn-style tokens from `index.css`.
 
 ## Commands
 

@@ -3,8 +3,8 @@
 <div align="center">
   <h1>
     <picture>
-      <source media="(prefers-color-scheme: dark)" src="ui/public/logo-white.svg" />
-      <source media="(prefers-color-scheme: light)" src="ui/public/logo.svg" />
+      <source media="(prefers-color-scheme: dark)" srcset="ui/public/logo-white.svg" />
+      <source media="(prefers-color-scheme: light)" srcset="ui/public/logo.svg" />
       <img src="ui/public/logo.svg" alt="" align="middle" width="48" height="48" />
     </picture>
     Docker UI

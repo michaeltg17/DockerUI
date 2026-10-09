@@ -116,7 +116,7 @@ Commit on `dev` → push `dev` → open (or update) the `dev` → `main` PR.
 When creating or updating the `dev` → `main` PR:
 1. Run `git fetch origin main` first
 2. Compare `origin/main..dev` to identify only the actual new changes.
-3. Check if a PR already exists (use `github_list_pull_requests`).
+3. Check if a PR already exists (`gh pr list --repo michaeltg17/docker-ui --head dev --state open`).
 4. If none exists, create one with title and description summarizing the changes.
 5. If one exists, update its title and description to reflect the actual current diff.
 
@@ -129,7 +129,7 @@ Applies only when the user asks to start the automatic dev cycle.
 - Tasks ready for start developing are the ones in the `ready` column;
   never pick ones in the backlog. Ignore any task assigned to
   `michaeltg17`. Only pick unassigned tasks not in the backlog column.
-- When picking a task, move its card to `in progress`.
+- When picking a task, move its card to `In progress`.
 - Do the work, then commit and push on `dev` and open/update the
   `dev` → `main` PR, following the `## Workflow` instructions above.
 - A task counts as finished when it is committed, pushed, the PR is
@@ -139,8 +139,10 @@ Applies only when the user asks to start the automatic dev cycle.
   `ci.sh`: API Release build, UI lint/type check/build, and the full
   e2e suite against the local Docker daemon), then treat the task as
   done and go to the next one.
-- On finish, move the card to `done`. If the work needs user review,
-  move it to `review` instead, assign it to `michaeltg17`, and leave a
+- On finish, move the card to `Done`. If the work needs user review,
+  move it to `In review` instead, assign it to `michaeltg17`, and leave a
   comment on the task describing what was done and what to review.
+- Card operations (list / move / assign / comment) are provided by the
+  `github-project-board` skill — load it when starting the cycle.
 - Then pick the next eligible task from the `ready` column and repeat;
   stop and report a summary when no eligible tasks remain.

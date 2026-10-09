@@ -38,6 +38,17 @@ export const getErrorMessage = (error: unknown) => {
   return 'Could not save the shortcut. Try again.';
 };
 
+type ShortcutValidation = {
+  name: string | null;
+  url: string | null;
+};
+
+/** Single source of truth for the dialog's field validation. */
+const validateShortcut = (name: string, url: string): ShortcutValidation => ({
+  name: name.trim() ? null : 'Enter a name.',
+  url: isValidUrl(url) ? null : 'Enter a valid URL, e.g. https://example.com.',
+});
+
 const fieldClasses =
   'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
@@ -88,7 +99,9 @@ const ShortcutDialogForm = ({
   const isSaving = addShortcut.isPending || updateShortcut.isPending;
 
   const trimmedName = name.trim();
-  const canSave = trimmedName.length > 0 && isValidUrl(url) && !isSaving;
+  const validation = validateShortcut(name, url);
+  const canSave =
+    validation.name === null && validation.url === null && !isSaving;
 
   // Anything that would survive a save differs from what was shown on open;
   // while that is the case the backdrop must not close the dialog and lose it.
@@ -100,10 +113,7 @@ const ShortcutDialogForm = ({
   // A field's message shows once the user has typed in it or left it, and keeps
   // showing (recomputed) until the value is valid; both fields validate together
   // instead of one at a time.
-  const nameError = trimmedName.length === 0 ? 'Enter a name.' : null;
-  const urlError = !isValidUrl(url)
-    ? 'Enter a valid URL, e.g. https://example.com.'
-    : null;
+  const { name: nameError, url: urlError } = validation;
   const showNameError =
     (name !== initialName || nameTouched) && nameError !== null;
   const showUrlError = (url !== initialUrl || urlTouched) && urlError !== null;
@@ -156,67 +166,63 @@ const ShortcutDialogForm = ({
       onClose={onClose}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            aria-label="Choose icon"
-            className="shrink-0 self-start rounded-2xl transition-shadow hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <AppIcon
-              icon={icon === '' ? null : icon}
-              name={trimmedName || '?'}
-              hue={displayHue}
-              className="size-24 text-3xl"
-            />
-          </button>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          aria-label="Choose icon"
+          className="mx-auto rounded-2xl transition-shadow hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <AppIcon
+            icon={icon === '' ? null : icon}
+            name={trimmedName || '?'}
+            hue={displayHue}
+            className="size-24 text-3xl"
+          />
+        </button>
 
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium">Name</span>
-              <input
-                ref={nameInputRef}
-                type="text"
-                required
-                aria-label="Name"
-                aria-invalid={showNameError}
-                value={name}
-                onChange={(event) => {
-                  setName(event.target.value);
-                  setError(null);
-                }}
-                onBlur={settleNameHue}
-                placeholder="e.g. GitHub"
-                className={fieldClasses}
-              />
-              <p className="min-h-4 text-xs text-destructive">
-                {showNameError ? nameError : ''}
-              </p>
-            </label>
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">Name</span>
+          <input
+            ref={nameInputRef}
+            type="text"
+            required
+            aria-label="Name"
+            aria-invalid={showNameError}
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              setError(null);
+            }}
+            onBlur={settleNameHue}
+            placeholder="e.g. GitHub"
+            className={fieldClasses}
+          />
+          <p className="min-h-4 text-xs text-destructive">
+            {showNameError ? nameError : ''}
+          </p>
+        </label>
 
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium">URL</span>
-              <input
-                type="text"
-                inputMode="url"
-                required
-                aria-label="URL"
-                aria-invalid={showUrlError}
-                value={url}
-                onChange={(event) => {
-                  setUrl(event.target.value);
-                  setError(null);
-                }}
-                onBlur={() => setUrlTouched(true)}
-                placeholder="e.g. https://example.com or example.com"
-                className={fieldClasses}
-              />
-              <p className="min-h-4 text-xs text-destructive">
-                {showUrlError ? urlError : ''}
-              </p>
-            </label>
-          </div>
-        </div>
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">URL</span>
+          <input
+            type="text"
+            inputMode="url"
+            required
+            aria-label="URL"
+            aria-invalid={showUrlError}
+            value={url}
+            onChange={(event) => {
+              setUrl(event.target.value);
+              setError(null);
+            }}
+            onBlur={() => setUrlTouched(true)}
+            placeholder="e.g. https://example.com or example.com"
+            className={fieldClasses}
+          />
+          <p className="min-h-4 text-xs text-destructive">
+            {showUrlError ? urlError : ''}
+          </p>
+        </label>
 
         <div className="flex flex-col gap-2 pt-1">
           {error && (

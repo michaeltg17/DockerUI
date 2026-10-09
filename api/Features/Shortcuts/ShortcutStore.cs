@@ -68,24 +68,24 @@ internal sealed class ShortcutStore(
     {
         var node = new JsonObject
         {
-            ["Name"] = shortcut.Name,
-            ["Url"] = shortcut.Url,
+            [nameof(Shortcut.Name)] = shortcut.Name,
+            [nameof(Shortcut.Url)] = shortcut.Url,
         };
 
         if (!string.IsNullOrWhiteSpace(shortcut.Icon))
-            node["Icon"] = shortcut.Icon;
+            node[nameof(Shortcut.Icon)] = shortcut.Icon;
 
         if (shortcut.Hidden)
-            node["Hidden"] = true;
+            node[nameof(Shortcut.Hidden)] = true;
 
         if (!string.Equals(shortcut.Source, ShortcutSource.Manual, StringComparison.Ordinal))
-            node["Source"] = shortcut.Source;
+            node[nameof(Shortcut.Source)] = shortcut.Source;
 
         if (!string.IsNullOrWhiteSpace(shortcut.DisplayName))
-            node["DisplayName"] = shortcut.DisplayName;
+            node[nameof(Shortcut.DisplayName)] = shortcut.DisplayName;
 
         if (shortcut.Color is { } color)
-            node["Color"] = color;
+            node[nameof(Shortcut.Color)] = color;
 
         return node;
     }

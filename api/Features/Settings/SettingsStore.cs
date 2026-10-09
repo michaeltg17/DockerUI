@@ -29,17 +29,17 @@ internal sealed class SettingsStore(
             var section = settings[DockerUISettings.Section] as JsonObject ?? [];
             settings[DockerUISettings.Section] = section;
 
-            var apps = section["Apps"] as JsonObject ?? [];
-            section["Apps"] = apps;
+            var apps = section[nameof(DockerUISettings.Apps)] as JsonObject ?? [];
+            section[nameof(DockerUISettings.Apps)] = apps;
 
             var entry = apps[appName] as JsonObject ?? [];
 
             // The default is false, so only the non-default value is persisted; the
             // dashboard's own project stays hidden by self-detection, not by settings.
             if (hidden)
-                entry["Hidden"] = true;
+                entry[nameof(AppUserSettings.Hidden)] = true;
             else
-                entry.Remove("Hidden");
+                entry.Remove(nameof(AppUserSettings.Hidden));
 
             if (entry.Count == 0)
                 apps.Remove(appName);
@@ -64,21 +64,21 @@ internal sealed class SettingsStore(
             var section = settings[DockerUISettings.Section] as JsonObject ?? [];
             settings[DockerUISettings.Section] = section;
 
-            var apps = section["Apps"] as JsonObject ?? [];
-            section["Apps"] = apps;
+            var apps = section[nameof(DockerUISettings.Apps)] as JsonObject ?? [];
+            section[nameof(DockerUISettings.Apps)] = apps;
 
             var entry = apps[appName] as JsonObject ?? [];
 
-            entry.Remove("Name");
-            entry.Remove("Icon");
-            entry.Remove("Url");
+            entry.Remove(nameof(AppUserSettings.Name));
+            entry.Remove(nameof(AppUserSettings.Icon));
+            entry.Remove(nameof(AppUserSettings.Url));
 
             if (!string.IsNullOrWhiteSpace(displayName) && !string.Equals(displayName, appName, StringComparison.Ordinal))
-                entry["Name"] = displayName;
+                entry[nameof(AppUserSettings.Name)] = displayName;
             if (!string.IsNullOrWhiteSpace(icon))
-                entry["Icon"] = icon;
+                entry[nameof(AppUserSettings.Icon)] = icon;
             if (!string.IsNullOrWhiteSpace(url))
-                entry["Url"] = url;
+                entry[nameof(AppUserSettings.Url)] = url;
 
             if (entry.Count == 0)
                 apps.Remove(appName);
@@ -101,9 +101,9 @@ internal sealed class SettingsStore(
             settings[DockerUISettings.Section] = section;
 
             if (string.Equals(name, DockerUISettings.DefaultName, StringComparison.Ordinal))
-                section.Remove("Name");
+                section.Remove(nameof(DockerUISettings.Name));
             else
-                section["Name"] = name;
+                section[nameof(DockerUISettings.Name)] = name;
 
             SaveSettings(settings);
             configurationRoot.Reload();
@@ -121,9 +121,9 @@ internal sealed class SettingsStore(
             settings[DockerUISettings.Section] = section;
 
             if (order.Count == 0)
-                section.Remove("Order");
+                section.Remove(nameof(DockerUISettings.Order));
             else
-                section["Order"] = new JsonArray([.. order.Select(name => (JsonNode)name)]);
+                section[nameof(DockerUISettings.Order)] = new JsonArray([.. order.Select(name => (JsonNode)name)]);
 
             SaveSettings(settings);
             configurationRoot.Reload();
@@ -143,7 +143,7 @@ internal sealed class SettingsStore(
             var section = settings[DockerUISettings.Section] as JsonObject ?? [];
             settings[DockerUISettings.Section] = section;
 
-            if (section["Order"] is not JsonArray order)
+            if (section[nameof(DockerUISettings.Order)] is not JsonArray order)
                 return;
 
             var changed = false;

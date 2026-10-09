@@ -1,5 +1,7 @@
 import { Info, CircleAlert, CircleX, CircleCheck } from 'lucide-react';
 
+import { Spinner } from '@/components/ui/spinner';
+
 const icons = {
   info: <Info className="size-6 text-blue-500" aria-hidden="true" />,
   success: <CircleCheck className="size-6 text-green-500" aria-hidden="true" />,
@@ -15,12 +17,13 @@ export type NotificationProps = {
     type: keyof typeof icons;
     title: string;
     message?: string;
+    pending?: boolean;
   };
   onDismiss: (id: string) => void;
 };
 
 export const Notification = ({
-  notification: { id, type, title, message },
+  notification: { id, type, title, message, pending },
   onDismiss,
 }: NotificationProps) => {
   return (
@@ -28,7 +31,13 @@ export const Notification = ({
       <div className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-lg ring-1 ring-border">
         <div className="p-4" role="alert" aria-label={title}>
           <div className="flex items-start">
-            <div className="shrink-0">{icons[type]}</div>
+            <div className="shrink-0">
+              {pending ? (
+                <Spinner size="sm" className="size-6 text-muted-foreground" />
+              ) : (
+                icons[type]
+              )}
+            </div>
             <div className="ml-3 w-0 flex-1 pt-0.5">
               <p className="text-sm font-medium">{title}</p>
               <p className="mt-1 text-sm text-muted-foreground">{message}</p>

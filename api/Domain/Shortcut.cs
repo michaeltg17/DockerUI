@@ -1,4 +1,4 @@
-namespace Api.Settings
+namespace Api.Domain
 {
     /// <summary>Well-known values for <see cref="Shortcut.Source"/>.</summary>
     internal static class ShortcutSource

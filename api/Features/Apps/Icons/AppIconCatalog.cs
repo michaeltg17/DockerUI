@@ -172,7 +172,7 @@ namespace Api.Features.Apps.Icons
             if (score < TokenScore && TokensAreSubset(candidate, name))
                 score = TokenScore;
 
-            return Math.Max(score, Similarity(name, candidate));
+            return Math.Max(score, Levenshtein.NormalizedSimilarity(name, candidate));
         }
 
         static bool TokensAreSubset(string candidate, string name)
@@ -183,9 +183,6 @@ namespace Api.Features.Apps.Icons
             return candidateTokens.Length <= nameTokens.Length
                 && candidateTokens.All(token => nameTokens.Contains(token, StringComparer.Ordinal));
         }
-
-        static double Similarity(string a, string b) =>
-            Levenshtein.NormalizedSimilarity(a, b);
 
         static string LastSegment(string reference)
         {

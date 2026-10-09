@@ -1,4 +1,4 @@
-using Api.Settings;
+using Api.Domain;
 
 namespace Api.Features.Shortcuts.Endpoints
 {

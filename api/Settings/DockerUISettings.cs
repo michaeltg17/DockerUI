@@ -1,3 +1,5 @@
+using Api.Domain;
+
 namespace Api.Settings
 {
     /// <summary>

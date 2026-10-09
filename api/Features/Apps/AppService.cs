@@ -1,3 +1,4 @@
+using Api.Domain;
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;

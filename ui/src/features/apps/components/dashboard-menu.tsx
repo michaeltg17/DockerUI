@@ -3,6 +3,7 @@ import {
   Palette,
   Pencil,
   Plus,
+  Radar,
   RefreshCw,
   ScrollText,
 } from 'lucide-react';
@@ -28,6 +29,8 @@ const RESTART_POLL_MS = 1_000;
 
 type DashboardMenuProps = {
   onAddShortcut: () => void;
+  onScanLan: () => void;
+  isScanningLan: boolean;
   onViewLogs: () => void;
   onRename: () => void;
   onViewHiddenApps: () => void;
@@ -38,6 +41,8 @@ type DashboardMenuProps = {
 
 export const DashboardMenu = ({
   onAddShortcut,
+  onScanLan,
+  isScanningLan,
   onViewLogs,
   onRename,
   onViewHiddenApps,
@@ -110,6 +115,13 @@ export const DashboardMenu = ({
       label: 'Add shortcut',
       icon: <Plus className="size-4" aria-hidden="true" />,
       onSelect: onAddShortcut,
+    },
+    {
+      id: 'scan-lan',
+      label: 'Scan LAN',
+      icon: <Radar className="size-4" aria-hidden="true" />,
+      isLoading: isScanningLan,
+      onSelect: onScanLan,
     },
     {
       id: 'view-logs',

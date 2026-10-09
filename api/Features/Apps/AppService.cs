@@ -98,14 +98,13 @@ namespace Api.Features.Apps
 
                 var app = new AppDto(
                     shortcut.Name,
-                    shortcut.Name,
+                    shortcut.DisplayName ?? shortcut.Name,
                     string.IsNullOrWhiteSpace(shortcut.Icon) ? null : shortcut.Icon,
                     AppState.Running,
                     url,
-                    [])
-                {
-                    IsShortcut = true,
-                };
+                    [],
+                    shortcut.Source == ShortcutSource.Lan ? AppSource.Lan : AppSource.Shortcut,
+                    shortcut.Color);
 
                 (shortcut.Hidden ? hidden : visible).Add(app);
             }

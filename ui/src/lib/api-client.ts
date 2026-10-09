@@ -2,6 +2,14 @@ import Axios, { type InternalAxiosRequestConfig } from 'axios';
 
 import { useNotifications } from '@/components/ui/notifications';
 
+// Requests flagged 'silentError' skip the global error toast; the caller handles
+// the (expected) failure itself, e.g. the dashboard restart dropping the socket.
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    silentError?: boolean;
+  }
+}
+
 function requestInterceptor(config: InternalAxiosRequestConfig) {
   if (config.headers) {
     config.headers.Accept = 'application/json';
@@ -20,6 +28,10 @@ api.interceptors.response.use(
     return response.data;
   },
   (error) => {
+    if (error.config?.silentError) {
+      return Promise.reject(error);
+    }
+
     const data = error.response?.data;
     const message =
       (typeof data === 'object' &&

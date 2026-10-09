@@ -2,6 +2,7 @@ import { Search, Ship, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
+import { useNotifications } from '@/components/ui/notifications';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/utils/cn';
 
@@ -15,6 +16,7 @@ import { ShortcutDialog } from './components/shortcut-dialog';
 import { filterApps } from './filter-apps';
 import { useApps, useSetAppOrder } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
+import { useScanLan } from './hooks/use-lan';
 import { useSettings } from './hooks/use-settings';
 
 export const AppsPage = () => {
@@ -29,6 +31,23 @@ export const AppsPage = () => {
   const [hiddenAppsOpen, setHiddenAppsOpen] = useState(false);
 
   useAppsHub();
+
+  const scanLan = useScanLan();
+
+  const runScanLan = () => {
+    void scanLan
+      .mutateAsync()
+      .then((result) => {
+        useNotifications.getState().addNotification({
+          type: 'success',
+          title: 'LAN scan complete',
+          message: `Found ${result.found} service${
+            result.found === 1 ? '' : 's'
+          } and added ${result.added} new.`,
+        });
+      })
+      .catch(() => undefined);
+  };
 
   const apps = useMemo(() => filterApps(data ?? [], query), [data, query]);
   const hasQuery = query.trim().length > 0;
@@ -112,6 +131,8 @@ export const AppsPage = () => {
         // is the dashboard menu's trigger zone.
         className="flex-1"
         onAddShortcut={() => setShortcutOpen(true)}
+        onScanLan={runScanLan}
+        isScanningLan={scanLan.isPending}
         onViewLogs={() => setLogsOpen(true)}
         onRename={() => setRenameOpen(true)}
         onViewHiddenApps={() => setHiddenAppsOpen(true)}

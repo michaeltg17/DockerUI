@@ -32,7 +32,7 @@ namespace Api.Features.Shortcuts
             if (shortcuts.Any(shortcut => string.Equals(shortcut.Name, name, StringComparison.OrdinalIgnoreCase)))
                 throw new ConflictException($"A shortcut named '{name}' already exists.");
 
-            shortcuts.Add(new Shortcut(name, url, NormalizeIcon(input.Icon)));
+            shortcuts.Add(new Shortcut(name, url, NormalizeIcon(input.Icon), Color: input.Color));
             return await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
         }
 
@@ -92,6 +92,16 @@ namespace Api.Features.Shortcuts
 
             shortcuts.RemoveAt(index);
             await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Persists the given (already validated) shortcut list and broadcasts. The LAN scan uses
+        /// this to add many shortcuts and apply enrichment in a single write.
+        /// </summary>
+        public async Task<IReadOnlyList<Shortcut>> SaveManyAsync(List<Shortcut> shortcuts, CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(shortcuts);
+            return await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);
         }
 
         static int FindIndex(List<Shortcut> shortcuts, string name) =>

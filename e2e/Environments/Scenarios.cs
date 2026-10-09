@@ -75,5 +75,16 @@ public static class Scenarios
         Dashboard = "scenarios/error",
     };
 
-    public static IReadOnlyList<Scenario> All { get; } = [Basic, Settings, Error];
+    /// <summary>
+    /// On-demand LAN discovery: the dashboard and a demo web service share a private /28, so
+    /// the subnet scan finds the service, adds it as a 'lan' shortcut, and enriches it.
+    /// </summary>
+    public static readonly Scenario Lan = new()
+    {
+        Name = "lan",
+        BaseUrl = new Uri("http://localhost:5013"),
+        Dashboard = "scenarios/lan",
+    };
+
+    public static IReadOnlyList<Scenario> All { get; } = [Basic, Settings, Error, Lan];
 }

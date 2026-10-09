@@ -2,6 +2,7 @@
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
 using Api.Features.Health;
+using Api.Features.Lan;
 using Api.Features.Settings;
 using Api.Features.Shortcuts;
 using Api.Settings;
@@ -43,7 +44,8 @@ internal static class Program
         builder.Services
             .AddSettingsDependencies()
             .AddDockerClient(builder.Configuration.GetSection(DockerUISettings.Section))
-            .AddAppsDependencies();
+            .AddAppsDependencies()
+            .AddLanDependencies();
 
         builder.Services.AddSignalR();
 
@@ -121,6 +123,15 @@ internal static class Program
         services.AddSingleton<AppStateMonitor>();
         services.AddSingleton<IAppStateMonitor>(sp => sp.GetRequiredService<AppStateMonitor>());
         services.AddHostedService(sp => sp.GetRequiredService<AppStateMonitor>());
+
+        return services;
+    }
+
+    public static IServiceCollection AddLanDependencies(this IServiceCollection services)
+    {
+        services.AddSingleton<LanScanner>();
+        services.AddHttpClient<LanEnricher>(client => client.Timeout = TimeSpan.FromSeconds(8));
+        services.AddSingleton<LanService>();
 
         return services;
     }

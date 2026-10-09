@@ -3,6 +3,9 @@
     <!-- Docker -->
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
 
+    <!-- Discovery -->
+    <PackageVersion Include="Haukcode.Mdns" Version="1.0.21" />
+
     <!-- Microsoft -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />

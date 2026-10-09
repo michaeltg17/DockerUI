@@ -176,6 +176,23 @@ public sealed class AppsPage(IPage page)
         return Page.GetByRole(AriaRole.Menu, new PageGetByRoleOptions { Name = "Dashboard actions", Exact = true });
     }
 
+    /// <summary>
+    /// Opens the dashboard menu and clicks "Scan LAN". The scan runs server-side and takes a
+    /// few seconds, so callers wait for its result (a discovered card) rather than this call.
+    /// </summary>
+    public async Task ScanLanAsync()
+    {
+        var menu = await OpenDashboardMenuAsync();
+        await MenuItem(menu, "Scan LAN").ClickAsync();
+    }
+
+    /// <summary>Right-clicks the given LAN service's card and clicks "Rescan".</summary>
+    public async Task RescanLanAsync(string appName)
+    {
+        var menu = await OpenCardMenuAsync(appName);
+        await MenuItem(menu, "Rescan").ClickAsync();
+    }
+
     /// <summary>Hovers a grouped item of a context menu, opening its submenu of options.</summary>
     public async Task<ILocator> OpenGroupSubmenuAsync(ILocator menu, string groupLabel)
     {

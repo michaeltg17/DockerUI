@@ -6,18 +6,27 @@ namespace Api.Features.Apps.Models
         Stopped
     }
 
-    /// <summary>A docker compose stack (or a standalone container) as shown in the UI.</summary>
+    /// <summary>Where an app comes from: a docker stack/container, a manual shortcut, or a LAN-scanned service.</summary>
+    internal enum AppSource
+    {
+        Docker,
+        Shortcut,
+        Lan
+    }
+
+    /// <summary>
+    /// A docker compose stack (or standalone container), a manual shortcut, or a LAN-scanned
+    /// service, as shown in the UI.
+    /// </summary>
     internal sealed record AppDto(
         string Name,
         string DisplayName,
         string? Icon,
         AppState State,
         Uri? Url,
-        IReadOnlyList<AppServiceDto> Services)
-    {
-        /// <summary>True for user-defined shortcuts (no containers); false for docker apps.</summary>
-        public bool IsShortcut { get; init; }
-    }
+        IReadOnlyList<AppServiceDto> Services,
+        AppSource Source,
+        int? Color = null);
 
     internal sealed record AppServiceDto(
         string Name,

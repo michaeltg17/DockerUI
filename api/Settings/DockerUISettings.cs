@@ -44,6 +44,12 @@ namespace Api.Settings
         /// everything else follows alphabetically.
         /// </summary>
         public IReadOnlyCollection<string>? Order { get; set; }
+
+        /// <summary>
+        /// LAN discovery settings used by the on-demand "Scan LAN" action: the subnet to
+        /// probe, the ports to try, and whether to also browse mDNS.
+        /// </summary>
+        public LanSettings? Lan { get; set; }
     }
 #pragma warning restore CA1056
 }

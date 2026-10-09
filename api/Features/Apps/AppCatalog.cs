@@ -122,7 +122,7 @@ namespace Api.Features.Apps
 
             var displayName = !string.IsNullOrWhiteSpace(perApp?.Name) ? perApp.Name : name;
 
-            return new AppDto(name, displayName, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp, logger), services);
+            return new AppDto(name, displayName, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp, logger), services, AppSource.Docker);
         }
 
         static Uri? ResolveAppUrl(

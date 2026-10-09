@@ -82,6 +82,7 @@ export const AppsGrid = ({ apps, onReorder }: AppsGridProps) => {
           app={app}
           draggable={reorderEnabled}
           isDragging={dragged === app.name}
+          dragActive={dragged !== null}
           onDragStart={(event) => handleDragStart(event, app.name)}
           onDragEnter={() => handleDragEnter(app.name)}
           onDragEnd={handleDragEnd}

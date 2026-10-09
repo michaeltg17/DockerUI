@@ -152,7 +152,16 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             var url = new Uri("http://localhost:8081/e2e-log-check");
             for (var i = 0; i < 300; i++)
             {
-                using var response = await client.GetAsync(url, cancellationToken);
+                // nginx may still be reloading right after the config change, so an
+                // early connection can be reset; a few failures are fine because the
+                // wait below polls until generated lines reach the container log.
+                try
+                {
+                    using var response = await client.GetAsync(url, cancellationToken);
+                }
+                catch (HttpRequestException)
+                {
+                }
             }
 
             // Wait until a generated line is within the tail the dialog will fetch. The reload
@@ -193,6 +202,28 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             (await logArea.EvaluateAsync<bool>(
                    "(el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2"))
                 .Should().BeTrue("because the dialog starts at the most recent logs");
+
+            // Reopening shows the cached logs immediately, so the dialog must still
+            // start pinned to the most recent lines rather than at the top.
+            await apps.ClickDialogBackdropAsync();
+            await dialog.WaitForAsync(
+                new LocatorWaitForOptions
+                {
+                    State = WaitForSelectorState.Hidden,
+                    Timeout = AppsPage.StateChangeTimeoutMs,
+                });
+
+            var reopenedMenu = await apps.OpenCardMenuAsync("web-stack");
+            await AppsPage.MenuItem(reopenedMenu, "View logs").ClickAsync();
+            await dialog.WaitForAsync();
+            await dialog
+                .GetByText("e2e-log-check")
+                .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+            (await logArea.EvaluateAsync<bool>(
+                   "(el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2"))
+                .Should().BeTrue(
+                    "because reopening the logs stays pinned to the most recent lines");
         }
         finally
         {
@@ -229,7 +260,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
 
         string[] expectedItems =
-            ["Add shortcut", "View logs", "Rename", "Theme", "Restart"];
+            ["Add shortcut", "Scan LAN", "View logs", "Rename", "Theme", "Restart"];
 
         foreach (var label in expectedItems)
         {
@@ -331,6 +362,33 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // Showing it from the dialog brings the card back to the dashboard.
         await AppsPage.ShowHiddenAppAsync(dialog, "web-stack");
         await apps.WaitForAppAsync("web-stack");
+
+        // Showing it again drops the 'Hidden' override entirely: false is the default,
+        // so the settings file stays free of redundant entries. Poll because the
+        // container's write is only visible to the host once file sharing catches up.
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+
+        while (true)
+        {
+            using var document = JsonDocument.Parse(
+                await File.ReadAllTextAsync(appSettingsPath, cancellationToken));
+            var hasHiddenOverride = document.RootElement
+                .TryGetProperty("DockerUI", out var dockerUi) &&
+                dockerUi.TryGetProperty("Apps", out var appsSection) &&
+                appsSection.TryGetProperty("web-stack", out var webStack) &&
+                webStack.TryGetProperty("Hidden", out _);
+
+            if (!hasHiddenOverride)
+                break;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException(
+                    "The 'Hidden' override was not removed from appsettings after showing the app.");
+
+            await Task.Delay(200, cancellationToken);
+        }
     }
 
     [Fact]
@@ -1203,23 +1261,33 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         (await create.IsEnabledAsync())
             .Should().BeFalse("because the dialog opens with empty fields");
 
-        // The dialog says what is missing instead of leaving the button silently disabled.
+        // No error on first open: a field is only explained once the user has typed in
+        // it or left it, and both fields validate independently.
+        (await dialog.GetByText("Enter a name.", new LocatorGetByTextOptions { Exact = true }).CountAsync())
+            .Should().Be(0, "because an untouched field shows no error");
+
+        var name = dialog.GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true });
+        var url = dialog.GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true });
+
+        // Leaving the empty name field explains why it is required.
+        await name.BlurAsync();
         await dialog.GetByText("Enter a name.", new LocatorGetByTextOptions { Exact = true }).WaitForAsync(
             new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-        await dialog
-            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
-            .FillAsync("E2E Hint");
+        // Typing a valid name clears that hint.
+        await name.FillAsync("E2E Hint");
+        await dialog.GetByText("Enter a name.", new LocatorGetByTextOptions { Exact = true })
+            .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
 
+        // Typing into the empty url field explains why it is required (validate on input).
+        await url.FillAsync("dfdfdf");
         await dialog
             .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         (await create.IsEnabledAsync()).Should().BeFalse("because the url is still missing");
 
-        await dialog
-            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
-            .FillAsync("https://example.com");
-
+        // Typing a valid url clears it and enables Create.
+        await url.FillAsync("https://example.com");
         await dialog
             .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });

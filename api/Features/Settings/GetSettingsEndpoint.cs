@@ -36,6 +36,7 @@ namespace Api.Features.Settings
                     current.Apps,
                     current.Shortcuts,
                     current.Order,
+                    current.Lan,
                     Self = self,
                 });
             });

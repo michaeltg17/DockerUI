@@ -10,6 +10,7 @@ import {
 import { useState, type DragEvent, type MouseEvent } from 'react';
 
 import { AppMenu, type AppMenuItem } from '@/components/ui/app-menu';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/utils/cn';
 
 import { getAppLogs } from '../api/get-logs';
@@ -69,6 +70,7 @@ export const AppCard = ({
   const rescanLan = useRescanLan();
   const [logsOpen, setLogsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const isRunning = app.state === 'running';
   const isStarting = startApp.isPending;
@@ -127,8 +129,7 @@ export const AppCard = ({
         id: 'delete',
         label: 'Delete',
         icon: <Trash2 className="size-4" aria-hidden="true" />,
-        isLoading: deleteShortcut.isPending,
-        onSelect: () => void deleteShortcut.mutate(app.name),
+        onSelect: () => setDeleteOpen(true),
       },
     ];
 
@@ -170,6 +171,19 @@ export const AppCard = ({
           }}
           onClose={() => setEditing(false)}
         />
+        {deleteOpen && (
+          <ConfirmDialog
+            title="Delete shortcut"
+            message={`Delete the shortcut "${app.displayName}"? This cannot be undone.`}
+            confirmLabel="Delete"
+            isPending={deleteShortcut.isPending}
+            onConfirm={() => {
+              setDeleteOpen(false);
+              void deleteShortcut.mutate(app.name);
+            }}
+            onClose={() => setDeleteOpen(false)}
+          />
+        )}
       </>
     );
   }

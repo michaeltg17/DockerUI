@@ -249,11 +249,17 @@ public sealed class AppsPage(IPage page)
     }
 #pragma warning restore CA1054
 
-    /// <summary>Right-clicks a shortcut's card and deletes it, then waits for the card to leave the page.</summary>
+    /// <summary>The delete confirmation dialog, addressed by its accessible name.</summary>
+    public ILocator DeleteShortcutDialog => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Delete shortcut", Exact = true });
+
+    /// <summary>Right-clicks a shortcut's card, deletes it, confirms the dialog, then waits for the card to leave the page.</summary>
     public async Task DeleteShortcutAsync(string name, int timeoutMs = StateChangeTimeoutMs)
     {
         var menu = await OpenCardMenuAsync(name);
         await MenuItem(menu, "Delete").ClickAsync();
+        await DeleteShortcutDialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Delete", Exact = true })
+            .ClickAsync();
         await Card(name).WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
     }
 

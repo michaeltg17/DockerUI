@@ -26,18 +26,18 @@ namespace Api.Features.Settings
 
                 var current = settings.CurrentValue;
 
-                return Results.Ok(new
+                return Results.Ok(new SettingsResponse
                 {
-                    current.DockerSocketPath,
-                    current.PollIntervalSeconds,
-                    current.Name,
-                    current.BaseUrl,
-                    current.Icons,
-                    current.Apps,
-                    current.Shortcuts,
-                    current.Order,
-                    current.Lan,
                     Self = self,
+                    DockerSocketPath = current.DockerSocketPath,
+                    PollIntervalSeconds = current.PollIntervalSeconds,
+                    Name = current.Name,
+                    BaseUrl = current.BaseUrl,
+                    Icons = current.Icons,
+                    Apps = current.Apps,
+                    Shortcuts = current.Shortcuts,
+                    Order = current.Order,
+                    Lan = current.Lan,
                 });
             });
         }

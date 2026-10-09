@@ -5,7 +5,7 @@ namespace Api.Settings
     /// appsettings.json (hot-reloaded via IOptionsMonitor; see the wiki).
     /// </summary>
 #pragma warning disable CA1056 // URL-like members stay strings so one bad value degrades gracefully instead of invalidating the whole settings
-    internal sealed record DockerUISettings
+    internal record DockerUISettings
     {
         public const string Section = "DockerUI";
         public const string DefaultName = "Docker UI";

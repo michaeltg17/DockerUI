@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Api.Settings;
+using Raffinert.FuzzySharp;
 
 namespace Api.Features.Apps.Icons
 {
@@ -184,37 +185,7 @@ namespace Api.Features.Apps.Icons
         }
 
         static double Similarity(string a, string b) =>
-            1 - (LevenshteinDistance(a, b) / (double)Math.Max(a.Length, b.Length));
-
-        static int LevenshteinDistance(string a, string b)
-        {
-            if (a.Length == 0)
-                return b.Length;
-
-            if (b.Length == 0)
-                return a.Length;
-
-            var previous = new int[b.Length + 1];
-            var current = new int[b.Length + 1];
-
-            for (var j = 0; j <= b.Length; j++)
-                previous[j] = j;
-
-            for (var i = 1; i <= a.Length; i++)
-            {
-                current[0] = i;
-
-                for (var j = 1; j <= b.Length; j++)
-                {
-                    var cost = a[i - 1] == b[j - 1] ? 0 : 1;
-                    current[j] = Math.Min(Math.Min(previous[j] + 1, current[j - 1] + 1), previous[j - 1] + cost);
-                }
-
-                (previous, current) = (current, previous);
-            }
-
-            return previous[b.Length];
-        }
+            Levenshtein.NormalizedSimilarity(a, b);
 
         static string LastSegment(string reference)
         {

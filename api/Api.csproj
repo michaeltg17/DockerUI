@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageReference Include="Docker.DotNet" />
     <PackageReference Include="Haukcode.Mdns" />
+    <PackageReference Include="Raffinert.FuzzySharp" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Expressions" />
   </ItemGroup>

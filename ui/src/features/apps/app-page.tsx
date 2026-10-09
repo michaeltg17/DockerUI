@@ -137,7 +137,14 @@ export const AppsPage = () => {
         onRename={() => setRenameOpen(true)}
         onViewHiddenApps={() => setHiddenAppsOpen(true)}
       >
-        <main className="mx-auto max-w-7xl px-6 py-8">
+        <main
+          className={cn(
+            'mx-auto max-w-7xl px-6 py-8',
+            // The content fades in once the apps finish loading, so the page
+            // settles gently instead of popping in.
+            !isPending && 'animate-fade-in',
+          )}
+        >
           {isPending ? (
             <div className="flex justify-center py-24">
               <Spinner size="xl" />

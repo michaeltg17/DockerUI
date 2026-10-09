@@ -85,6 +85,29 @@ namespace Api.Features.Apps
             return ResolveSelfProject(snapshots);
         }
 
+        /// <summary>
+        /// The (host, port) addresses a running Docker app is reachable on: the dashboard base
+        /// host crossed with every published TCP port. Lets the LAN scan skip what the Docker
+        /// flow already shows.
+        /// </summary>
+        public async Task<HashSet<(string Host, int Port)>> GetDockerReachableAddressesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var host = ResolveBaseUrl(CurrentSettings)?.Host;
+
+            if (string.IsNullOrEmpty(host))
+                return [];
+
+            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+            var addresses = new HashSet<(string Host, int Port)>();
+
+            foreach (var snapshot in snapshots.Where(snapshot => AppCatalog.IsRunningState(snapshot.State)))
+                foreach (var mapping in snapshot.Ports.Where(mapping => mapping.Protocol == "tcp" && mapping.PublicPort is > 0))
+                    addresses.Add((host, mapping.PublicPort!.Value));
+
+            return addresses;
+        }
+
         /// <summary>User-defined shortcuts, surfaced as always-available apps in the same grid as the docker stacks.</summary>
         (IReadOnlyList<AppDto> Visible, IReadOnlyList<AppDto> Hidden) BuildShortcutApps()
         {

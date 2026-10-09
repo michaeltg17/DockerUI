@@ -1,6 +1,8 @@
-# The dashboard and a demo web service share a private /28 so the on-demand LAN scan has a
-# known subnet to probe. The dashboard hides its own compose project, so only the scanned
-# shortcut (172.30.0.2) shows up on the grid.
+# The dashboard and two demo web services share a private /28 so the on-demand LAN scan has
+# a known subnet to probe. lan-demo is discovered and added as a 'lan' card; lan-dedup
+# publishes the port the scenario's BaseUrl host (its own address) is probed on, so the scan
+# must skip it (the Docker flow already exposes it). The dashboard hides its own compose
+# project, so only the scanned shortcut (172.30.0.2) shows up on the grid.
 networks:
   lan_net:
     ipam:
@@ -19,6 +21,7 @@ services:
       - ./appsettings.json:/app/appsettings.json
     depends_on:
       - lan-demo
+      - lan-dedup
     networks:
       lan_net:
         ipv4_address: 172.30.0.3
@@ -34,3 +37,18 @@ services:
     networks:
       lan_net:
         ipv4_address: 172.30.0.2
+
+  # A web service whose port is published to the host on the same address the scenario sets
+  # as the dashboard BaseUrl, so (host, 8090) is a Docker-reachable address and the scan
+  # must skip it instead of adding a 'lan' card.
+  lan-dedup:
+    image: busybox:1.36
+    container_name: e2e-lan-dedup
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "mkdir -p /www && echo '<!doctype html><html><head><title>E2E LAN Dedup</title></head><body>LAN dedup</body></html>' > /www/index.html && exec httpd -f -p 8090 -h /www"
+    ports:
+      - "8090:8090"
+    networks:
+      lan_net:
+        ipv4_address: 172.30.0.4

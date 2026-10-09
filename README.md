@@ -5,9 +5,8 @@
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="ui/public/logo-white.svg" />
       <source media="(prefers-color-scheme: light)" srcset="ui/public/logo.svg" />
-      <img src="ui/public/logo.svg" alt="" align="middle" width="48" height="48" />
+      <img src="ui/public/logo.svg" alt="Docker UI" width="248" height="48" />
     </picture>
-    Docker UI
   </h1>
 </div>
 

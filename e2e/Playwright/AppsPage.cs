@@ -40,6 +40,9 @@ public sealed class AppsPage(IPage page)
     // 'paragraph' is not a name-from-content role, so this is addressed by text, not by role + name.
     public ILocator LoadError => Page.GetByText("Could not load apps. Is the Docker daemon reachable?", new PageGetByTextOptions { Exact = true });
 
+    /// <summary>The "LAN scan complete" toast, which appears when an on-demand LAN scan finishes.</summary>
+    public ILocator ScanCompleteNotification => Page.GetByRole(AriaRole.Alert, new PageGetByRoleOptions { Name = "LAN scan complete", Exact = true });
+
     /// <summary>The card (button) of the given app, addressed via its name heading.</summary>
     public ILocator Card(string appName) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator("xpath=..");
 

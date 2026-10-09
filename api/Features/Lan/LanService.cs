@@ -1,4 +1,5 @@
 using Api.Exceptions;
+using Api.Features.Apps;
 using Api.Features.Lan.Models;
 using Api.Features.Shortcuts;
 using Api.Settings;
@@ -9,10 +10,13 @@ namespace Api.Features.Lan
     /// <summary>
     /// Coordinates a LAN scan: discovers services, auto-adds any new ones as 'lan' shortcuts,
     /// and enriches them (page title, favicon) so the cards show a real name and icon.
+    /// Findings already exposed by a Docker app (the dashboard base host plus a published
+    /// port) are skipped, so the Docker flow stays the single source for them.
     /// </summary>
     internal sealed class LanService(
         LanScanner scanner,
         LanEnricher enricher,
+        AppService appService,
         ShortcutService shortcuts,
         IOptionsMonitor<DockerUISettings> settings)
     {
@@ -20,6 +24,7 @@ namespace Api.Features.Lan
         {
             var lanSettings = settings.CurrentValue.Lan ?? new LanSettings();
             var findings = await scanner.ScanAsync(lanSettings, cancellationToken);
+            var dockerAddresses = await appService.GetDockerReachableAddressesAsync(cancellationToken);
 
             var existing = shortcuts.GetAll().ToList();
             var byName = existing.ToDictionary(shortcut => shortcut.Name, StringComparer.OrdinalIgnoreCase);
@@ -28,13 +33,26 @@ namespace Api.Features.Lan
 
             foreach (var finding in findings)
             {
+                var coveredByDocker = IsDockerReachable(finding, dockerAddresses);
+
                 if (byName.TryGetValue(finding.Name, out var match))
                 {
-                    if (match.Source == ShortcutSource.Lan)
-                        toEnrich.Add(match);
+                    if (match.Source != ShortcutSource.Lan)
+                        continue;
 
+                    if (coveredByDocker)
+                    {
+                        // The Docker flow exposes it now, so the lan card goes away.
+                        existing.Remove(match);
+                        continue;
+                    }
+
+                    toEnrich.Add(match);
                     continue;
                 }
+
+                if (coveredByDocker)
+                    continue;
 
                 var shortcut = new Shortcut(finding.Name, finding.Url, Source: ShortcutSource.Lan);
                 existing.Add(shortcut);
@@ -88,6 +106,23 @@ namespace Api.Features.Lan
                         DisplayName = enrichment.Title ?? existing[i].DisplayName,
                     };
             }
+        }
+
+        /// <summary>
+        /// Whether the finding is served on the same host and port as a published Docker port,
+        /// so the Docker flow already surfaces it. Default ports are resolved, since findings
+        /// on 80/443 carry no explicit port in their url.
+        /// </summary>
+        static bool IsDockerReachable(LanFinding finding, HashSet<(string Host, int Port)> addresses)
+        {
+            if (!Uri.TryCreate(finding.Url, UriKind.Absolute, out var url))
+                return false;
+
+            var port = url.IsDefaultPort
+                ? (url.Scheme == Uri.UriSchemeHttps ? 443 : 80)
+                : url.Port;
+
+            return addresses.Contains((url.IdnHost, port));
         }
     }
 }

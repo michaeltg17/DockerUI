@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using E2E.Environments;
 using E2E.Playwright;
+using Microsoft.Playwright;
 using System.Text.Json;
 using Xunit;
 
@@ -17,6 +18,8 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
     const string ServiceIp = "172.30.0.2";
     const string ServiceTitle = "E2E LAN Service";
 
+    const string DedupIp = "172.30.0.4";
+
     [Fact]
     public async Task Scan_lan_adds_the_discovered_service_as_a_lan_card()
     {
@@ -31,6 +34,30 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
         app.GetProperty("displayName").GetString().Should().Be(ServiceTitle, "because the card is enriched with the page title");
         app.GetProperty("url").GetString().Should().Be($"http://{ServiceIp}", "because the service is discovered on port 80");
         app.GetProperty("icon").ValueKind.Should().Be(JsonValueKind.Null, "because the demo service serves no favicon");
+    }
+
+    [Fact]
+    public async Task Scan_lan_skips_services_already_exposed_by_a_docker_app()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        await apps.ScanLanAsync();
+        // The scan must find both services (the demo and the exposed one) but add nothing new:
+        // the demo is the pre-seeded shortcut and the exposed one is already Docker-reachable.
+        var notification = apps.ScanCompleteNotification;
+        await notification
+            .GetByText("Found 2 services and added 0 new.", new LocatorGetByTextOptions { Exact = true })
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        using var client = new HttpClient();
+        var appsJson = await client.GetStringAsync(new Uri(environment.BaseUrl, "api/apps"), TestContext.Current.CancellationToken);
+
+        using var document = JsonDocument.Parse(appsJson);
+        document.RootElement.EnumerateArray()
+            .Should().NotContain(app => app.GetProperty("name").GetString() == DedupIp,
+                "because the scan must not add a card for what a Docker app already exposes");
     }
 
     [Fact]

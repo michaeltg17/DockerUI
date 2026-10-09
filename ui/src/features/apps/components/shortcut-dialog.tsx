@@ -38,6 +38,17 @@ export const getErrorMessage = (error: unknown) => {
   return 'Could not save the shortcut. Try again.';
 };
 
+type ShortcutValidation = {
+  name: string | null;
+  url: string | null;
+};
+
+/** Single source of truth for the dialog's field validation. */
+const validateShortcut = (name: string, url: string): ShortcutValidation => ({
+  name: name.trim() ? null : 'Enter a name.',
+  url: isValidUrl(url) ? null : 'Enter a valid URL, e.g. https://example.com.',
+});
+
 const fieldClasses =
   'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
@@ -88,7 +99,9 @@ const ShortcutDialogForm = ({
   const isSaving = addShortcut.isPending || updateShortcut.isPending;
 
   const trimmedName = name.trim();
-  const canSave = trimmedName.length > 0 && isValidUrl(url) && !isSaving;
+  const validation = validateShortcut(name, url);
+  const canSave =
+    validation.name === null && validation.url === null && !isSaving;
 
   // Anything that would survive a save differs from what was shown on open;
   // while that is the case the backdrop must not close the dialog and lose it.
@@ -100,10 +113,7 @@ const ShortcutDialogForm = ({
   // A field's message shows once the user has typed in it or left it, and keeps
   // showing (recomputed) until the value is valid; both fields validate together
   // instead of one at a time.
-  const nameError = trimmedName.length === 0 ? 'Enter a name.' : null;
-  const urlError = !isValidUrl(url)
-    ? 'Enter a valid URL, e.g. https://example.com.'
-    : null;
+  const { name: nameError, url: urlError } = validation;
   const showNameError =
     (name !== initialName || nameTouched) && nameError !== null;
   const showUrlError = (url !== initialUrl || urlTouched) && urlError !== null;

@@ -1,8 +1,15 @@
 [![ci](https://github.com/michaeltg17/DockerUI/actions/workflows/ci.yml/badge.svg)](https://github.com/michaeltg17/DockerUI/actions/workflows/ci.yml)
 
-<p align="center">
-  <img src="ui/public/logo.svg" alt="Docker UI logo" width="96" /> Docker UI
-</p>
+<div align="center">
+  <h1>
+    <picture>
+      <source media="(prefers-color-scheme: dark)" src="ui/public/logo-white.svg" />
+      <source media="(prefers-color-scheme: light)" src="ui/public/logo.svg" />
+      <img src="ui/public/logo.svg" alt="" align="middle" width="48" height="48" />
+    </picture>
+    Docker UI
+  </h1>
+</div>
 
 <img width="2129" height="831" alt="image" src="https://github.com/user-attachments/assets/8f243840-cf7d-43c6-982e-4a283f1c9c93" />
 

@@ -99,7 +99,7 @@ const HiddenAppsDialogContent = ({ onClose }: { onClose: () => void }) => {
         ) : hiddenApps.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             {search.trim().length > 0
-              ? `No hidden apps match &ldquo;${search.trim()}&rdquo;.`
+              ? `No hidden apps match “${search.trim()}”.`
               : 'No hidden apps. Everything is shown on the dashboard.'}
           </p>
         ) : (

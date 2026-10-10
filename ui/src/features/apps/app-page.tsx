@@ -1,9 +1,9 @@
-import { Search, X } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
 import { Logo } from '@/components/ui/logo';
 import { useNotifications } from '@/components/ui/notifications';
+import { SearchBar } from '@/components/ui/search-bar';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/utils/cn';
 
@@ -25,7 +25,6 @@ export const AppsPage = () => {
   const setOrder = useSetAppOrder();
   const { data: settings } = useSettings();
   const [query, setQuery] = useState('');
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [logsOpen, setLogsOpen] = useState(false);
   const [shortcutOpen, setShortcutOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -80,38 +79,14 @@ export const AppsPage = () => {
       <header className="border-b border-border bg-header text-header-foreground">
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-6 py-4">
           <div aria-hidden="true" />
-          <label className="relative block">
-            <span className="sr-only">Search apps</span>
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <input
-              ref={searchInputRef}
-              type="search"
-              aria-label="Search apps"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search apps…"
-              className={cn(
-                'h-9 w-56 rounded-md border border-input bg-card pl-9 pr-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 sm:w-64',
-                hasQuery && 'pr-8',
-              )}
-            />
-            {hasQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery('');
-                  searchInputRef.current?.focus();
-                }}
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <X className="size-4" aria-hidden="true" />
-              </button>
-            )}
-          </label>
+          <SearchBar
+            variant="header"
+            value={query}
+            onChange={setQuery}
+            label="Search apps"
+            placeholder="Search apps…"
+            className="w-56 sm:w-64"
+          />
           <div aria-hidden="true" />
         </div>
       </header>

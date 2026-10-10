@@ -132,6 +132,15 @@ namespace Api.Features.Lan
             if (!string.IsNullOrWhiteSpace(subnet))
                 return IPNetwork.Parse(subnet);
 
+            if (OperatingSystem.IsLinux() && IsRunningInContainer())
+            {
+                // Inside a container the only "LAN" interface is the bridge the container sits
+                // on, so auto-detection would scan the Docker network (finding the host gateway
+                // and its published ports) instead of the LAN the user means.
+                throw new InvalidOperationException(
+                    "DockerUI is running in a container, so its LAN cannot be detected automatically; set 'DockerUI:Lan:Subnet' to the LAN's CIDR, e.g. '192.168.1.0/24'.");
+            }
+
             var local = NetworkInterface
                 .GetAllNetworkInterfaces()
                 .Where(nic => nic.OperationalStatus == OperationalStatus.Up &&
@@ -268,6 +277,11 @@ namespace Api.Features.Lan
 
             return new IPAddress(bytes);
         }
+
+        static bool IsRunningInContainer() =>
+            File.Exists("/.dockerenv") ||
+            (File.Exists("/proc/1/cgroup") &&
+                File.ReadAllText("/proc/1/cgroup").Contains("docker", StringComparison.OrdinalIgnoreCase));
 
         static string BuildUrl(IPAddress host, int port) => port switch
         {

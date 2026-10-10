@@ -1,4 +1,4 @@
-import { Info, CircleAlert, CircleX, CircleCheck } from 'lucide-react';
+import { Info, CircleAlert, CircleX, CircleCheck, X } from 'lucide-react';
 
 import { Spinner } from '@/components/ui/spinner';
 
@@ -44,13 +44,13 @@ export const Notification = ({
             </div>
             <div className="ml-4 flex shrink-0">
               <button
-                className="inline-flex rounded-md text-muted-foreground hover:text-popover-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 onClick={() => {
                   onDismiss(id);
                 }}
               >
                 <span className="sr-only">Close</span>
-                <CircleX className="size-5" aria-hidden="true" />
+                <X className="size-4" aria-hidden="true" />
               </button>
             </div>
           </div>

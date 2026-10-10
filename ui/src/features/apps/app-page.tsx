@@ -1,7 +1,8 @@
-import { Search, Ship, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
+import { Logo } from '@/components/ui/logo';
 import { useNotifications } from '@/components/ui/notifications';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/utils/cn';
@@ -165,10 +166,7 @@ export const AppsPage = () => {
             </div>
           ) : isError ? (
             <div className="flex flex-col items-center gap-4 py-24 text-center">
-              <Ship
-                className="size-10 text-muted-foreground"
-                aria-hidden="true"
-              />
+              <Logo className="size-10 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
                 Could not load apps. Is the Docker daemon reachable?
               </p>
@@ -182,7 +180,7 @@ export const AppsPage = () => {
             </div>
           ) : apps.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-24 text-center text-muted-foreground">
-              <Ship className="size-10" aria-hidden="true" />
+              <Logo className="size-10" />
               {hasQuery ? (
                 <p className="text-sm">
                   No apps match &ldquo;{query.trim()}&rdquo;.

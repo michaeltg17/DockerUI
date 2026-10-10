@@ -1,3 +1,4 @@
+using Api.Domain;
 using Api.Exceptions;
 using Api.Features.Apps;
 using Api.Features.Lan.Models;

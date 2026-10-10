@@ -4,8 +4,8 @@ using Api.Features.Apps.Endpoints;
 using Api.Features.Apps.Hubs;
 using Api.Features.Settings;
 using Api.Exceptions;
-using Api.Settings;
 using Microsoft.AspNetCore.SignalR;
+using Api.Domain;
 
 namespace Api.Features.Shortcuts
 {

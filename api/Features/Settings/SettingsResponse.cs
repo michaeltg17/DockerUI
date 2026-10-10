@@ -1,4 +1,6 @@
-namespace Api.Settings
+using Api.Settings;
+
+namespace Api.Features.Settings
 {
     /// <summary>
     /// The settings endpoint response: the current <see cref="DockerUISettings"/> plus the

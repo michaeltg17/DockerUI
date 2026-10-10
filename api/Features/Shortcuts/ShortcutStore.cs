@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Api.Domain;
 using Api.Settings;
 
 namespace Api.Features.Shortcuts;

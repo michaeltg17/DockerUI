@@ -1,4 +1,4 @@
-namespace Api.Features.Apps.Models
+namespace Api.Domain
 {
     internal enum AppState
     {

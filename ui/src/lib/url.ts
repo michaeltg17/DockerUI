@@ -1,7 +1,11 @@
+/** True when the value already starts with an http(s) scheme. */
+export const hasUrlScheme = (value: string) =>
+  /^https?:\/\//i.test(value.trim());
+
 /** Prefix a scheme-less url with https so bare domains like 'google.com' work. */
 export const normalizeUrl = (value: string) => {
   const trimmed = value.trim();
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return hasUrlScheme(trimmed) ? trimmed : `https://${trimmed}`;
 };
 
 /**

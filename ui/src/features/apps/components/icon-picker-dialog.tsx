@@ -1,8 +1,9 @@
-import { Check, Search } from 'lucide-react';
+import { Check, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { cn } from '@/utils/cn';
 
 import { AppIcon } from './app-icon';
 
@@ -29,6 +30,7 @@ export const IconPickerDialog = ({
 }: IconPickerDialogProps) => {
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const hasSearch = search.trim().length > 0;
 
   useEffect(() => {
     // The base dialog focuses the search box on open.
@@ -63,8 +65,21 @@ export const IconPickerDialog = ({
             onChange={(event) => setSearch(event.target.value)}
             aria-label="Search icons by name"
             placeholder="Search icons by name"
-            className={searchInputClasses}
+            className={cn(searchInputClasses, hasSearch && 'pr-8')}
           />
+          {hasSearch && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                searchRef.current?.focus();
+              }}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
         <Button type="button" variant="outline" onClick={() => onSelect(null)}>
           None

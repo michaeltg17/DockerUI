@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { isValidUrl, normalizeUrl } from '@/lib/url';
+import { hasUrlScheme, isValidUrl, normalizeUrl } from '@/lib/url';
 
 import {
   useAddShortcut,
@@ -118,6 +118,13 @@ const ShortcutDialogForm = ({
     (name !== initialName || nameTouched) && nameError !== null;
   const showUrlError = (url !== initialUrl || urlTouched) && urlError !== null;
 
+  // A scheme-less url is stored with https prefixed, so show the result while
+  // the user is deciding what to type instead of surprising them on save.
+  const urlSchemeHint =
+    url.trim() !== '' && !hasUrlScheme(url) && validation.url === null
+      ? normalizeUrl(url)
+      : null;
+
   // The icon shown in the preview: a settled hue, or the neutral placeholder
   // hue until a new shortcut's name is first committed.
   const displayHue = settledHue ?? getHue('?');
@@ -219,8 +226,14 @@ const ShortcutDialogForm = ({
             placeholder="e.g. https://example.com or example.com"
             className={fieldClasses}
           />
-          <p className="min-h-4 text-xs text-destructive">
-            {showUrlError ? urlError : ''}
+          <p className="min-h-4 text-xs">
+            {showUrlError ? (
+              <span className="text-destructive">{urlError}</span>
+            ) : urlSchemeHint ? (
+              <span className="text-muted-foreground">
+                Will open as {urlSchemeHint}
+              </span>
+            ) : null}
           </p>
         </label>
 

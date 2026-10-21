@@ -37,6 +37,7 @@ export const AppIcon = ({ icon, name, hue, className }: AppIconProps) => {
       <img
         src={icon}
         alt=""
+        loading="lazy"
         onError={() => setFailed(true)}
         className={cn('rounded-2xl object-cover', className)}
       />

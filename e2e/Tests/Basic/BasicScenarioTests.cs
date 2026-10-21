@@ -280,6 +280,25 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Lan_scan_in_a_container_without_subnet_config_finds_nothing()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        await apps.ScanLanAsync();
+
+        // The dashboard runs in a container and the scenario sets no 'DockerUI:Lan:Subnet',
+        // so the subnet scan is skipped (the bridge is not the user's LAN; its other
+        // containers and the host gateway would otherwise be found) and the scenario's
+        // bridge advertises no mDNS services: the scan must find nothing.
+        await apps.ScanCompleteNotification
+            .GetByText("Found 0 services and added 0 new.", new LocatorGetByTextOptions { Exact = true })
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
     public async Task Dashboard_menu_renames_the_dashboard()
     {
         await using var context = await browser.NewContextAsync();

@@ -1,9 +1,9 @@
-import { Check, Search, X } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { cn } from '@/utils/cn';
+import { SearchBar } from '@/components/ui/search-bar';
 
 import { AppIcon } from './app-icon';
 
@@ -19,9 +19,6 @@ export const iconLabel = (path: string) => {
   return fileName ? fileName.replace(/\.[a-z0-9]+$/i, '') : path;
 };
 
-const searchInputClasses =
-  'h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
-
 export const IconPickerDialog = ({
   icons,
   selected,
@@ -30,7 +27,6 @@ export const IconPickerDialog = ({
 }: IconPickerDialogProps) => {
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
-  const hasSearch = search.trim().length > 0;
 
   useEffect(() => {
     // The base dialog focuses the search box on open.
@@ -53,34 +49,13 @@ export const IconPickerDialog = ({
       className="flex max-h-[80vh] max-w-2xl flex-col"
     >
       <div className="flex items-center gap-2 border-b border-border p-3">
-        <div className="relative min-w-0 flex-1">
-          <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <input
-            ref={searchRef}
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            aria-label="Search icons by name"
-            placeholder="Search icons by name"
-            className={cn(searchInputClasses, hasSearch && 'pr-8')}
-          />
-          {hasSearch && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearch('');
-                searchRef.current?.focus();
-              }}
-              aria-label="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          )}
-        </div>
+        <SearchBar
+          ref={searchRef}
+          value={search}
+          onChange={setSearch}
+          label="Search icons by name"
+          className="min-w-0 flex-1"
+        />
         <Button type="button" variant="outline" onClick={() => onSelect(null)}>
           None
         </Button>

@@ -76,7 +76,7 @@
     --ring: 212.7 26.8% 83.9%;
   }
 
-  [data-theme='docker'] {
+  [data-theme='dark-blue'] {
     --background: 213 20% 8%;
     --foreground: 210 40% 98%;
 
@@ -109,7 +109,7 @@
     --ring: 204 84% 53%;
   }
 
-  [data-theme='docker-v2'] {
+  [data-theme='docker'] {
     --background: 210 20% 8%;
     --foreground: 210 40% 98%;
 
@@ -144,12 +144,12 @@
 }
 
 /* The Docker Desktop bar fades from deep navy to bright blue. */
-[data-theme='docker-v2'] header {
+[data-theme='docker'] header {
   background-image: linear-gradient(to right, hsl(222 91% 18%), hsl(222 100% 27%));
 }
 
 /* Like the Docker Desktop search field: a saturated blue pill on the gradient bar. */
-[data-theme='docker-v2'] header input[type='search'] {
+[data-theme='docker'] header input[type='search'] {
   background-color: hsl(222 65% 31%);
   border-color: hsl(222 60% 40%);
 }

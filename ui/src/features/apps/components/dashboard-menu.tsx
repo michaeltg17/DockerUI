@@ -20,8 +20,8 @@ import { useSettings } from '../hooks/use-settings';
 const themeLabels: Record<Theme, string> = {
   light: 'Light',
   dark: 'Dark',
-  docker: 'Dark blue',
-  'docker-v2': 'Docker',
+  'dark-blue': 'Dark blue',
+  docker: 'Docker',
 };
 
 const RESTART_TIMEOUT_MS = 120_000;

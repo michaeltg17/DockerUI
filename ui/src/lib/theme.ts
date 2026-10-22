@@ -1,4 +1,4 @@
-export const themes = ['light', 'dark', 'docker', 'docker-v2'] as const;
+export const themes = ['light', 'dark', 'dark-blue', 'docker'] as const;
 
 export type Theme = (typeof themes)[number];
 

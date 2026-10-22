@@ -164,13 +164,13 @@ internal static class Program
     {
         //Exception handler middleware first to catch exceptions
         app.AddExceptionHandlerMiddleware()
-            .UseDefaultFiles()
             .UseStaticFiles();
 
         app.MapEndpoints();
 
-        //SPA fallback: any non-API GET that no endpoint matches serves the React app
-        app.MapFallbackToFile("index.html");
+        //SPA fallback: any route no endpoint matches serves the React app, with the
+        //configured dashboard name already in the page title
+        app.UseSpaFallback();
 
         return app;
     }

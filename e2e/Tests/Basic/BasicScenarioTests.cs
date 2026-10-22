@@ -573,15 +573,15 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenDashboardMenuAsync();
         var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
         await AppsPage.MenuItem(themeMenu, "Dark blue").ClickAsync();
-        (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
+        (await apps.Page.Locator("html[data-theme='dark-blue']").CountAsync()).Should().Be(1);
 
         await apps.Page.ReloadAsync();
         await apps.WaitForAppAsync("web-stack");
-        (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
+        (await apps.Page.Locator("html[data-theme='dark-blue']").CountAsync()).Should().Be(1);
     }
 
     [Fact]
-    public async Task Docker_v2_theme_applies_the_gradient_header()
+    public async Task Docker_theme_applies_the_gradient_header()
     {
         await using var context = await browser.NewContextAsync();
         var apps = new AppsPage(await context.NewPageAsync());
@@ -592,18 +592,18 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
         await AppsPage.MenuItem(themeMenu, "Docker").ClickAsync();
 
-        (await apps.Page.Locator("html[data-theme='docker-v2']").CountAsync()).Should().Be(1);
+        (await apps.Page.Locator("html[data-theme='docker']").CountAsync()).Should().Be(1);
         (await apps.Page
                .Locator("header")
                .EvaluateAsync<string>("(el) => getComputedStyle(el).backgroundImage"))
             .Should()
             .Contain(
                 "linear-gradient",
-                "because the Docker V2 theme matches the Docker Desktop gradient bar");
+                "because the Docker theme matches the Docker Desktop gradient bar");
     }
 
     [Fact]
-    public async Task Docker_v2_theme_search_field_uses_the_docker_blue()
+    public async Task Docker_theme_search_field_uses_the_docker_blue()
     {
         await using var context = await browser.NewContextAsync();
         var apps = new AppsPage(await context.NewPageAsync());
@@ -611,11 +611,11 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForAppAsync("web-stack");
 
         var backgroundColor = await apps.Page.EvaluateAsync<string>(
-            "() => { for (const sheet of document.styleSheets) { let rules; try { rules = sheet.cssRules; } catch (e) { continue; } for (const rule of rules) { if (rule.selectorText && rule.selectorText.includes('docker-v2') && rule.selectorText.includes('search')) return rule.style.backgroundColor; } } return ''; }");
+            "() => { for (const sheet of document.styleSheets) { let rules; try { rules = sheet.cssRules; } catch (e) { continue; } for (const rule of rules) { if (rule.selectorText && rule.selectorText.includes('docker') && rule.selectorText.includes('search')) return rule.style.backgroundColor; } } return ''; }");
 
         backgroundColor
             .Should()
-            .Be("rgb(28, 58, 130)", "because the Docker V2 search field matches the Docker Desktop blue");
+            .Be("rgb(28, 58, 130)", "because the Docker search field matches the Docker Desktop blue");
     }
 
     [Fact]

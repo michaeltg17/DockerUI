@@ -79,20 +79,9 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
-        // The static page title is the default; the custom name only appears once
-        // the app has loaded the configured settings, so poll for it.
-        var title = string.Empty;
-        var deadline = DateTime.UtcNow.AddSeconds(60);
-        while (DateTime.UtcNow < deadline)
-        {
-            title = await apps.Page.TitleAsync();
-            if (title == "Settings Dashboard")
-                break;
-
-            await Task.Delay(100, TestContext.Current.CancellationToken);
-        }
-
-        title.Should().Be("Settings Dashboard", "because the scenario configures a custom name");
+        // The API injects the configured name into the served document, so the
+        // title is correct from the first byte, without waiting for the SPA.
+        (await apps.Page.TitleAsync()).Should().Be("Settings Dashboard", "because the scenario configures a custom name");
     }
 
     [Fact]

@@ -4,19 +4,13 @@ export type Theme = (typeof themes)[number];
 
 const THEME_STORAGE_KEY = 'DockerUI:theme';
 
-/** Values stored before the theme keys were renamed, mapped to their new keys. */
-const legacyThemes: Record<string, Theme> = {
-  docker: 'dark-blue',
-  'docker-v2': 'docker',
-};
-
 export const isTheme = (value: unknown): value is Theme =>
   typeof value === 'string' && (themes as readonly string[]).includes(value);
 
 export const getStoredTheme = (): Theme => {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    return isTheme(stored) ? stored : (legacyThemes[stored ?? ''] ?? 'light');
+    return isTheme(stored) ? stored : 'light';
   } catch {
     return 'light';
   }

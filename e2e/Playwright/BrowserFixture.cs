@@ -32,6 +32,12 @@ public sealed class BrowserFixture : IAsyncLifetime
     }
 #pragma warning restore CA1816
 
-    /// <summary>Creates an isolated browser context (fresh cookies/storage) for a single test.</summary>
-    public Task<IBrowserContext> NewContextAsync() => Browser.NewContextAsync();
+    /// <summary>
+    /// Creates an isolated browser context (fresh cookies/storage) for a single test,
+    /// optionally emulating a color scheme so <c>prefers-color-scheme</c> resolves as in that theme.
+    /// </summary>
+    public Task<IBrowserContext> NewContextAsync(ColorScheme? colorScheme = null)
+        => colorScheme is { } scheme
+            ? Browser.NewContextAsync(new BrowserNewContextOptions { ColorScheme = scheme })
+            : Browser.NewContextAsync();
 }

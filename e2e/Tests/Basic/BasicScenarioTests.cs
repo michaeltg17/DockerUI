@@ -54,6 +54,40 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         dark.Should().Contain("fill=\"#f8fafc\"", "because the dark variant uses the dark theme's foreground");
     }
 
+    [Theory]
+    [InlineData(ColorScheme.Light, "favicon.svg", "favicon-dark.svg")]
+    [InlineData(ColorScheme.Dark, "favicon-dark.svg", "favicon.svg")]
+    public async Task Requests_the_favicon_matching_the_browsers_color_scheme(
+        ColorScheme colorScheme, string expectedFavicon, string otherFavicon)
+    {
+        await using var context = await browser.NewContextAsync(colorScheme);
+        var page = await context.NewPageAsync();
+
+        // The browser picks the icon link whose media matches its color scheme, so the
+        // favicon url it actually requests proves the selection (the tab icon itself is
+        // drawn by the browser UI, outside the page).
+        var requested = new RequestRecorder();
+        page.Request += (_, request) => requested.Record(request.Url);
+
+        var apps = new AppsPage(page);
+        await apps.LoadAsync(environment.BaseUrl);
+        (await page.EvaluateAsync<bool>("() => matchMedia('(prefers-color-scheme: dark)').matches"))
+            .Should()
+            .Be(colorScheme == ColorScheme.Dark, "because the context emulates the given color scheme");
+
+        await requested.WaitForAsync(
+            expectedFavicon,
+            TimeSpan.FromSeconds(30),
+            TestContext.Current.CancellationToken);
+
+        // Give the browser a moment to fetch further candidates, then make sure the
+        // other variant was not requested.
+        await Task.Delay(2000, TestContext.Current.CancellationToken);
+        requested.Urls.Should().NotContain(
+            otherFavicon,
+            "because only the matching color scheme's favicon is used");
+    }
+
     [Fact]
     public async Task Shows_search_box()
     {
@@ -1810,5 +1844,55 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
         }
+    }
+}
+
+/// <summary>
+/// Records the urls the page requests and lets callers wait until a specific one is made.
+/// Attach to the page's <c>Request</c> event before navigating so no request is missed.
+/// </summary>
+sealed class RequestRecorder
+{
+    readonly Lock gate = new();
+
+    readonly List<string> urls = [];
+
+    public IReadOnlyList<string> Urls
+    {
+        get
+        {
+            lock (gate)
+                return [.. urls];
+        }
+    }
+
+    public void Record(string url)
+    {
+        lock (gate)
+            urls.Add(url);
+    }
+
+    /// <summary>Waits until a request to the given path is recorded, or the timeout elapses.</summary>
+    public async Task WaitForAsync(string path, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+
+        while (true)
+        {
+            if (Contains(path))
+                return;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException($"No request to '{path}' was made. Requested urls: {string.Join(", ", Urls)}");
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Delay(100, cancellationToken);
+        }
+    }
+
+    bool Contains(string path)
+    {
+        lock (gate)
+            return urls.Any(url => url.Contains(path, StringComparison.Ordinal));
     }
 }

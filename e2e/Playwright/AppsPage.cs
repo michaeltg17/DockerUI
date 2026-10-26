@@ -20,8 +20,14 @@ public sealed class AppsPage(IPage page)
 
     public ILocator SearchBox => Page.GetByRole(AriaRole.Searchbox, new PageGetByRoleOptions { Name = "Search apps", Exact = true });
 
-    /// <summary>The SVG favicon link in the page head (the dashboard's logo).</summary>
-    public ILocator FaviconLink => Page.Locator("link[rel='icon'][type='image/svg+xml']");
+    /// <summary>The SVG favicon link for light-themed browsers (the dashboard's logo).</summary>
+    public ILocator FaviconLightLink => Page.Locator("link[rel='icon'][type='image/svg+xml'][media='(prefers-color-scheme: light)']");
+
+    /// <summary>The SVG favicon link for dark-themed browsers (the logo's light variant).</summary>
+    public ILocator FaviconDarkLink => Page.Locator("link[rel='icon'][type='image/svg+xml'][media='(prefers-color-scheme: dark)']");
+
+    /// <summary>The ico favicon fallback in the page head.</summary>
+    public ILocator FaviconIcoLink => Page.Locator("link[rel='icon'][href='/favicon.ico']");
 
     /// <summary>The page's main content area, which carries the dashboard-wide context menu.</summary>
     public ILocator Main => Page.GetByRole(AriaRole.Main);

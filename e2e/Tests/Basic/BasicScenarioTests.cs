@@ -20,26 +20,38 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     const int SelfActionTimeoutSeconds = 120;
 
     [Fact]
-    public async Task Uses_the_logo_as_favicon()
+    public async Task Uses_the_logo_as_favicon_in_light_and_dark_variants()
     {
         await using var context = await browser.NewContextAsync();
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
-        (await apps.FaviconLink.CountAsync()).Should().Be(1, "because the dashboard declares its logo as the favicon");
-        (await apps.FaviconLink.GetAttributeAsync("href")).Should().Be("/favicon.svg");
+        // The head declares one SVG favicon per color scheme, so the tab icon always
+        // contrasts with the browser's theme.
+        (await apps.FaviconLightLink.CountAsync()).Should().Be(1, "because the dashboard declares a favicon for light-themed browsers");
+        (await apps.FaviconLightLink.GetAttributeAsync("href")).Should().Be("/favicon.svg");
+        (await apps.FaviconDarkLink.CountAsync()).Should().Be(1, "because the dashboard declares a favicon for dark-themed browsers");
+        (await apps.FaviconDarkLink.GetAttributeAsync("href")).Should().Be("/favicon-dark.svg");
+        (await apps.FaviconIcoLink.CountAsync()).Should().Be(1, "because an ico fallback is declared for browsers without SVG support");
 
+        var cancellationToken = TestContext.Current.CancellationToken;
         using var client = new HttpClient();
-        using var response = await client.GetAsync(
-            new Uri(environment.BaseUrl, "favicon.svg"),
-            TestContext.Current.CancellationToken);
-        response.IsSuccessStatusCode.Should().BeTrue("because the favicon is served by the dashboard");
 
-        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        content.Should().StartWith("<svg");
-        content.Should().Contain(
+        var light = await FetchFaviconAsync(client, environment.BaseUrl, "favicon.svg", cancellationToken);
+        var dark = await FetchFaviconAsync(client, environment.BaseUrl, "favicon-dark.svg", cancellationToken);
+
+        // Both variants are the project's grid logo.
+        light.Should().Contain(
             "<rect x=\"8\" y=\"2.8\" width=\"8\" height=\"2.4\" />",
             "because the favicon is the project's grid logo");
+        dark.Should().Contain(
+            "<rect x=\"8\" y=\"2.8\" width=\"8\" height=\"2.4\" />",
+            "because the favicon is the project's grid logo");
+
+        // Each variant uses the app's foreground for its theme, so the mark contrasts
+        // the tab strip in both browser themes.
+        light.Should().Contain("fill=\"#0f172a\"", "because the light variant uses the light theme's foreground");
+        dark.Should().Contain("fill=\"#f8fafc\"", "because the dark variant uses the dark theme's foreground");
     }
 
     [Fact]
@@ -1727,6 +1739,17 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         }
 
         throw new InvalidOperationException($"Shortcut '{name}' was not returned by the API.");
+    }
+
+    /// <summary>Fetches the given favicon from the dashboard and returns its SVG content.</summary>
+    static async Task<string> FetchFaviconAsync(HttpClient client, Uri baseUrl, string path, CancellationToken cancellationToken)
+    {
+        using var response = await client.GetAsync(new Uri(baseUrl, path), cancellationToken);
+        response.IsSuccessStatusCode.Should().BeTrue("because the favicon is served by the dashboard");
+
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        content.Should().StartWith("<svg", "because the favicon is an SVG, not a raster image");
+        return content;
     }
 
     static async Task<string> ContainerStartedAtAsync(string containerName, CancellationToken cancellationToken)

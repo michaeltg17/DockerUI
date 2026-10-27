@@ -22,7 +22,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Uses_the_logo_as_favicon_in_light_and_dark_variants()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -60,7 +60,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     public async Task Requests_the_favicon_matching_the_browsers_color_scheme(
         ColorScheme colorScheme, string expectedFavicon, string otherFavicon)
     {
-        await using var context = await browser.NewContextAsync(colorScheme);
+        await using var context = await browser.NewContextAsync(environment, colorScheme);
         var page = await context.NewPageAsync();
 
         // The browser picks the icon link whose media matches its color scheme, so the
@@ -105,7 +105,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shows_search_box()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -115,7 +115,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Search_bar_is_centered_in_the_header()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.SearchBox.WaitForAsync();
@@ -135,7 +135,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Default_page_title_is_used_when_no_name_is_configured()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -146,7 +146,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Dashboard_menu_logs_option_shows_the_dashboard_logs()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -166,7 +166,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Context_menu_shows_the_stack_logs()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
@@ -189,7 +189,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Single_container_app_logs_show_no_container_header()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("restart-stack", AppsPage.RunningState);
@@ -217,7 +217,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Logs_dialog_shows_empty_state_when_no_container_logged_anything()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -241,7 +241,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task View_logs_dialog_starts_scrolled_to_the_recent_logs()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
@@ -351,7 +351,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Dashboard_stack_is_hidden_by_default()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -364,7 +364,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Dashboard_menu_offers_the_dashboard_actions()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -394,7 +394,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Lan_scan_in_a_container_without_subnet_config_finds_nothing()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -413,7 +413,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Dashboard_menu_renames_the_dashboard()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -474,7 +474,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Hiding_an_app_moves_it_to_the_hidden_apps_dialog()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -525,7 +525,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Hiding_a_shortcut_moves_it_to_the_hidden_apps_dialog()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -576,7 +576,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task App_card_name_has_no_redundant_title_tooltip()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -592,7 +592,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Edit_dialog_changes_an_apps_name_icon_and_url()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
@@ -645,7 +645,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Dashboard_menu_restarts_its_own_container()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -677,7 +677,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Theme_selection_applies_and_persists_across_reload()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -695,7 +695,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Docker_theme_applies_the_gradient_header()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -717,7 +717,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Docker_theme_search_field_uses_the_docker_blue()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -733,7 +733,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shows_running_apps_with_running_state()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -746,7 +746,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shows_stopped_apps_with_stopped_state()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -757,7 +757,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Stack_with_a_stopped_container_shows_as_running()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -768,7 +768,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Search_filters_cards_by_name()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -787,7 +787,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Production_page_emits_no_signalr_traces_to_the_console()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var page = await context.NewPageAsync();
         var apps = new AppsPage(page);
         await apps.LoadAsync(environment.BaseUrl);
@@ -813,7 +813,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Dragging_a_card_reorders_the_grid_and_persists_it()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -910,7 +910,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Dragging_a_card_shows_the_drop_position_indicator()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -934,7 +934,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Context_menu_of_running_app_disables_start()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
@@ -948,7 +948,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Context_menu_of_stopped_app_disables_stop_and_restart()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("stopped-stack", AppsPage.StoppedState);
@@ -962,7 +962,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Stop_then_start_transitions_state()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
@@ -981,7 +981,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Restart_restarts_the_app_containers()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("restart-stack", AppsPage.RunningState);
@@ -1009,7 +1009,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Starting_stopped_app_transitions_to_running()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("start-stack", AppsPage.StoppedState);
@@ -1029,7 +1029,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Progress_bar_shows_while_stopping_app()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
@@ -1080,7 +1080,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Hovering_stopped_app_shows_play_overlay_that_starts_it()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("start-stack", AppsPage.StoppedState);
@@ -1114,7 +1114,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Clicking_card_with_url_opens_new_tab()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
@@ -1131,7 +1131,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Middle_clicking_card_with_url_opens_new_tab()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
@@ -1149,7 +1149,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Clicking_card_without_url_opens_nothing()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("e2e-standalone", AppsPage.RunningState);
@@ -1163,7 +1163,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Add_shortcut_shows_it_as_a_card()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1181,7 +1181,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shortcut_is_persisted_to_appsettings()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1221,7 +1221,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Edit_shortcut_updates_its_url()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1253,7 +1253,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Edit_shortcut_renames_it()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1290,7 +1290,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Delete_shortcut_removes_its_card()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1306,7 +1306,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shortcut_icon_and_none_render_differently()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1340,7 +1340,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Add_shortcut_enables_create_for_a_protocolless_url()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1377,7 +1377,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shortcut_dialog_explains_why_create_is_disabled()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1431,7 +1431,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shortcut_dialog_rejects_a_word_only_url()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1464,7 +1464,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Renaming_a_shortcut_keeps_its_place_in_the_order()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1524,7 +1524,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shortcut_dialog_keeps_unsaved_changes_when_clicking_outside()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1565,7 +1565,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shortcut_dialog_shows_the_error_when_the_name_is_taken()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1612,7 +1612,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shortcut_icon_picker_filters_by_name_and_selects_an_icon()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1667,7 +1667,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Icon_picker_keeps_its_size_while_the_search_filters_icons()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
@@ -1717,7 +1717,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Hidden_apps_dialog_keeps_its_size_when_an_app_is_reshown()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
@@ -1746,7 +1746,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Reshowing_a_hidden_app_does_not_flash_the_cards()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
@@ -1801,7 +1801,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Stack_names_resolve_icons_from_the_catalog()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -1820,7 +1820,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Stopped_app_icon_is_darkened_with_a_stop_glyph_that_becomes_play_on_hover()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("adguard", AppsPage.RunningState);
@@ -1897,7 +1897,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     [Fact]
     public async Task Progress_bar_is_red_while_stopping_and_green_while_starting()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);

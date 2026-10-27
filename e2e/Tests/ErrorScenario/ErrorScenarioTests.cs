@@ -16,7 +16,7 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
     [Fact]
     public async Task Shows_error_state_when_daemon_unreachable()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -27,7 +27,7 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
     [Fact]
     public async Task Logs_dialog_shows_error_when_daemon_unreachable()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
@@ -45,7 +45,7 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
     [Fact]
     public async Task Retry_refetches_and_stays_in_error_state()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });

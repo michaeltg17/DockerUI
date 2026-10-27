@@ -23,7 +23,7 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
     [Fact]
     public async Task Scan_lan_adds_the_discovered_service_as_a_lan_card()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -39,7 +39,7 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
     [Fact]
     public async Task Scan_lan_skips_services_already_exposed_by_a_docker_app()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -63,7 +63,7 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
     [Fact]
     public async Task Scanned_card_is_shown_on_the_grid_and_offers_rescan()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 

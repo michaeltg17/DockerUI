@@ -1665,6 +1665,85 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Icon_picker_keeps_its_size_while_the_search_filters_icons()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // The picker opens with the full icon grid; the search filtering it down must not
+        // make the dialog shrink.
+        var heightBefore = await DialogHeightAsync(picker);
+
+        await picker
+            .GetByRole(AriaRole.Searchbox, new LocatorGetByRoleOptions { Name = "Search icons by name", Exact = true })
+            .FillAsync("adguard");
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var deadline = DateTime.UtcNow.AddMilliseconds(AppsPage.StateChangeTimeoutMs);
+        while (await picker.Locator("img").CountAsync() != 1)
+        {
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("The icon picker did not filter to a single icon.");
+            await Task.Delay(100, cancellationToken);
+        }
+
+        (await DialogHeightAsync(picker)).Should()
+            .Be(heightBefore, "because the icon picker keeps the size it opened with");
+
+        await picker
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true })
+            .ClickAsync();
+        await picker.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Cancel", Exact = true })
+            .ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
+    public async Task Hidden_apps_dialog_keeps_its_size_when_an_app_is_reshown()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
+
+        // Hide an app so the dialog has a card that can disappear.
+        await apps.HideAppAsync("solo-stack");
+
+        var dialog = await apps.OpenHiddenAppsDialogAsync();
+        var showButton = dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Show solo-stack", Exact = true });
+        await showButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // Reshowing the app empties the list, but the dialog must keep the size it opened with.
+        var heightBefore = await DialogHeightAsync(dialog);
+        await AppsPage.ShowHiddenAppAsync(dialog, "solo-stack");
+        await showButton.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        (await DialogHeightAsync(dialog)).Should()
+            .Be(heightBefore, "because the hidden apps dialog keeps the size it opened with");
+
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Close", Exact = true })
+            .ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
     public async Task Stack_names_resolve_icons_from_the_catalog()
     {
         await using var context = await browser.NewContextAsync();
@@ -1910,6 +1989,14 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
         }
+    }
+
+    /// <summary>The dialog panel's current height in pixels.</summary>
+    static async Task<double> DialogHeightAsync(ILocator dialog)
+    {
+        var box = await dialog.BoundingBoxAsync()
+            ?? throw new InvalidOperationException("The dialog has no bounding box.");
+        return box.Height;
     }
 }
 

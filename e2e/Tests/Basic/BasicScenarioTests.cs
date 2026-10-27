@@ -65,7 +65,21 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // The browser picks the icon link whose media matches its color scheme, so the
         // favicon url it actually requests proves the selection (the tab icon itself is
-        // drawn by the browser UI, outside the page).
+        // drawn by the browser UI, outside the page). Before that, it probes the
+        // scheme-less /favicon.ico for the tab icon and, when served a valid image, is
+        // satisfied with it and never evaluates the media attributes. Failing the probe
+        // forces the fallback to the media-qualified links, so the color-scheme selection
+        // becomes an observable network request.
+        await page.RouteAsync("**/favicon.ico", async route =>
+        {
+            await route.FulfillAsync(new RouteFulfillOptions
+            {
+                Status = 404,
+                ContentType = "text/plain",
+                Body = "not found",
+            });
+        });
+
         var requested = new RequestRecorder();
         page.Request += (_, request) => requested.Record(request.Url);
 

@@ -1,0 +1,1 @@
+query { organization(login: "ORG_LOGIN") { projectV2(number: PROJECT_NUMBER) { id title } } }

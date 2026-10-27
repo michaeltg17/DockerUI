@@ -1,0 +1,1 @@
+query { node(id: "PROJECT_ID") { ... on ProjectV2 { fields(first: 50) { nodes { ... on ProjectV2FieldCommon { id name } ... on ProjectV2SingleSelectField { id name options { id name } } } } } } }

@@ -13,7 +13,7 @@ namespace Api.Features.Apps
     /// Shared app operations: the full app list (docker stacks plus user shortcuts)
     /// and the container resolution the app endpoints build on.
     /// </summary>
-    internal sealed class AppService(
+    internal sealed partial class AppService(
         IContainerOperations containers,
         IAppIconCatalog iconCatalog,
         AppSettingsStore settingsStore,
@@ -22,6 +22,15 @@ namespace Api.Features.Apps
         ShortcutStore shortcutStore,
         ILogger<AppService> logger)
     {
+        // The list response carries no exit code for created containers, so a failed start
+        // attempt (the container is left 'created' with the failure code) is probed via
+        // inspect and cached briefly; stale entries are pruned on access.
+        const int ExitCodeProbeTimeoutMilliseconds = 2_000;
+        const int ExitCodeCacheTtlSeconds = 60;
+
+        readonly Dictionary<string, (long ExitCode, DateTime FetchedAtUtc)> exitCodeCache = [];
+        readonly Lock exitCodeCacheGate = new();
+
         public async Task<IReadOnlyList<AppDto>> GetAppsAsync(CancellationToken cancellationToken = default)
         {
             var settings = settingsStore.Current;
@@ -192,12 +201,12 @@ namespace Api.Features.Apps
                     new ContainersListParameters { All = true },
                     cancellationToken).ConfigureAwait(false);
 
-                return
-                [
-                    .. list.Select(container => new ContainerSnapshot(
+                var snapshots = list
+                    .Select(container => new ContainerSnapshot(
                         container.ID,
                         container.Names?.FirstOrDefault(name => !string.IsNullOrWhiteSpace(name))?.TrimStart('/') ?? container.ID,
                         container.State,
+                        container.Status,
                         container.Image,
                         container.Labels is { Count: > 0 } labels
                             ? new Dictionary<string, string>(labels)
@@ -206,8 +215,12 @@ namespace Api.Features.Apps
                             ? ports
                                 .Select(binding => new PortMapping(binding.PrivatePort, binding.PublicPort, binding.Type))
                                 .ToList()
-                            : [])),
-                ];
+                            : []))
+                    .ToList();
+
+                await ProbeCreatedContainerExitCodesAsync(snapshots, cancellationToken).ConfigureAwait(false);
+
+                return snapshots;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -215,5 +228,86 @@ namespace Api.Features.Apps
                     "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
             }
         }
+
+        /// <summary>
+        /// Fills the probed exit codes of created containers, in parallel: the list response
+        /// carries no exit code for them, but a failed start attempt leaves the container
+        /// 'created' with the failure code in its inspect state.
+        /// </summary>
+        async Task ProbeCreatedContainerExitCodesAsync(List<ContainerSnapshot> snapshots, CancellationToken cancellationToken)
+        {
+            var created = snapshots
+                .Select((snapshot, index) => (Snapshot: snapshot, Index: index))
+                .Where(pair => string.Equals(pair.Snapshot.State, AppCatalog.StateCreated, StringComparison.Ordinal))
+                .ToList();
+
+            if (created.Count == 0)
+                return;
+
+            var results = await Task.WhenAll(
+                created.Select(pair => GetCreatedContainerExitCodeAsync(pair.Snapshot.Id, cancellationToken)))
+                .ConfigureAwait(false);
+
+            for (var i = 0; i < created.Count; i++)
+            {
+                if (results[i] is { } exitCode)
+                    snapshots[created[i].Index] = created[i].Snapshot with { ExitCode = exitCode };
+            }
+        }
+
+        async Task<int?> GetCreatedContainerExitCodeAsync(string containerId, CancellationToken cancellationToken)
+        {
+            var nowUtc = DateTime.UtcNow;
+
+            lock (exitCodeCacheGate)
+            {
+                PruneStaleExitCodes(nowUtc);
+
+                if (exitCodeCache.TryGetValue(containerId, out var cached) &&
+                    nowUtc - cached.FetchedAtUtc < TimeSpan.FromSeconds(ExitCodeCacheTtlSeconds))
+                {
+                    return (int)cached.ExitCode;
+                }
+            }
+
+            try
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(TimeSpan.FromMilliseconds(ExitCodeProbeTimeoutMilliseconds));
+
+                var inspect = await containers.InspectContainerAsync(containerId, timeout.Token).ConfigureAwait(false);
+
+                if (inspect.State is not { } state)
+                    return null;
+
+                lock (exitCodeCacheGate)
+                    exitCodeCache[containerId] = (state.ExitCode, DateTime.UtcNow);
+
+                return (int)state.ExitCode;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                // A failed probe (or its timeout) must not take the app list down with it.
+                LogCreatedContainerProbeFailed(logger, ex, containerId);
+                return null;
+            }
+        }
+
+        // The caller holds exitCodeCacheGate.
+        void PruneStaleExitCodes(DateTime nowUtc)
+        {
+            foreach (var staleId in exitCodeCache
+                .Where(entry => nowUtc - entry.Value.FetchedAtUtc >= TimeSpan.FromSeconds(ExitCodeCacheTtlSeconds))
+                .Select(entry => entry.Key)
+                .ToList())
+            {
+                exitCodeCache.Remove(staleId);
+            }
+        }
+
+        [LoggerMessage(
+            Level = LogLevel.Debug,
+            Message = "Could not probe the exit code of created container '{ContainerId}'; the problem badge stays empty.")]
+        static partial void LogCreatedContainerProbeFailed(ILogger logger, Exception exception, string containerId);
     }
 }

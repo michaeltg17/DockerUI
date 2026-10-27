@@ -148,6 +148,16 @@ public sealed class AppsPage(IPage page)
     /// <summary>The progress bar inside the app icon; present only while a start/stop/restart is in flight.</summary>
     public ILocator CardProgressBar(string appName) => Card(appName).GetByRole(AriaRole.Progressbar, new LocatorGetByRoleOptions { Name = $"Updating {appName}", Exact = true });
 
+    /// <summary>
+    /// The problem badge on the given app's card icon; present while the app has a problem
+    /// (crashed, crash-looping, unhealthy, failed start, dead). Its accessible name is the
+    /// problem message.
+    /// </summary>
+    public ILocator CardProblemBadge(string appName) => Card(appName).GetByRole(AriaRole.Img);
+
+    /// <summary>The given app's icon (its image, or its initials fallback), for inspecting the darkening filter.</summary>
+    public ILocator CardIcon(string appName) => Card(appName).Locator("div.relative > *:first-child");
+
     public ILocator NoMatchesMessage(string query) => Page.GetByText($"No apps match \u201C{query}\u201D.");
 
     /// <summary>Navigates to the dashboard. Callers then wait for the specific content they need.</summary>
@@ -164,6 +174,38 @@ public sealed class AppsPage(IPage page)
     /// <summary>Waits until the given app's card is in the given state.</summary>
     public async Task WaitForStateAsync(string appName, string state, int timeoutMs = StateChangeTimeoutMs)
         => await CardInState(appName, state).WaitForAsync(new LocatorWaitForOptions { Timeout = timeoutMs, State = WaitForSelectorState.Visible });
+
+    /// <summary>
+    /// Waits until the given app's problem badge is visible and its accessible name contains
+    /// the given text. Polls, because a crash-looping container alternates between its states
+    /// and a multi-service problem message can briefly lose one of its parts while that
+    /// container happens to be up.
+    /// </summary>
+    public async Task WaitForProblemBadgeAsync(string appName, string messagePart, int timeoutMs = StateChangeTimeoutMs)
+    {
+        ArgumentNullException.ThrowIfNull(messagePart);
+
+        var badge = CardProblemBadge(appName);
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        string actual;
+
+        while (true)
+        {
+            var label = await badge.CountAsync() > 0
+                ? await badge.First.GetAttributeAsync("aria-label")
+                : null;
+
+            actual = label ?? "no badge";
+
+            if (actual.Contains(messagePart, StringComparison.Ordinal))
+                return;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException($"The problem badge of '{appName}' never contained '{messagePart}'. Actual: {actual}");
+
+            await Task.Delay(250);
+        }
+    }
 
     /// <summary>Right-clicks the given app's card and returns the context menu.</summary>
     public async Task<ILocator> OpenCardMenuAsync(string appName)

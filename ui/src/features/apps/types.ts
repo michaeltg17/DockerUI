@@ -27,6 +27,12 @@ export interface App {
    * shortcuts that predate the field.
    */
   color: number | null;
+  /**
+   * The human-readable problem the app is in (crashed, crash-looping, unhealthy,
+   * ...), shown as a badge on the card. Null when healthy; always null for
+   * shortcuts and lan apps.
+   */
+  problem: string | null;
 }
 
 export interface Shortcut {

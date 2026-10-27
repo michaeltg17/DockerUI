@@ -77,11 +77,13 @@ export const AppCard = ({
   const isStopping = stopApp.isPending;
   const isRestarting = restartApp.isPending;
   const isBusy = isStarting || isStopping || isRestarting;
+  const problem = app.problem;
 
   // As soon as a stop (or restart) is initiated the app is already treated
   // as not running, so the icon darkens immediately — before the daemon
-  // reports the new state.
-  const isDimmed = !isRunning || isStopping || isRestarting;
+  // reports the new state. A running app with a problem (crash-looping,
+  // unhealthy) gets the same stopped look.
+  const isDimmed = !isRunning || isStopping || isRestarting || problem !== null;
 
   // Starting and restarting both move toward "running" (green); stopping moves
   // away (red). A restart shows the same green as a start.
@@ -262,7 +264,7 @@ export const AppCard = ({
                   isDimmed && 'brightness-50',
                 )}
               />
-              {app.state === 'stopped' && (
+              {(app.state === 'stopped' || problem !== null) && (
                 <span
                   role="button"
                   tabIndex={0}
@@ -291,6 +293,16 @@ export const AppCard = ({
                       aria-hidden="true"
                     />
                   </span>
+                </span>
+              )}
+              {problem !== null && (
+                <span
+                  role="img"
+                  aria-label={problem}
+                  title={problem}
+                  className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full bg-red-500 text-sm font-bold text-white"
+                >
+                  !
                 </span>
               )}
               {isBusy && (

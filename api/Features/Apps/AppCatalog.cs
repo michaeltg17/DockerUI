@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using Api.Domain;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
@@ -15,6 +17,24 @@ namespace Api.Features.Apps
         public const string ComposeProjectLabel = "com.docker.compose.project";
         public const string ComposeServiceLabel = "com.docker.compose.service";
         public const string IconLabel = "dockerui.icon";
+
+        // Docker daemon container states (the 'State' values of the list response).
+        public const string StateCreated = "created";
+        public const string StateRunning = "running";
+        public const string StateRestarting = "restarting";
+        public const string StateExited = "exited";
+        public const string StateDead = "dead";
+
+        /// <summary>The exit code of a process killed by the OOM killer (SIGKILL = 128 + 9).</summary>
+        const int OomKilledExitCode = 137;
+
+        // The daemon's status line carries the exit code of exited and restarting
+        // containers: 'Exited (7) 5 seconds ago', 'Restarting (5) 2 seconds ago'.
+        static readonly Regex StatusExitCodeRegex = new(
+            @"^(?:Exited|Restarting) \((\d+)\)",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        const string UnhealthySuffix = "(unhealthy)";
 
         static readonly ushort[] PreferredWebPorts =
         [
@@ -78,7 +98,57 @@ namespace Api.Features.Apps
                 : [standalone];
         }
 
-        public static bool IsRunningState(string state) => state is "running" or "restarting";
+        public static bool IsRunningState(string state) => state is StateRunning or StateRestarting;
+
+        /// <summary>
+        /// The human-readable problem a container is in, or null when it looks healthy (or is
+        /// merely stopped on purpose, like a paused container). The message doubles as the
+        /// card's problem badge tooltip.
+        /// </summary>
+        static string? GetContainerProblem(ContainerSnapshot container)
+        {
+            switch (container.State)
+            {
+                case StateRunning:
+                    // While running, only the daemon's unhealthy health-check verdict is a problem.
+                    return container.Status.EndsWith(UnhealthySuffix, StringComparison.Ordinal)
+                        ? "Unhealthy (health check failing)"
+                        : null;
+
+                case StateRestarting:
+                    return TryParseStatusExitCode(container.Status, out var restartingExitCode)
+                        ? $"Crash-looping (last exit code {restartingExitCode})"
+                        : "Crash-looping";
+
+                case StateExited:
+                    if (!TryParseStatusExitCode(container.Status, out var exitCode) || exitCode == 0)
+                        return null;
+
+                    return exitCode == OomKilledExitCode
+                        ? $"Crashed (exit code {exitCode}) — likely out of memory"
+                        : $"Crashed (exit code {exitCode})";
+
+                case StateCreated:
+                    // A created container carries no exit code in the list response; it was probed.
+                    return container.ExitCode is { } createdExitCode and not 0
+                        ? $"Failed to start (exit code {createdExitCode})"
+                        : null;
+
+                case StateDead:
+                    return "Dead (daemon could not clean up the container)";
+
+                default:
+                    return null;
+            }
+        }
+
+        static bool TryParseStatusExitCode(string status, out int exitCode)
+        {
+            var match = StatusExitCodeRegex.Match(status);
+            var captured = match.Success ? match.Groups[1].Value : null;
+
+            return int.TryParse(captured, NumberStyles.Integer, CultureInfo.InvariantCulture, out exitCode);
+        }
 
         static string? GetProject(ContainerSnapshot container) =>
             container.Labels.TryGetValue(ComposeProjectLabel, out var project) && !string.IsNullOrWhiteSpace(project)
@@ -123,7 +193,32 @@ namespace Api.Features.Apps
 
             var displayName = !string.IsNullOrWhiteSpace(perApp?.Name) ? perApp.Name : name;
 
-            return new AppDto(name, displayName, icon, state, ResolveAppUrl(name, containers, baseUrl, perApp, logger), services, AppSource.Docker);
+            // In a multi-container app the service name prefixes each problem so it is
+            // clear which service is failing.
+            var problems = containers
+                .Select(container => (Service: GetServiceName(container), Problem: GetContainerProblem(container)))
+                .Where(pair => pair.Problem is not null)
+                .ToList();
+
+            var problem = problems.Count == 0
+                ? null
+                : containers.Count == 1
+                    ? problems[0].Problem
+                    : string.Join(
+                        "; ",
+                        problems
+                            .OrderBy(pair => pair.Service, StringComparer.OrdinalIgnoreCase)
+                            .Select(pair => $"{pair.Service}: {pair.Problem}"));
+
+            return new AppDto(
+                name,
+                displayName,
+                icon,
+                state,
+                ResolveAppUrl(name, containers, baseUrl, perApp, logger),
+                services,
+                AppSource.Docker,
+                Problem: problem);
         }
 
         static Uri? ResolveAppUrl(

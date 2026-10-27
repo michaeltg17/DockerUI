@@ -766,6 +766,81 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Stack_with_failing_containers_shows_a_problem_badge_per_service()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        // crash-stack has one crashed, one crash-looping and one unhealthy service; the badge
+        // names every failing service, in service-name order.
+        await apps.WaitForProblemBadgeAsync(
+            "crash-stack",
+            "crashed: Crashed (exit code 7); looping: Crash-looping (last exit code 5); sick: Unhealthy (health check failing)");
+
+        // The app counts as running (a container is up), but its icon darkens like a stopped one.
+        var icon = apps.CardIcon("crash-stack");
+        var filter = await icon.EvaluateAsync<string>("(el) => getComputedStyle(el).filter");
+        filter.Should().Contain("brightness", "because an app with a problem shows a darkened icon");
+    }
+
+    [Fact]
+    public async Task Container_with_failed_start_shows_a_problem_badge()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        // A failed 'docker run' leaves the container 'created' with the failure exit code.
+        await apps.WaitForProblemBadgeAsync("e2e-failed-start", "Failed to start (exit code 127)");
+
+        var icon = apps.CardIcon("e2e-failed-start");
+        var filter = await icon.EvaluateAsync<string>("(el) => getComputedStyle(el).filter");
+        filter.Should().Contain("brightness", "because a failed start leaves a darkened icon");
+    }
+
+    [Fact]
+    public async Task Never_started_and_paused_containers_are_darkened_without_a_problem()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        // A container that was created but never started, and a paused container, are stopped
+        // on purpose: darkened like stopped apps, but without a problem badge.
+        await apps.WaitForAppAsync("e2e-never-started");
+        await apps.WaitForAppAsync("e2e-paused");
+
+        (await apps.CardProblemBadge("e2e-never-started").CountAsync())
+            .Should().Be(0, "because a never-started container has no exit code yet");
+        (await apps.CardProblemBadge("e2e-paused").CountAsync())
+            .Should().Be(0, "because a paused container is stopped on purpose");
+
+        foreach (var name in new[] { "e2e-never-started", "e2e-paused" })
+        {
+            var filter = await apps.CardIcon(name).EvaluateAsync<string>("(el) => getComputedStyle(el).filter");
+            filter.Should().Contain("brightness", "because a stopped app shows a darkened icon");
+        }
+    }
+
+    [Fact]
+    public async Task Healthy_apps_show_no_problem_badge()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        // Running apps without a problem show no badge.
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+        await apps.WaitForStateAsync("e2e-standalone", AppsPage.RunningState);
+
+        (await apps.CardProblemBadge("web-stack").CountAsync())
+            .Should().Be(0, "because a healthy running app has no problem");
+        (await apps.CardProblemBadge("e2e-standalone").CountAsync())
+            .Should().Be(0, "because a healthy running app has no problem");
+    }
+
+    [Fact]
     public async Task Search_filters_cards_by_name()
     {
         await using var context = await browser.NewContextAsync(environment);

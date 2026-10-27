@@ -9,11 +9,10 @@ internal static class IconsEndpoint
 {
     public static void Map(WebApplication app)
     {
-        app.MapGet($"{EndpointsMapper.BasePath}/icons", (IConfiguration configuration) =>
+        app.MapGet($"{EndpointsMapper.BasePath}/icons", (AppSettingsStore settingsStore) =>
         {
             var builtIn = IconMappingLoader.LoadBuiltIn();
-            var settings = configuration.GetSection(DockerUISettings.Section).Get<DockerUISettings>();
-            var custom = settings?.Icons;
+            var custom = settingsStore.Current?.Icons;
 
             var icons = builtIn
                 .Concat(custom is null ? [] : custom)

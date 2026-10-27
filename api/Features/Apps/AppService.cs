@@ -16,7 +16,7 @@ namespace Api.Features.Apps
     internal sealed class AppService(
         IContainerOperations containers,
         IAppIconCatalog iconCatalog,
-        IConfiguration configuration,
+        AppSettingsStore settingsStore,
         AppBaseUrlTracker baseUrlTracker,
         IHttpContextAccessor httpContextAccessor,
         ShortcutStore shortcutStore,
@@ -24,7 +24,7 @@ namespace Api.Features.Apps
     {
         public async Task<IReadOnlyList<AppDto>> GetAppsAsync(CancellationToken cancellationToken = default)
         {
-            var settings = CurrentSettings;
+            var settings = settingsStore.Current;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
             var (visible, _) = AppCatalog
                 .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
@@ -39,7 +39,7 @@ namespace Api.Features.Apps
         /// <summary>The apps currently hidden from the dashboard: hidden apps and hidden shortcuts.</summary>
         public async Task<IReadOnlyList<AppDto>> GetHiddenAppsAsync(CancellationToken cancellationToken = default)
         {
-            var settings = CurrentSettings;
+            var settings = settingsStore.Current;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
             var selfProject = ResolveSelfProject(snapshots);
             var (_, hidden) = AppCatalog
@@ -94,7 +94,7 @@ namespace Api.Features.Apps
         public async Task<HashSet<(string Host, int Port)>> GetDockerReachableAddressesAsync(
             CancellationToken cancellationToken = default)
         {
-            var host = ResolveBaseUrl(CurrentSettings)?.Host;
+            var host = ResolveBaseUrl(settingsStore.Current)?.Host;
 
             if (string.IsNullOrEmpty(host))
                 return [];
@@ -155,13 +155,6 @@ namespace Api.Features.Apps
                 ? project
                 : null;
         }
-
-        /// <summary>
-        /// Binds the current settings from the configuration on every call, so a
-        /// configuration reload (settings file edited) is picked up immediately.
-        /// </summary>
-        DockerUISettings? CurrentSettings =>
-            configuration.GetSection(DockerUISettings.Section).Get<DockerUISettings>();
 
         /// <summary>
         /// Resolves the base URL used to build app links: 'DockerUI:BaseUrl' wins;

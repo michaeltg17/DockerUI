@@ -173,6 +173,34 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Single_container_app_logs_show_no_container_header()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("restart-stack", AppsPage.RunningState);
+
+        var menu = await apps.OpenCardMenuAsync("restart-stack");
+        await AppsPage.MenuItem(menu, "View logs").ClickAsync();
+
+        var dialog = apps.LogsDialog("restart-stack logs");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // The log area (a <pre>) only renders once non-empty log content has loaded, so
+        // waiting for it also proves restart-stack's nginx wrote container logs at startup.
+        await dialog
+            .Locator("pre")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // restart-stack runs a single container and the dialog title already names the app,
+        // so its log content must not carry a per-container section header.
+        var content = await dialog.Locator("pre").InnerTextAsync();
+        content.Should().NotContain(
+            "=== restart-stack-web-1 ===",
+            "because a single-container app needs no per-container section header");
+    }
+
+    [Fact]
     public async Task View_logs_dialog_starts_scrolled_to_the_recent_logs()
     {
         await using var context = await browser.NewContextAsync();

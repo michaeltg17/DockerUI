@@ -24,7 +24,13 @@ namespace Api.Features.Apps.Endpoints
                     foreach (var container in targets)
                     {
                         var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, container.Id, cancellationToken).ConfigureAwait(false);
-                        logs.AppendLine("=== " + container.Name + " ===");
+                        // The dialog title already names a single-container app, so only
+                        // multi-container stacks need a section header per container.
+                        if (targets.Count > 1)
+                        {
+                            logs.AppendLine("=== " + container.Name + " ===");
+                        }
+
                         logs.Append(stdout).AppendLine().Append(stderr);
                     }
                 }

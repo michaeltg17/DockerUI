@@ -15,8 +15,11 @@ type HiddenAppsDialogProps = {
 };
 
 // Mirrors the dashboard card so hidden apps look identical to the grid.
+// While a show request is in flight the cards are disabled (no re-clicks) but
+// not dimmed: dimming and then snapping back is the flash that read as a
+// strange animation, and the card is removed as soon as the request settles.
 const cardClasses =
-  'group flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60';
+  'group flex size-full flex-col items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-accent hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none';
 
 export const HiddenAppsDialog = ({ open, onClose }: HiddenAppsDialogProps) => {
   if (!open) return null;

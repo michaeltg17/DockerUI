@@ -1744,6 +1744,61 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Reshowing_a_hidden_app_does_not_flash_the_cards()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
+
+        await apps.HideAppAsync("solo-stack");
+
+        var dialog = await apps.OpenHiddenAppsDialogAsync();
+        var showButton = dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Show solo-stack", Exact = true });
+        await showButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // Stretch the visibility round-trip so the in-flight window is wide enough to
+        // observe: while it is pending, the card must stay at full opacity instead of
+        // dimming and snapping back (the reported "flash" when reshowing).
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await apps.Page.RouteAsync("**/apps/*/visibility", async route =>
+        {
+            await Task.Delay(1_000, cancellationToken);
+            await route.ContinueAsync();
+        });
+
+        await showButton.ClickAsync();
+
+        // Sample the card's computed opacity while it is still on screen.
+        var opacities = new List<string>();
+        var deadline = DateTime.UtcNow.AddMilliseconds(AppsPage.StateChangeTimeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            var opacity = await apps.Page.EvaluateAsync<string?>(
+                """
+                () => {
+                    const button = document.querySelector('button[aria-label="Show solo-stack"]');
+                    return button === null ? null : getComputedStyle(button).opacity;
+                }
+                """);
+
+            if (opacity is null)
+                break;
+
+            opacities.Add(opacity);
+            await Task.Delay(16, cancellationToken);
+        }
+
+        await showButton.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        opacities.Should().NotBeEmpty(
+            "because the card stays on screen while the show request is in flight");
+        opacities.Should().OnlyContain(
+            opacity => opacity == "1",
+            "because reshowing a hidden app must not dim the cards while the request is in flight");
+    }
+
+    [Fact]
     public async Task Stack_names_resolve_icons_from_the_catalog()
     {
         await using var context = await browser.NewContextAsync();

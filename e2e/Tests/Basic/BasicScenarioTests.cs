@@ -201,6 +201,30 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Logs_dialog_shows_empty_state_when_no_container_logged_anything()
+    {
+        await using var context = await browser.NewContextAsync();
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        // partial-stack's busybox containers only sleep, so neither of them ever
+        // writes a log line, even though one container is stopped.
+        await apps.WaitForStateAsync("partial-stack", AppsPage.RunningState);
+
+        var menu = await apps.OpenCardMenuAsync("partial-stack");
+        await AppsPage.MenuItem(menu, "View logs").ClickAsync();
+
+        var dialog = apps.LogsDialog("partial-stack logs");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // With no log content the dialog shows its empty state instead of an empty log area
+        // or bare (multi-container) section headers.
+        await dialog
+            .GetByText("No logs yet.")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
     public async Task View_logs_dialog_starts_scrolled_to_the_recent_logs()
     {
         await using var context = await browser.NewContextAsync();

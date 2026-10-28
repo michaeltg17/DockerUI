@@ -20,7 +20,7 @@ namespace Api.Features.Apps.Background
     internal sealed partial class AppStateMonitor(
         AppService appService,
         IHubContext<AppAppsHub> hubContext,
-        IConfiguration configuration,
+        AppSettingsStore settingsStore,
         IConfigurationRoot configurationRoot,
         IWebHostEnvironment environment,
         ILogger<AppStateMonitor> logger) : BackgroundService, IAppStateMonitor
@@ -70,8 +70,8 @@ namespace Api.Features.Apps.Background
             }
         }
 
-        DockerUISettings? CurrentSettings =>
-            configuration.GetSection(DockerUISettings.Section).Get<DockerUISettings>();
+        // Bound on every access, so a configuration reload (settings file edited) is picked up immediately.
+        DockerUISettings? CurrentSettings => settingsStore.Current;
 
         async Task PollAndBroadcastAsync(CancellationToken cancellationToken)
         {

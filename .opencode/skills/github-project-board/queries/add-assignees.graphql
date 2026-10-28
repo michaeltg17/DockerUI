@@ -1,0 +1,1 @@
+mutation { addAssigneesToAssignable(input: { assignableId: "ISSUE_NODE_ID" assigneeIds: ["USER_ID"] }) { assignable { assignees(first: 5) { nodes { login } } } } }

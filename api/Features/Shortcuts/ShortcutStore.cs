@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Api.Domain;
 using Api.Settings;
@@ -7,62 +6,34 @@ namespace Api.Features.Shortcuts;
 
 /// <summary>
 /// Persists shortcuts in the 'DockerUI:Shortcuts' section of appsettings.json, alongside
-/// the rest of the dashboard settings. Writes are serialized; after each write the
-/// configuration root is reloaded, so the running instance sees the change immediately
-/// (and the app-state monitor's own file-watch reloads it for every other reader).
+/// the rest of the dashboard settings. All file access goes through the shared
+/// <see cref="AppSettingsStore"/>.
 /// </summary>
-internal sealed class ShortcutStore(
-    IWebHostEnvironment environment,
-    IConfigurationRoot configurationRoot)
+internal sealed class ShortcutStore(AppSettingsStore store)
 {
-    static readonly JsonSerializerOptions Json =
-        new(JsonSerializerDefaults.Web) { WriteIndented = true };
-
-    readonly Lock gate = new();
-    readonly string appSettingsPath = Path.Combine(environment.ContentRootPath, "appsettings.json");
-
-    public IReadOnlyList<Shortcut> Load() =>
-        configurationRoot.GetSection(DockerUISettings.Section).Get<DockerUISettings>()?.Shortcuts?.ToList() ?? [];
+    public IReadOnlyList<Shortcut> Load() => store.Current?.Shortcuts?.ToList() ?? [];
 
     public IReadOnlyList<Shortcut> Save(IEnumerable<Shortcut> shortcuts)
     {
         var list = shortcuts.ToList();
 
-        lock (gate)
+        store.UpdateSection(section =>
         {
-            WriteToAppSettings(list);
-            configurationRoot.Reload();
-        }
+            if (list.Count == 0)
+            {
+                section.Remove(nameof(DockerUISettings.Shortcuts));
+                return true;
+            }
 
-        return list;
-    }
-
-    void WriteToAppSettings(List<Shortcut> shortcuts)
-    {
-        JsonNode? root = File.Exists(appSettingsPath)
-            ? JsonNode.Parse(File.ReadAllText(appSettingsPath))
-            : new JsonObject();
-
-        if (root is not JsonObject settings)
-            throw new InvalidOperationException($"The settings file '{appSettingsPath}' must contain a JSON object.");
-
-        var section = settings[DockerUISettings.Section] as JsonObject ?? [];
-        settings[DockerUISettings.Section] = section;
-
-        if (shortcuts.Count == 0)
-        {
-            section.Remove(nameof(DockerUISettings.Shortcuts));
-        }
-        else
-        {
             var array = new JsonArray();
-            foreach (var shortcut in shortcuts)
+            foreach (var shortcut in list)
                 array.Add(ToNode(shortcut));
 
             section[nameof(DockerUISettings.Shortcuts)] = array;
-        }
+            return true;
+        });
 
-        File.WriteAllText(appSettingsPath, root.ToJsonString(Json) + Environment.NewLine);
+        return list;
     }
 
     static JsonObject ToNode(Shortcut shortcut)

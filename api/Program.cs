@@ -105,6 +105,9 @@ internal static class Program
 
         services.AddSingleton<IValidateOptions<DockerUISettings>, DockerUISettingsValidator>();
 
+        //The single writer of appsettings.json; the feature stores build on it.
+        services.AddSingleton<AppSettingsStore>();
+
         return services;
     }
 

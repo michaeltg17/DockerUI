@@ -18,7 +18,7 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
     [Fact]
     public async Task Hidden_apps_are_not_shown()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("alpha");
@@ -30,7 +30,7 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
     [Fact]
     public async Task Order_setting_controls_card_order()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -49,7 +49,7 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
     [Fact]
     public async Task Icons_resolve_from_settings_label_and_catalog()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -75,7 +75,7 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
     [Fact]
     public async Task Custom_name_is_used_as_page_title()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
@@ -87,7 +87,7 @@ public sealed class SettingsScenarioTests(SettingsEnvironment environment, Brows
     [Fact]
     public async Task Url_override_is_used_when_opening_app()
     {
-        await using var context = await browser.NewContextAsync();
+        await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("custom", AppsPage.RunningState);

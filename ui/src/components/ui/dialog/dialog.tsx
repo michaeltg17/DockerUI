@@ -3,6 +3,7 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
   type ReactNode,
   type RefObject,
 } from 'react';
@@ -53,6 +54,23 @@ export const Dialog = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  // The panel never shrinks below the tallest it has been while open: content
+  // that appears and then disappears (a list being filtered, an app being
+  // reshown) must not make the dialog resize under the user, including when
+  // the dialog opens while its content is still loading.
+  const [minHeight, setMinHeight] = useState(0);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const observer = new ResizeObserver(() => {
+      setMinHeight((current) => Math.max(current, panel.offsetHeight));
+    });
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const entry = () => onCloseRef.current();
@@ -123,6 +141,7 @@ export const Dialog = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        style={minHeight > 0 ? { minHeight } : undefined}
         className={cn(
           'w-full max-w-md overflow-hidden rounded-lg border border-border bg-background shadow-lg',
           className,

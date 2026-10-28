@@ -26,7 +26,10 @@ namespace Api.Domain
         Uri? Url,
         IReadOnlyList<AppServiceDto> Services,
         AppSource Source,
-        int? Color = null);
+        int? Color = null,
+        // The human-readable problem the app is in (crashed, crash-looping, unhealthy, ...),
+        // or null when healthy. Always null for shortcuts and lan apps.
+        string? Problem = null);
 
     internal sealed record AppServiceDto(
         string Name,

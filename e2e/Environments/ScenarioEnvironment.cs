@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Net;
 using Xunit;
 
@@ -14,11 +15,28 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
 {
     const int ReadyTimeoutSeconds = 300;
 
+    const string DashboardService = "docker-ui";
+
     static readonly ConcurrentDictionary<string, SemaphoreSlim> ScenarioLocks = new(StringComparer.OrdinalIgnoreCase);
 
     static readonly SemaphoreSlim ImageBuildLock = new(1, 1);
 
     public Uri BaseUrl => Scenario.BaseUrl;
+
+    /// <summary>The dashboard service's container logs since the given instant (per-test diagnostics).</summary>
+    public Task<DockerResult> GetDashboardLogsSinceAsync(
+        DateTimeOffset sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        // One-second margin absorbs host/container clock skew in the daemon's --since filter.
+        const int SinceMarginSeconds = 1;
+        var since = (sinceUtc.ToUnixTimeSeconds() - SinceMarginSeconds).ToString(CultureInfo.InvariantCulture);
+
+        return DockerCli.RunAsync(
+            Scenario.DashboardDirectory,
+            ["compose", "logs", "--no-color", "--since", since, DashboardService],
+            cancellationToken);
+    }
 
     public async ValueTask InitializeAsync()
     {
@@ -70,7 +88,7 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
         if (scenario.SetupAsync is { } setup)
             await setup(scenario, CancellationToken.None);
 
-        await WaitUntilReadyAsync(scenario.BaseUrl);
+        await WaitUntilReadyAsync(scenario);
     }
 
     static async Task SafeTearDownAsync(Scenario scenario)
@@ -93,10 +111,10 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
         }
     }
 
-    static async Task WaitUntilReadyAsync(Uri baseUrl)
+    static async Task WaitUntilReadyAsync(Scenario scenario)
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        var healthUrl = new Uri(baseUrl, "/health/live");
+        var healthUrl = new Uri(scenario.BaseUrl, "/health/live");
         var deadline = DateTime.UtcNow.AddSeconds(ReadyTimeoutSeconds);
 
         while (true)
@@ -117,7 +135,17 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
             }
 
             if (DateTime.UtcNow >= deadline)
-                throw new TimeoutException($"The dashboard at {baseUrl} did not become ready within {ReadyTimeoutSeconds}s.");
+            {
+                // A broken bring-up must be diagnosable in the CI log: include the
+                // dashboard's container logs in the failure.
+                var logs = await DockerCli.RunAsync(
+                    scenario.DashboardDirectory,
+                    ["compose", "logs", "--no-color", DashboardService]);
+
+                throw new TimeoutException(
+                    $"The dashboard at {scenario.BaseUrl} did not become ready within {ReadyTimeoutSeconds}s.\n" +
+                    $"--- dashboard logs ---\n{logs.StandardOutput}{logs.StandardError}");
+            }
 
             await Task.Delay(TimeSpan.FromSeconds(2));
         }

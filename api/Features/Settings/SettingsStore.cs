@@ -1,38 +1,23 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Api.Settings;
 
 namespace Api.Features.Settings;
 
 /// <summary>
-/// Persists per-app overrides in the 'DockerUI:Apps' section of appsettings.json.
-/// Writes are serialized; after each write the configuration root is reloaded, so the
-/// running instance sees the change immediately.
+/// Persists per-app overrides in the 'DockerUI:Apps' section of appsettings.json. All file
+/// access goes through the shared <see cref="AppSettingsStore"/>.
 /// </summary>
-internal sealed class SettingsStore(
-    IWebHostEnvironment environment,
-    IConfigurationRoot configurationRoot)
+internal sealed class SettingsStore(AppSettingsStore store)
 {
-    static readonly JsonSerializerOptions Json =
-        new(JsonSerializerDefaults.Web) { WriteIndented = true };
-
-    readonly Lock gate = new();
-    readonly string appSettingsPath = Path.Combine(environment.ContentRootPath, "appsettings.json");
-
     /// <summary>Sets (or removes) the 'Hidden' override of the given app in the settings file.</summary>
     public void SetAppHidden(string appName, bool hidden)
-    {
-        lock (gate)
+        => store.UpdateSection(section =>
         {
-            var settings = LoadSettings();
+            var entry = GetAppEntry(section, appName);
+            var currentlyHidden = entry[nameof(AppUserSettings.Hidden)]?.GetValue<bool>() == true;
 
-            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
-            settings[DockerUISettings.Section] = section;
-
-            var apps = section[nameof(DockerUISettings.Apps)] as JsonObject ?? [];
-            section[nameof(DockerUISettings.Apps)] = apps;
-
-            var entry = apps[appName] as JsonObject ?? [];
+            if (currentlyHidden == hidden)
+                return false;
 
             // The default is false, so only the non-default value is persisted; the
             // dashboard's own project stays hidden by self-detection, not by settings.
@@ -41,110 +26,90 @@ internal sealed class SettingsStore(
             else
                 entry.Remove(nameof(AppUserSettings.Hidden));
 
-            if (entry.Count == 0)
-                apps.Remove(appName);
-            else
-                apps[appName] = entry;
-
-            SaveSettings(settings);
-            configurationRoot.Reload();
-        }
-    }
+            return PruneAppEntry(section, appName);
+        });
 
     /// <summary>
     /// Persists the display name, icon, and url overrides of the given app. Empty values
     /// clear the override so the app falls back to its resolved name/icon/url.
     /// </summary>
     public void SetAppSettings(string appName, string? displayName, string? icon, string? url)
-    {
-        lock (gate)
+        => store.UpdateSection(section =>
         {
-            var settings = LoadSettings();
+            var entry = GetAppEntry(section, appName);
+            var targetName = !string.IsNullOrWhiteSpace(displayName) && !string.Equals(displayName, appName, StringComparison.Ordinal)
+                ? displayName
+                : null;
+            var targetIcon = string.IsNullOrWhiteSpace(icon) ? null : icon;
+            var targetUrl = string.IsNullOrWhiteSpace(url) ? null : url;
 
-            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
-            settings[DockerUISettings.Section] = section;
-
-            var apps = section[nameof(DockerUISettings.Apps)] as JsonObject ?? [];
-            section[nameof(DockerUISettings.Apps)] = apps;
-
-            var entry = apps[appName] as JsonObject ?? [];
+            if (GetEntryValue(entry, nameof(AppUserSettings.Name)) == targetName &&
+                GetEntryValue(entry, nameof(AppUserSettings.Icon)) == targetIcon &&
+                GetEntryValue(entry, nameof(AppUserSettings.Url)) == targetUrl)
+                return false;
 
             entry.Remove(nameof(AppUserSettings.Name));
             entry.Remove(nameof(AppUserSettings.Icon));
             entry.Remove(nameof(AppUserSettings.Url));
 
-            if (!string.IsNullOrWhiteSpace(displayName) && !string.Equals(displayName, appName, StringComparison.Ordinal))
-                entry[nameof(AppUserSettings.Name)] = displayName;
-            if (!string.IsNullOrWhiteSpace(icon))
-                entry[nameof(AppUserSettings.Icon)] = icon;
-            if (!string.IsNullOrWhiteSpace(url))
-                entry[nameof(AppUserSettings.Url)] = url;
+            if (targetName is not null)
+                entry[nameof(AppUserSettings.Name)] = targetName;
+            if (targetIcon is not null)
+                entry[nameof(AppUserSettings.Icon)] = targetIcon;
+            if (targetUrl is not null)
+                entry[nameof(AppUserSettings.Url)] = targetUrl;
 
-            if (entry.Count == 0)
-                apps.Remove(appName);
-            else
-                apps[appName] = entry;
-
-            SaveSettings(settings);
-            configurationRoot.Reload();
-        }
-    }
+            return PruneAppEntry(section, appName);
+        });
 
     /// <summary>Persists the dashboard name in the 'DockerUI:Name' setting of the settings file.</summary>
     public void SetName(string name)
-    {
-        lock (gate)
+        => store.UpdateSection(section =>
         {
-            var settings = LoadSettings();
+            var target = string.Equals(name, DockerUISettings.DefaultName, StringComparison.Ordinal) ? null : name;
 
-            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
-            settings[DockerUISettings.Section] = section;
+            if (section[nameof(DockerUISettings.Name)]?.GetValue<string>() == target)
+                return false;
 
-            if (string.Equals(name, DockerUISettings.DefaultName, StringComparison.Ordinal))
+            if (target is null)
                 section.Remove(nameof(DockerUISettings.Name));
             else
-                section[nameof(DockerUISettings.Name)] = name;
+                section[nameof(DockerUISettings.Name)] = target;
 
-            SaveSettings(settings);
-            configurationRoot.Reload();
-        }
-    }
+            return true;
+        });
 
     /// <summary>Persists the custom display order in the 'DockerUI:Order' section of the settings file.</summary>
     public void SetAppOrder(IReadOnlyCollection<string> order)
-    {
-        lock (gate)
+        => store.UpdateSection(section =>
         {
-            var settings = LoadSettings();
-
-            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
-            settings[DockerUISettings.Section] = section;
+            var current = section[nameof(DockerUISettings.Order)] as JsonArray;
 
             if (order.Count == 0)
+            {
+                if (current is null)
+                    return false;
                 section.Remove(nameof(DockerUISettings.Order));
-            else
-                section[nameof(DockerUISettings.Order)] = new JsonArray([.. order.Select(name => (JsonNode)name)]);
+                return true;
+            }
 
-            SaveSettings(settings);
-            configurationRoot.Reload();
-        }
-    }
+            if (current is not null &&
+                current.Select(node => node?.GetValue<string>()).SequenceEqual(order))
+                return false;
+
+            section[nameof(DockerUISettings.Order)] = new JsonArray([.. order.Select(name => (JsonNode)name)]);
+            return true;
+        });
 
     /// <summary>
     /// Renames an entry in the custom display order so a renamed app (e.g. a shortcut)
     /// keeps its position. Does nothing when there is no custom order.
     /// </summary>
     public void RenameInAppOrder(string oldName, string newName)
-    {
-        lock (gate)
+        => store.UpdateSection(section =>
         {
-            var settings = LoadSettings();
-
-            var section = settings[DockerUISettings.Section] as JsonObject ?? [];
-            settings[DockerUISettings.Section] = section;
-
             if (section[nameof(DockerUISettings.Order)] is not JsonArray order)
-                return;
+                return false;
 
             var changed = false;
             for (var i = 0; i < order.Count; i++)
@@ -157,25 +122,32 @@ internal sealed class SettingsStore(
                 }
             }
 
-            if (changed)
-            {
-                SaveSettings(settings);
-                configurationRoot.Reload();
-            }
-        }
-    }
+            return changed;
+        });
 
-    JsonObject LoadSettings()
+    static JsonObject GetAppEntry(JsonObject section, string appName)
     {
-        JsonNode? root = File.Exists(appSettingsPath)
-            ? JsonNode.Parse(File.ReadAllText(appSettingsPath))
-            : new JsonObject();
+        var apps = section[nameof(DockerUISettings.Apps)] as JsonObject ?? [];
+        section[nameof(DockerUISettings.Apps)] = apps;
 
-        return root is JsonObject settings
-            ? settings
-            : throw new InvalidOperationException($"The settings file '{appSettingsPath}' must contain a JSON object.");
+        var entry = apps[appName] as JsonObject ?? [];
+        apps[appName] = entry;
+
+        return entry;
     }
 
-    void SaveSettings(JsonObject settings) =>
-        File.WriteAllText(appSettingsPath, settings.ToJsonString(Json) + Environment.NewLine);
+    /// <summary>Drops the app's entry when no overrides remain; the section must be persisted.</summary>
+    static bool PruneAppEntry(JsonObject section, string appName)
+    {
+        // GetAppEntry guarantees the object exists; the pattern keeps the check self-contained.
+        if (section[nameof(DockerUISettings.Apps)] is not JsonObject apps)
+            return true;
+
+        if (apps[appName] is JsonObject { Count: 0 })
+            apps.Remove(appName);
+
+        return true;
+    }
+
+    static string? GetEntryValue(JsonObject entry, string key) => entry[key]?.GetValue<string>();
 }

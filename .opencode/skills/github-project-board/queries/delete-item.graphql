@@ -1,0 +1,1 @@
+mutation { deleteProjectV2Item(input: { projectId: "PROJECT_ID" itemId: "ITEM_ID" }) { deletedItemId } }

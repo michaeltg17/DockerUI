@@ -1,3 +1,4 @@
+using E2E.Environments;
 using Microsoft.Playwright;
 using Xunit;
 
@@ -32,6 +33,18 @@ public sealed class BrowserFixture : IAsyncLifetime
     }
 #pragma warning restore CA1816
 
-    /// <summary>Creates an isolated browser context (fresh cookies/storage) for a single test.</summary>
-    public Task<IBrowserContext> NewContextAsync() => Browser.NewContextAsync();
+    /// <summary>
+    /// Creates an isolated browser context (fresh cookies/storage) for a single test,
+    /// optionally emulating a color scheme so <c>prefers-color-scheme</c> resolves as in that theme.
+    /// The context also captures per-test browser diagnostics and, on dispose, flushes them
+    /// plus the dashboard's container logs to the test output.
+    /// </summary>
+    public async Task<IBrowserContext> NewContextAsync(ScenarioEnvironment environment, ColorScheme? colorScheme = null)
+    {
+        var inner = colorScheme is { } scheme
+            ? await Browser.NewContextAsync(new BrowserNewContextOptions { ColorScheme = scheme })
+            : await Browser.NewContextAsync();
+
+        return new TestBrowserContext(inner, environment, DateTimeOffset.UtcNow);
+    }
 }

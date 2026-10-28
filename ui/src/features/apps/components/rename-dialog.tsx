@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { cn } from '@/utils/cn';
 
 import { useRenameDashboard } from '../hooks/use-rename-dashboard';
 
@@ -86,23 +87,25 @@ const RenameDialogForm = ({
               }}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
-            {nameError && (
-              <p className="text-xs text-destructive">{nameError}</p>
-            )}
+            <p className="min-h-4 text-xs text-destructive">
+              {nameError ?? ''}
+            </p>
           </label>
           <p className="text-xs text-muted-foreground">
             Shown as the page title and saved to the dashboard settings.
           </p>
         </div>
 
-        {error && (
-          <p
-            role="alert"
-            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          >
-            {error}
-          </p>
-        )}
+        {/* The slot is always reserved so a submit error cannot resize the dialog. */}
+        <p
+          role="alert"
+          className={cn(
+            'min-h-10 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive',
+            error === null && 'invisible',
+          )}
+        >
+          {error}
+        </p>
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>

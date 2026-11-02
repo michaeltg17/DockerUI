@@ -43,6 +43,8 @@ internal static class EndpointsMapper
         SetAppOrderEndpoint.Map(apps);
         SetAppVisibilityEndpoint.Map(apps);
         SetAppSettingsEndpoint.Map(apps);
+        SplitAppEndpoint.Map(apps);
+        JoinAppEndpoint.Map(apps);
 
         var shortcuts = app.MapGroup(ShortcutsPath);
         GetShortcutsEndpoint.Map(shortcuts);

@@ -29,7 +29,16 @@ namespace Api.Domain
         int? Color = null,
         // The human-readable problem the app is in (crashed, crash-looping, unhealthy, ...),
         // or null when healthy. Always null for shortcuts and lan apps.
-        string? Problem = null);
+        string? Problem = null,
+        // The project a split part was split out of; null for regular apps and shortcuts.
+        string? SplitFrom = null)
+    {
+        /// <summary>
+        /// The services split out of this stack (its Split submenu shows them checked);
+        /// empty when none.
+        /// </summary>
+        public string[] SplitServices { get; init; } = [];
+    }
 
     internal sealed record AppServiceDto(
         string Name,

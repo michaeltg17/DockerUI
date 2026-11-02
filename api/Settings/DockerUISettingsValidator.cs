@@ -42,6 +42,21 @@ namespace Api.Settings
                 }
             }
 
+            if (settings.AppSplits is { } appSplits)
+            {
+                foreach (var (project, services) in appSplits)
+                {
+                    if (string.IsNullOrWhiteSpace(project))
+                        validationErrors.Add($"The '{nameof(DockerUISettings.AppSplits)}' section must be keyed by project name");
+
+                    foreach (var service in services)
+                    {
+                        if (string.IsNullOrWhiteSpace(service))
+                            validationErrors.Add($"The '{nameof(DockerUISettings.AppSplits)}:{project}' list must not contain empty service names");
+                    }
+                }
+            }
+
             if (settings.Auth is { } auth)
             {
                 if (!string.IsNullOrWhiteSpace(auth.AdminPasswordHash) &&

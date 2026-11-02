@@ -74,7 +74,7 @@ namespace Api.Features.Apps
         public async Task<IReadOnlyList<ContainerSnapshot>> ResolveAppContainersAsync(string appName, CancellationToken cancellationToken)
         {
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            var targets = AppCatalog.ResolveApp(snapshots, appName);
+            var targets = AppCatalog.ResolveApp(snapshots, appName, settingsStore.Current);
 
             return targets.Count is 0
                 ? throw new NotFoundException($"The app '{appName}' was not found.")
@@ -85,7 +85,7 @@ namespace Api.Features.Apps
         public async Task<bool> TryResolveAppAsync(string appName, CancellationToken cancellationToken)
         {
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            return AppCatalog.ResolveApp(snapshots, appName).Count > 0;
+            return AppCatalog.ResolveApp(snapshots, appName, settingsStore.Current).Count > 0;
         }
 
         /// <summary>The compose project this dashboard runs in, or null when not running in a container.</summary>

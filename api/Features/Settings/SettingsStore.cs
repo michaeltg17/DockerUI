@@ -9,6 +9,9 @@ namespace Api.Features.Settings;
 /// </summary>
 internal sealed class SettingsStore(AppSettingsStore store)
 {
+    /// <summary>The current settings, bound from the configuration on every access.</summary>
+    public DockerUISettings? Current => store.Current;
+
     /// <summary>Sets (or removes) the 'Hidden' override of the given app in the settings file.</summary>
     public void SetAppHidden(string appName, bool hidden)
         => store.UpdateSection(section =>
@@ -123,6 +126,40 @@ internal sealed class SettingsStore(AppSettingsStore store)
             }
 
             return changed;
+        });
+
+    /// <summary>
+    /// Persists the services split out of the given project in the 'DockerUI:AppSplits'
+    /// section. An empty list removes the project's entry; when no entries remain, the
+    /// whole section is dropped.
+    /// </summary>
+    public void SetAppSplits(string project, IReadOnlyCollection<string> services)
+        => store.UpdateSection(section =>
+        {
+            var splits = section[nameof(DockerUISettings.AppSplits)] as JsonObject;
+
+            if (services.Count == 0)
+            {
+                if (splits is null || !splits.Remove(project))
+                    return false;
+
+                if (splits.Count == 0)
+                    section.Remove(nameof(DockerUISettings.AppSplits));
+
+                return true;
+            }
+
+            var current = splits?[project] as JsonArray;
+
+            if (current is not null &&
+                current.Select(node => node?.GetValue<string>()).SequenceEqual(services, StringComparer.Ordinal))
+                return false;
+
+            splits ??= [];
+            section[nameof(DockerUISettings.AppSplits)] = splits;
+            splits[project] = new JsonArray([.. services.Select(service => (JsonNode)service)]);
+
+            return true;
         });
 
     static JsonObject GetAppEntry(JsonObject section, string appName)

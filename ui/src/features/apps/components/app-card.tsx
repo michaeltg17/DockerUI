@@ -1,9 +1,11 @@
 import {
+  Combine,
   EyeOff,
   Pencil,
   Play,
   RefreshCw,
   ScrollText,
+  Split,
   Square,
   Trash2,
 } from 'lucide-react';
@@ -15,8 +17,10 @@ import { cn } from '@/utils/cn';
 
 import { getAppLogs } from '../api/get-logs';
 import {
+  useJoinApp,
   useRestartApp,
   useSetAppVisibility,
+  useSplitApp,
   useStartApp,
   useStopApp,
 } from '../hooks/use-apps';
@@ -65,6 +69,8 @@ export const AppCard = ({
   const startApp = useStartApp();
   const stopApp = useStopApp();
   const restartApp = useRestartApp();
+  const splitApp = useSplitApp();
+  const joinApp = useJoinApp();
   const setVisibility = useSetAppVisibility();
   const deleteShortcut = useDeleteShortcut();
   const rescanLan = useRescanLan();
@@ -190,6 +196,42 @@ export const AppCard = ({
     );
   }
 
+  // A split part ('project-service') can be joined back into its stack. A stack
+  // offers Split when at least two services remain, or when one remains next to
+  // services already split out (splitting it moves the stack card to parts too).
+  const isPart = app.splitFrom !== null;
+  const canSplit =
+    !isPart && (app.services.length >= 2 || app.splitServices.length > 0);
+
+  const joinItem: AppMenuItem = {
+    id: 'join',
+    label: 'Join',
+    icon: <Combine className="size-4" aria-hidden="true" />,
+    disabled: joinApp.isPending,
+    onSelect: () => void joinApp.mutate(app.name),
+  };
+
+  const splitItem: AppMenuItem = {
+    id: 'split',
+    label: 'Split',
+    icon: <Split className="size-4" aria-hidden="true" />,
+    children: [
+      ...app.services.map((service) => ({
+        id: `split-${service.name}`,
+        label: service.name,
+        disabled: splitApp.isPending,
+        onSelect: () =>
+          void splitApp.mutate({ name: app.name, services: [service.name] }),
+      })),
+      // Services already split out: shown checked, not actionable again.
+      ...app.splitServices.map((service) => ({
+        id: `split-${service}`,
+        label: service,
+        selected: true,
+      })),
+    ],
+  };
+
   const actions: AppMenuItem[] = [
     {
       id: 'edit',
@@ -226,6 +268,7 @@ export const AppCard = ({
       isLoading: restartApp.isPending,
       onSelect: () => void restartApp.mutate(app.name),
     },
+    ...(isPart ? [joinItem] : canSplit ? [splitItem] : []),
     {
       id: 'logs',
       label: 'View logs',

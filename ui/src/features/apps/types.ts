@@ -33,6 +33,17 @@ export interface App {
    * shortcuts and lan apps.
    */
   problem: string | null;
+  /**
+   * The compose project a split part was split out of (the part's name is
+   * 'project-service'). Null for whole stacks, standalone containers, and
+   * shortcuts.
+   */
+  splitFrom: string | null;
+  /**
+   * The services split out of this stack, shown checked in its Split submenu;
+   * empty when none are split.
+   */
+  splitServices: string[];
 }
 
 export interface Shortcut {

@@ -11,7 +11,8 @@ through its socket.
   (`Directory.Build.props`, `Directory.Packages.props`, `global.json`); the
   single `Api` project (csproj) sits in the same folder.
 - `Api` — ASP.NET Core minimal API. Feature-based: `Features/Apps`
-  (endpoints, `AppService`, `AppCatalog`, SignalR hub, background monitor),
+  (endpoints incl. split/join of stack services into their own cards,
+  `AppService`, `AppCatalog`, SignalR hub, background monitor),
   `Features/Health`. `Settings/` holds `DockerUISettings` (all settings, bound
   from the `DockerUI` appsettings section; the app-state monitor reloads the
   configuration when a settings file changes) and its startup validator.

@@ -2,15 +2,13 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { getErrorMessage } from '@/lib/api-client';
 import { cn } from '@/utils/cn';
 
-import { getErrorMessage } from './auth-api';
 import { useAuth } from './use-auth';
 
 const MIN_PASSWORD_LENGTH = 16;
-
-const fieldClasses =
-  'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
 type PasswordDialogProps = {
   open: boolean;
@@ -96,7 +94,7 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
         {passwordSet && (
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium">Current password</span>
-            <input
+            <Input
               ref={currentInputRef}
               type="password"
               name="CurrentPassword"
@@ -108,7 +106,6 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
                 setCurrent(event.target.value);
                 setError(null);
               }}
-              className={fieldClasses}
             />
             <p className="min-h-4 text-xs">
               {currentError ? (
@@ -122,7 +119,7 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
           <span className="font-medium">
             New password{passwordSet ? ' (optional)' : ''}
           </span>
-          <input
+          <Input
             ref={nextInputRef}
             type="password"
             name="NewPassword"
@@ -133,7 +130,6 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
               setNext(event.target.value);
               setError(null);
             }}
-            className={fieldClasses}
           />
           <p className="min-h-4 text-xs">
             {newLengthError ? (
@@ -150,7 +146,7 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
           <span className="font-medium">
             Confirm new password{passwordSet ? ' (optional)' : ''}
           </span>
-          <input
+          <Input
             type="password"
             name="ConfirmNewPassword"
             aria-label="Confirm new password"
@@ -160,7 +156,6 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
               setConfirm(event.target.value);
               setError(null);
             }}
-            className={fieldClasses}
           />
           <p className="min-h-4 text-xs">
             {matchError ? (

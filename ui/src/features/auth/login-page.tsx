@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Logo } from '@/components/ui/logo';
+import { getErrorMessage } from '@/lib/api-client';
 import { cn } from '@/utils/cn';
 
-import { getErrorMessage } from './auth-api';
 import { useAuth } from './use-auth';
 
 /**
@@ -57,7 +58,7 @@ export const LoginPage = () => {
           <label className="sr-only" htmlFor="login-password">
             Password
           </label>
-          <input
+          <Input
             id="login-password"
             ref={passwordInputRef}
             type="password"
@@ -69,7 +70,7 @@ export const LoginPage = () => {
               setPassword(event.target.value);
               setError(null);
             }}
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="w-full"
           />
 
           <div className="flex flex-col gap-2 pt-1">

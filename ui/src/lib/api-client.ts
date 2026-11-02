@@ -50,12 +50,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const data = error.response?.data;
-    const message =
-      (typeof data === 'object' &&
-        data !== null &&
-        (data.detail || data.message)) ||
-      error.message;
+    const message = getErrorMessage(error, error.message);
 
     useNotifications.getState().addNotification({
       type: 'error',
@@ -66,6 +61,24 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+/**
+ * The API reports problems as RFC 9457 documents; surface the human message,
+ * falling back to the caller's message when the response has none.
+ */
+export const getErrorMessage = (error: unknown, fallback: string): string => {
+  const data = (error as { response?: { data?: unknown } } | null)?.response
+    ?.data;
+
+  if (typeof data === 'object' && data !== null) {
+    const { detail, message } = data as { detail?: unknown; message?: unknown };
+
+    if (typeof detail === 'string' && detail.length > 0) return detail;
+    if (typeof message === 'string' && message.length > 0) return message;
+  }
+
+  return fallback;
+};
 
 export const http = {
   get: <T>(url: string, config?: AxiosRequestConfig) =>

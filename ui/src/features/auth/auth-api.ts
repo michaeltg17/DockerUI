@@ -35,18 +35,3 @@ export const changePassword = (
     },
     { silentError: true },
   );
-
-/** The API reports problems as RFC 9457 documents; surface the human message. */
-export const getErrorMessage = (error: unknown, fallback: string): string => {
-  const data = (error as { response?: { data?: unknown } } | null)?.response
-    ?.data;
-
-  if (typeof data === 'object' && data !== null) {
-    const { detail, message } = data as { detail?: unknown; message?: unknown };
-
-    if (typeof detail === 'string' && detail.length > 0) return detail;
-    if (typeof message === 'string' && message.length > 0) return message;
-  }
-
-  return fallback;
-};

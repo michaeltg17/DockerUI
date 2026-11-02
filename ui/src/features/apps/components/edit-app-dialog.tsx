@@ -109,6 +109,7 @@ const EditAppDialogForm = ({
             <AppIcon
               icon={icon === '' ? null : icon}
               name={displayName.trim() || app.name}
+              hue={app.color}
               className="size-16 text-xl"
             />
           </button>

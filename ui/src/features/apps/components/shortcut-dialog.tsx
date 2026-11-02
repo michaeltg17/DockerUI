@@ -14,7 +14,7 @@ import {
 } from '../hooks/use-shortcuts';
 import type { Shortcut } from '../types';
 
-import { AppIcon, getHue } from './app-icon';
+import { AppIcon, randomHue } from './app-icon';
 import { IconPickerDialog } from './icon-picker-dialog';
 
 type ShortcutDialogProps = {
@@ -72,12 +72,9 @@ const ShortcutDialogForm = ({
   const [nameTouched, setNameTouched] = useState(false);
   const [urlTouched, setUrlTouched] = useState(false);
 
-  // The icon color is decided once so it never shifts while the name is typed:
-  // an edited shortcut keeps its stored color (or the hue its current name
-  // already yields), a new one settles from the name when the name field is left.
-  const [settledHue, setSettledHue] = useState<number | null>(
-    () => initial?.color ?? (isEditing ? getHue(initialName) : null),
-  );
+  // A new shortcut gets a random hue, an existing one keeps its stored color;
+  // it never changes afterwards.
+  const [color] = useState(() => initial?.color ?? randomHue());
 
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,24 +107,9 @@ const ShortcutDialogForm = ({
       ? normalizeUrl(url)
       : null;
 
-  // The icon shown in the preview: a settled hue, or the neutral placeholder
-  // hue until a new shortcut's name is first committed.
-  const displayHue = settledHue ?? getHue('?');
-
-  const settleNameHue = () => {
-    setNameTouched(true);
-    if (!isEditing) setSettledHue(getHue(trimmedName || '?'));
-  };
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSave) return;
-
-    // Persist the decided color: an edit keeps its existing hue, a create uses
-    // the hue derived from the final name.
-    const color = isEditing
-      ? (initial?.color ?? getHue(initialName))
-      : getHue(trimmedName);
 
     const shortcut: Shortcut = {
       name: trimmedName,
@@ -169,7 +151,7 @@ const ShortcutDialogForm = ({
           <AppIcon
             icon={icon === '' ? null : icon}
             name={trimmedName || '?'}
-            hue={displayHue}
+            hue={color}
             className="size-24 text-3xl"
           />
         </button>
@@ -187,7 +169,7 @@ const ShortcutDialogForm = ({
               setName(event.target.value);
               setError(null);
             }}
-            onBlur={settleNameHue}
+            onBlur={() => setNameTouched(true)}
             placeholder="e.g. GitHub"
           />
           <p className="min-h-4 text-xs text-destructive">

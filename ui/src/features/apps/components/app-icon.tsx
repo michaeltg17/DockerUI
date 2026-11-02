@@ -6,10 +6,16 @@ import { cn } from '@/utils/cn';
 type AppIconProps = {
   icon: string | null;
   name: string;
-  /** A persisted icon hue; when set it wins over the name-derived fallback. */
+  /** A persisted icon hue; when set it wins over the neutral fallback. */
   hue?: number | null;
   className?: string;
 };
+
+// The hue for the should-never-happen case of an app with no persisted color.
+const NeutralHue = 222;
+
+/** A random hue (0–359); the color a new app or shortcut gets, decided once. */
+export const randomHue = () => Math.floor(Math.random() * 360);
 
 const getInitials = (name: string) =>
   name
@@ -18,12 +24,6 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('');
-
-export const getHue = (name: string) =>
-  [...name.toLowerCase()].reduce(
-    (hash, char) => (hash * 31 + char.charCodeAt(0)) % 997,
-    7,
-  ) % 360;
 
 export const AppIcon = ({ icon, name, hue, className }: AppIconProps) => {
   const [failed, setFailed] = useState(false);
@@ -45,7 +45,7 @@ export const AppIcon = ({ icon, name, hue, className }: AppIconProps) => {
   }
 
   const initials = getInitials(name);
-  const resolvedHue = hue ?? getHue(name);
+  const resolvedHue = hue ?? NeutralHue;
 
   return (
     <div

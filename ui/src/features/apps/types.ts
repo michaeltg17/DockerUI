@@ -22,9 +22,9 @@ export interface App {
   services: AppService[];
   source: AppSource;
   /**
-   * The hue of the initials icon, persisted for shortcuts so renaming never
-   * changes the color. Null for docker apps (derived from the name) and for
-   * shortcuts that predate the field.
+   * The hue of the initials icon: a random hue decided at creation (when the
+   * app was first seen, or the shortcut was created), persisted server-side
+   * and never changed by the app. Null only for pre-update shortcuts.
    */
   color: number | null;
   /**

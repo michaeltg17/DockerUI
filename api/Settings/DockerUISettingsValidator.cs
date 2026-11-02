@@ -57,6 +57,24 @@ namespace Api.Settings
                 }
             }
 
+            if (settings.Apps is { } appOverrides)
+            {
+                foreach (var (appName, appSettings) in appOverrides)
+                {
+                    if (appSettings.Color is { } color && (color < 0 || color > 359))
+                        validationErrors.Add($"The '{nameof(DockerUISettings.Apps)}:{appName}:{nameof(AppUserSettings.Color)}' setting must be between 0 and 359");
+                }
+            }
+
+            if (settings.Shortcuts is { } shortcuts)
+            {
+                foreach (var shortcut in shortcuts)
+                {
+                    if (shortcut.Color is { } color && (color < 0 || color > 359))
+                        validationErrors.Add($"The color of the shortcut '{shortcut.Name}' must be between 0 and 359");
+                }
+            }
+
             if (settings.Auth is { } auth)
             {
                 if (!string.IsNullOrWhiteSpace(auth.AdminPasswordHash) &&

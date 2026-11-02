@@ -2,6 +2,7 @@ using Api.Domain;
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Apps.Models;
+using Api.Features.Settings;
 using Api.Features.Shortcuts;
 using Api.Settings;
 using Docker.DotNet;
@@ -16,7 +17,7 @@ namespace Api.Features.Apps
     internal sealed partial class AppService(
         IContainerOperations containers,
         IAppIconCatalog iconCatalog,
-        AppSettingsStore settingsStore,
+        SettingsStore settingsStore,
         AppBaseUrlTracker baseUrlTracker,
         IHttpContextAccessor httpContextAccessor,
         ShortcutStore shortcutStore,
@@ -31,6 +32,11 @@ namespace Api.Features.Apps
         readonly Dictionary<string, (long ExitCode, DateTime FetchedAtUtc)> exitCodeCache = [];
         readonly Lock exitCodeCacheGate = new();
 
+        // Icon hues decided in memory but not yet persisted (the settings file is read-only);
+        // kept for the lifetime of the process so the colors stay stable across polls.
+        readonly Dictionary<(string Scope, string Name), int> unpersistedHues = [];
+        readonly Lock unpersistedHuesGate = new();
+
         public async Task<IReadOnlyList<AppDto>> GetAppsAsync(CancellationToken cancellationToken = default)
         {
             var settings = settingsStore.Current;
@@ -38,6 +44,7 @@ namespace Api.Features.Apps
             var (visible, _) = AppCatalog
                 .BuildApps(logger, snapshots, iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
             var apps = visible.ToList();
+            EnsureAppColors(apps);
 
             var (shortcutApps, _) = BuildShortcutApps();
             apps.AddRange(shortcutApps);
@@ -58,6 +65,7 @@ namespace Api.Features.Apps
             var hiddenApps = hidden
                 .Where(app => !string.Equals(app.Name, selfProject, StringComparison.Ordinal))
                 .ToList();
+            EnsureAppColors(hiddenApps);
 
             var (_, hiddenShortcuts) = BuildShortcutApps();
 
@@ -121,10 +129,28 @@ namespace Api.Features.Apps
         /// <summary>User-defined shortcuts, surfaced as always-available apps in the same grid as the docker stacks.</summary>
         (IReadOnlyList<AppDto> Visible, IReadOnlyList<AppDto> Hidden) BuildShortcutApps()
         {
+            var shortcuts = shortcutStore.Load().ToList();
+
+            // One-time backfill for entries that predate the color field: the hue is decided
+            // once, at creation, and never changes afterwards.
+            if (shortcuts.Any(shortcut => shortcut.Color is null))
+            {
+                const string shortcutScope = nameof(AppSource.Shortcut);
+
+                for (var i = 0; i < shortcuts.Count; i++)
+                {
+                    if (shortcuts[i].Color is null)
+                        shortcuts[i] = shortcuts[i] with { Color = DecideIconHue(shortcutScope, shortcuts[i].Name) };
+                }
+
+                if (TryPersistIconHues(() => shortcutStore.Save(shortcuts)))
+                    ForgetIconHues(shortcuts.Select(shortcut => (shortcutScope, shortcut.Name)));
+            }
+
             var visible = new List<AppDto>();
             var hidden = new List<AppDto>();
 
-            foreach (var shortcut in shortcutStore.Load())
+            foreach (var shortcut in shortcuts)
             {
                 if (!Uri.TryCreate(shortcut.Url, UriKind.Absolute, out var url))
                     continue;
@@ -143,6 +169,82 @@ namespace Api.Features.Apps
             }
 
             return (visible, hidden);
+        }
+
+        /// <summary>
+        /// Records a random icon hue for docker apps that don't have one yet — the color is
+        /// decided once, at first sight, and never changes afterwards. The values are applied
+        /// in memory as well, so the very first response already carries them. A read-only
+        /// settings file can't store them, so they stay stable for this process instead.
+        /// </summary>
+        void EnsureAppColors(List<AppDto> apps)
+        {
+            const string dockerScope = nameof(AppSource.Docker);
+
+            var missing = apps
+                .Select((app, index) => (App: app, Index: index))
+                .Where(pair => pair.App.Source == AppSource.Docker && pair.App.Color is null)
+                .ToList();
+
+            if (missing.Count == 0)
+                return;
+
+            var hues = missing
+                .Select(pair => (pair.App.Name, Color: DecideIconHue(dockerScope, pair.App.Name)))
+                .ToList();
+
+            if (TryPersistIconHues(() => settingsStore.EnsureAppColors(hues)))
+                ForgetIconHues(hues.Select(hue => (dockerScope, hue.Name)));
+
+            for (var i = 0; i < missing.Count; i++)
+                apps[missing[i].Index] = missing[i].App with { Color = hues[i].Color };
+        }
+
+        /// <summary>
+        /// The hue for an app without a stored hue yet: one decided earlier in this process
+        /// but not persisted (the settings file is read-only), or a fresh random hue.
+        /// </summary>
+        int DecideIconHue(string scope, string name)
+        {
+            lock (unpersistedHuesGate)
+            {
+                var key = (scope, name);
+
+                if (unpersistedHues.TryGetValue(key, out var hue))
+                    return hue;
+
+                var decided = AppCatalog.RandomIconHue();
+                unpersistedHues[key] = decided;
+                return decided;
+            }
+        }
+
+        /// <summary>
+        /// Persists hues best-effort: a read-only settings file must not break the app list,
+        /// so an unpersistable hue simply stays in memory for this process.
+        /// </summary>
+        bool TryPersistIconHues(Action persist)
+        {
+            try
+            {
+                persist();
+                return true;
+            }
+            catch (IOException)
+            {
+                LogIconHuesNotPersisted(logger);
+                return false;
+            }
+        }
+
+        /// <summary>Drops hues from the in-memory fallback once the settings file holds them.</summary>
+        void ForgetIconHues(IEnumerable<(string Scope, string Name)> keys)
+        {
+            lock (unpersistedHuesGate)
+            {
+                foreach (var key in keys)
+                    unpersistedHues.Remove(key);
+            }
         }
 
         /// <summary>
@@ -309,5 +411,10 @@ namespace Api.Features.Apps
             Level = LogLevel.Debug,
             Message = "Could not probe the exit code of created container '{ContainerId}'; the problem badge stays empty.")]
         static partial void LogCreatedContainerProbeFailed(ILogger logger, Exception exception, string containerId);
+
+        [LoggerMessage(
+            Level = LogLevel.Debug,
+            Message = "The icon hues could not be persisted (the settings file may be read-only); they stay stable for this process only.")]
+        static partial void LogIconHuesNotPersisted(ILogger logger);
     }
 }

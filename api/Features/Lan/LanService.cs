@@ -55,7 +55,7 @@ namespace Api.Features.Lan
                 if (coveredByDocker)
                     continue;
 
-                var shortcut = new Shortcut(finding.Name, finding.Url, Source: ShortcutSource.Lan);
+                var shortcut = new Shortcut(finding.Name, finding.Url, Source: ShortcutSource.Lan, Color: AppCatalog.RandomIconHue());
                 existing.Add(shortcut);
                 byName[finding.Name] = shortcut;
                 toEnrich.Add(shortcut);

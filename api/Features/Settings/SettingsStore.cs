@@ -162,14 +162,13 @@ internal sealed class SettingsStore(AppSettingsStore store)
             return true;
         });
 
-    /// <summary>Records the icon hue decided at creation for apps that don't have one yet.</summary>
-    public void EnsureAppColors(IEnumerable<(string Name, int Color)> colors)
+    public void SaveAppColors(IEnumerable<(string AppName, int Color)> colors)
         => store.UpdateSection(section =>
         {
             var changed = false;
-            foreach (var (name, color) in colors)
+            foreach (var (appName, color) in colors)
             {
-                var entry = GetAppEntry(section, name);
+                var entry = GetAppEntry(section, appName);
                 if (entry[nameof(AppUserSettings.Color)] is null)
                 {
                     entry[nameof(AppUserSettings.Color)] = color;

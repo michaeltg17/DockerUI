@@ -193,7 +193,7 @@ namespace Api.Features.Apps
                 .Select(pair => (pair.App.Name, Color: DecideIconHue(dockerScope, pair.App.Name)))
                 .ToList();
 
-            if (TryPersistIconHues(() => settingsStore.EnsureAppColors(hues)))
+            if (TryPersistIconHues(() => settingsStore.SaveAppColors(hues)))
                 ForgetIconHues(hues.Select(hue => (dockerScope, hue.Name)));
 
             for (var i = 0; i < missing.Count; i++)

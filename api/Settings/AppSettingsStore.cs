@@ -66,12 +66,23 @@ internal sealed class AppSettingsStore(
     // place. A rename (File.Move) would not work when appsettings.json is a bind mount
     // (the e2e scenarios and the production compose setup): the mount stays attached to
     // the old inode, so the save would never be visible through the path. The copy
-    // truncates and rewrites the same file, keeping the mount attached.
+    // truncates and rewrites the same file, keeping the mount attached. The destination
+    // is opened with a permissive share: on Linux, FileShare maps to file locks, and an
+    // exclusive write lock would block a concurrent configuration reload (triggered by
+    // this very write) from reading the file.
     void SaveSettings(JsonObject settings)
     {
         var temporaryPath = appSettingsPath + ".tmp";
         File.WriteAllText(temporaryPath, settings.ToJsonString(Json) + Environment.NewLine);
-        File.Copy(temporaryPath, appSettingsPath, overwrite: true);
+
+        using var input = File.OpenRead(temporaryPath);
+        using var output = new FileStream(
+            appSettingsPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.Read | FileShare.Write | FileShare.Delete);
+        input.CopyTo(output);
+
         File.Delete(temporaryPath);
     }
 }

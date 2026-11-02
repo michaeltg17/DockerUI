@@ -105,34 +105,47 @@ namespace Api.Features.Apps.Background
                 Path.Combine(environment.ContentRootPath, $"appsettings.{environment.EnvironmentName}.json"),
             ];
 
-            var changed = false;
+            var changed = new List<(int Index, DateTimeOffset Write)>();
 
-            for (var i = 0; i < files.Length; i++)
+            try
             {
-                var path = files[i];
-
-                if (!File.Exists(path))
-                    continue;
-
-                var lastWrite = File.GetLastWriteTimeUtc(path);
-
-                if (lastConfigWrites[i] == DateTimeOffset.MinValue)
+                for (var i = 0; i < files.Length; i++)
                 {
-                    lastConfigWrites[i] = lastWrite;
-                    continue;
+                    var path = files[i];
+
+                    if (!File.Exists(path))
+                        continue;
+
+                    var lastWrite = File.GetLastWriteTimeUtc(path);
+
+                    if (lastConfigWrites[i] == DateTimeOffset.MinValue)
+                    {
+                        lastConfigWrites[i] = lastWrite;
+                        continue;
+                    }
+
+                    if (lastWrite != lastConfigWrites[i])
+                        changed.Add((i, lastWrite));
                 }
 
-                if (lastWrite != lastConfigWrites[i])
-                {
-                    lastConfigWrites[i] = lastWrite;
-                    changed = true;
-                }
+                if (changed.Count == 0)
+                    return;
+
+                configurationRoot.Reload();
+            }
+            catch (IOException ex)
+            {
+                // A transient read failure (the file is being written at the same time) must
+                // not stop the monitor: the new write times are left unrecorded, so the
+                // reload is retried on the next cycle and the last good configuration
+                // applies until then.
+                LogConfigurationReloadFailed(logger, ex);
+                return;
             }
 
-            if (!changed)
-                return;
+            foreach (var (index, write) in changed)
+                lastConfigWrites[index] = write;
 
-            configurationRoot.Reload();
             LogConfigurationReloaded(logger);
         }
 
@@ -145,5 +158,10 @@ namespace Api.Features.Apps.Background
             Level = LogLevel.Information,
             Message = "Settings file changed; configuration reloaded (changes apply from the next poll)")]
         static partial void LogConfigurationReloaded(ILogger logger);
+
+        [LoggerMessage(
+            Level = LogLevel.Warning,
+            Message = "Could not reload the configuration (the settings file may be in use); will retry on the next cycle")]
+        static partial void LogConfigurationReloadFailed(ILogger logger, Exception? exception);
     }
 }

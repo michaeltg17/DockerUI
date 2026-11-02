@@ -15,5 +15,8 @@ services:
       # it, and uncomment this line (the file replaces the packaged defaults,
       # so it must keep 'DockerUI:DockerSocketPath'; shortcut edits are
       # persisted into it, so keep the mount read-write).
+      # There is no password by default; set one from the dashboard's
+      # right-click menu (it writes the hash into this file) or add
+      # 'DockerUI:Auth:AdminPasswordHash' here.
       # - ./appsettings.json:/app/appsettings.json
     restart: unless-stopped

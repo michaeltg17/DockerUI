@@ -1,0 +1,196 @@
+import { useRef, useState, type FormEvent } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
+import { cn } from '@/utils/cn';
+
+import { getErrorMessage } from './auth-api';
+import { useAuth } from './use-auth';
+
+const MIN_PASSWORD_LENGTH = 16;
+
+const fieldClasses =
+  'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
+
+type PasswordDialogProps = {
+  open: boolean;
+  onClose: () => void;
+};
+
+export const PasswordDialog = ({ open, onClose }: PasswordDialogProps) => {
+  if (!open) return null;
+  return <PasswordDialogForm onClose={onClose} />;
+};
+
+/**
+ * Mounted fresh every time the dialog opens, so the fields, the saving flag
+ * and any error start clean instead of leaking state from the previous
+ * session (an async reset effect could race a fast re-open).
+ */
+const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
+  const passwordSet = useAuth((auth) => auth.passwordSet);
+  const setPassword = useAuth((auth) => auth.setPassword);
+
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const currentInputRef = useRef<HTMLInputElement>(null);
+  const nextInputRef = useRef<HTMLInputElement>(null);
+
+  const trimmedCurrent = current.trim();
+  const trimmedNext = next.trim();
+  const trimmedConfirm = confirm.trim();
+
+  // In change mode an empty new password removes the password.
+  const isRemoving = passwordSet && trimmedNext === '';
+
+  const newLengthError =
+    trimmedNext.length > 0 && trimmedNext.length < MIN_PASSWORD_LENGTH
+      ? `Use at least ${MIN_PASSWORD_LENGTH} characters.`
+      : null;
+  const matchError =
+    trimmedNext === trimmedConfirm ? null : 'The new passwords do not match.';
+  const currentError =
+    passwordSet && trimmedCurrent === '' ? 'Enter the current password.' : null;
+
+  const canSave =
+    newLengthError === null &&
+    matchError === null &&
+    currentError === null &&
+    !isSaving;
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canSave) return;
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      await setPassword(
+        passwordSet ? trimmedCurrent : null,
+        isRemoving ? null : trimmedNext,
+      );
+      onClose();
+    } catch (submitError) {
+      // The api-client also keeps the session state correct; the dialog
+      // stays open so the user can fix the input and retry.
+      setError(
+        getErrorMessage(submitError, 'Could not save the password. Try again.'),
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Dialog
+      title={passwordSet ? 'Change password' : 'Set password'}
+      initialFocusRef={passwordSet ? currentInputRef : nextInputRef}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
+        {passwordSet && (
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">Current password</span>
+            <input
+              ref={currentInputRef}
+              type="password"
+              name="CurrentPassword"
+              aria-label="Current password"
+              required
+              autoComplete="current-password"
+              value={current}
+              onChange={(event) => {
+                setCurrent(event.target.value);
+                setError(null);
+              }}
+              className={fieldClasses}
+            />
+            <p className="min-h-4 text-xs">
+              {currentError ? (
+                <span className="text-destructive">{currentError}</span>
+              ) : null}
+            </p>
+          </label>
+        )}
+
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">
+            New password{passwordSet ? ' (optional)' : ''}
+          </span>
+          <input
+            ref={nextInputRef}
+            type="password"
+            name="NewPassword"
+            aria-label="New password"
+            autoComplete="new-password"
+            value={next}
+            onChange={(event) => {
+              setNext(event.target.value);
+              setError(null);
+            }}
+            className={fieldClasses}
+          />
+          <p className="min-h-4 text-xs">
+            {newLengthError ? (
+              <span className="text-destructive">{newLengthError}</span>
+            ) : isRemoving ? (
+              <span className="text-muted-foreground">
+                Leave empty to remove the password.
+              </span>
+            ) : null}
+          </p>
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">
+            Confirm new password{passwordSet ? ' (optional)' : ''}
+          </span>
+          <input
+            type="password"
+            name="ConfirmNewPassword"
+            aria-label="Confirm new password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(event) => {
+              setConfirm(event.target.value);
+              setError(null);
+            }}
+            className={fieldClasses}
+          />
+          <p className="min-h-4 text-xs">
+            {matchError ? (
+              <span className="text-destructive">{matchError}</span>
+            ) : null}
+          </p>
+        </label>
+
+        <div className="flex flex-col gap-2 pt-1">
+          {/* The slot is always reserved so a submit error cannot resize the dialog. */}
+          <p
+            role="alert"
+            className={cn(
+              'min-h-10 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive',
+              error === null && 'invisible',
+            )}
+          >
+            {error}
+          </p>
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!canSave} isLoading={isSaving}>
+              {passwordSet ? 'Save' : 'Set password'}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </Dialog>
+  );
+};

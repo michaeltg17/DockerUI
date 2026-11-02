@@ -1,3 +1,4 @@
+using Api.Features.Auth;
 using Microsoft.Extensions.Options;
 using System.Diagnostics.CodeAnalysis;
 
@@ -39,6 +40,18 @@ namespace Api.Settings
                     if (port is < 1 or > 65535)
                         validationErrors.Add($"The '{nameof(DockerUISettings.Lan)}:{nameof(LanSettings.Ports)}' entry '{port}' must be between 1 and 65535");
                 }
+            }
+
+            if (settings.Auth is { } auth)
+            {
+                if (!string.IsNullOrWhiteSpace(auth.AdminPasswordHash) &&
+                    !PasswordHash.TryParse(auth.AdminPasswordHash, out _, out _, out _))
+                {
+                    validationErrors.Add($"The '{nameof(DockerUISettings.Auth)}:{nameof(AuthSettings.AdminPasswordHash)}' setting must be a password hash of the form 'PBKDF2-SHA256$<iterations>$<saltB64>$<hashB64>'");
+                }
+
+                if (auth.SessionLifetimeDays < 1)
+                    validationErrors.Add($"The '{nameof(DockerUISettings.Auth)}:{nameof(AuthSettings.SessionLifetimeDays)}' setting must be at least 1");
             }
 
             return validationErrors.Count > 0 ? ValidateOptionsResult.Fail(validationErrors) : ValidateOptionsResult.Success;

@@ -52,6 +52,12 @@ namespace Api.Settings
         /// probe, the ports to try, and whether to also browse mDNS.
         /// </summary>
         public LanSettings? Lan { get; set; }
+
+        /// <summary>
+        /// Optional single-password authentication: the admin password's hash. When absent
+        /// (or the section is) the dashboard is open, no password.
+        /// </summary>
+        public AuthSettings? Auth { get; set; }
     }
 #pragma warning restore CA1056
 }

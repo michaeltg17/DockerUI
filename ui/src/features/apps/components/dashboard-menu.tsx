@@ -1,5 +1,6 @@
 import {
   EyeOff,
+  KeyRound,
   Palette,
   Pencil,
   Plus,
@@ -11,6 +12,7 @@ import { useState, type ReactNode } from 'react';
 
 import { AppMenu, type AppMenuItem } from '@/components/ui/app-menu';
 import { Spinner } from '@/components/ui/spinner';
+import { useAuth } from '@/features/auth';
 import { useTheme } from '@/hooks/use-theme';
 import { themes, type Theme } from '@/lib/theme';
 
@@ -34,6 +36,7 @@ type DashboardMenuProps = {
   onViewLogs: () => void;
   onRename: () => void;
   onViewHiddenApps: () => void;
+  onPassword: () => void;
   /** Extra classes for the wrapper that defines the menu's trigger zone. */
   className?: string;
   children: ReactNode;
@@ -46,11 +49,13 @@ export const DashboardMenu = ({
   onViewLogs,
   onRename,
   onViewHiddenApps,
+  onPassword,
   className,
   children,
 }: DashboardMenuProps) => {
   const { theme, setTheme } = useTheme();
   const { data: settings } = useSettings();
+  const passwordSet = useAuth((auth) => auth.passwordSet);
   const [selfAction, setSelfAction] = useState<'restarting' | 'stopped' | null>(
     null,
   );
@@ -158,6 +163,12 @@ export const DashboardMenu = ({
       icon: <RefreshCw className="size-4" aria-hidden="true" />,
       disabled: selfProject === null,
       onSelect: runRestart,
+    },
+    {
+      id: 'password',
+      label: passwordSet ? 'Change password' : 'Set password',
+      icon: <KeyRound className="size-4" aria-hidden="true" />,
+      onSelect: onPassword,
     },
   ];
 

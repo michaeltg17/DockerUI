@@ -1,4 +1,7 @@
-import Axios, { type InternalAxiosRequestConfig } from 'axios';
+import Axios, {
+  type AxiosRequestConfig,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 
 import { useNotifications } from '@/components/ui/notifications';
 
@@ -22,12 +25,27 @@ export const api = Axios.create({
   baseURL: '/api',
 });
 
+// A 401 ends the session: instead of an error toast, the app switches to the
+// login page. The handler lives in the auth feature, which this module must
+// not import (that would cycle back through the app shell), so it is
+// registered as a callback.
+let unauthorizedHandler: (() => void) | null = null;
+
+export const setUnauthorizedHandler = (handler: () => void) => {
+  unauthorizedHandler = handler;
+};
+
 api.interceptors.request.use(requestInterceptor);
 api.interceptors.response.use(
   (response) => {
     return response.data;
   },
   (error) => {
+    if (error.response?.status === 401) {
+      unauthorizedHandler?.();
+      return Promise.reject(error);
+    }
+
     if (error.config?.silentError) {
       return Promise.reject(error);
     }
@@ -50,8 +68,12 @@ api.interceptors.response.use(
 );
 
 export const http = {
-  get: <T>(url: string) => api.get<T, T>(url),
-  post: <T>(url: string, body?: unknown) => api.post<T, T>(url, body),
-  put: <T>(url: string, body?: unknown) => api.put<T, T>(url, body),
-  delete: <T>(url: string) => api.delete<T, T>(url),
+  get: <T>(url: string, config?: AxiosRequestConfig) =>
+    api.get<T, T>(url, config),
+  post: <T>(url: string, body?: unknown, config?: AxiosRequestConfig) =>
+    api.post<T, T>(url, body, config),
+  put: <T>(url: string, body?: unknown, config?: AxiosRequestConfig) =>
+    api.put<T, T>(url, body, config),
+  delete: <T>(url: string, config?: AxiosRequestConfig) =>
+    api.delete<T, T>(url, config),
 };

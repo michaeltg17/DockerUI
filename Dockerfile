@@ -25,6 +25,16 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production
 COPY --from=api-build /app/api ./
 COPY --from=ui-build /app/dist ./wwwroot
+# Run as a dedicated non-root user with a fixed uid (1000 = the standard first-user
+# uid on Linux hosts, so a host appsettings.json created by the normal user is owned
+# correctly without a chown). The Ubuntu base already ships user+group 'ubuntu' with
+# uid/gid 1000, so rename them to 'dockerui' (the uid stays stable across base-image
+# upgrades). /app must be owned by the user: settings saves write a .tmp sibling next
+# to appsettings.json and copy it over the original in place.
+RUN groupmod -n dockerui ubuntu \
+    && usermod -l dockerui -d /home/dockerui -m ubuntu \
+    && chown -R dockerui:dockerui /app
+USER dockerui
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD bash -c '</dev/tcp/127.0.0.1/8080' || exit 1

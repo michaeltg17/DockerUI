@@ -14,9 +14,16 @@ services:
       # appsettings.example.json next to this file as appsettings.json, edit
       # it, and uncomment this line (the file replaces the packaged defaults,
       # so it must keep 'DockerUI:DockerSocketPath'; shortcut edits are
-      # persisted into it, so keep the mount read-write).
+      # persisted into it, so keep the mount read-write). The dashboard
+      # rewrites the file in place as uid 1000, so the file must be owned by
+      # uid 1000 (chown 1000:1000 appsettings.json if your host user is not).
       # There is no password by default; set one from the dashboard's
       # right-click menu (it writes the hash into this file) or add
       # 'DockerUI:Auth:AdminPasswordHash' here.
       # - ./appsettings.json:/app/appsettings.json
+    # The image runs as non-root (uid 1000) and needs no capabilities.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped

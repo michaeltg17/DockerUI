@@ -98,7 +98,11 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   supplementary groups `0,999,993,983,997` (root plus the common distro
   `docker` gids, created in the image when missing) so it can reach the
   daemon socket on both Docker Desktop (`root:root`) and Linux hosts
-  (`root:docker`) without running as root.
+  (`root:docker`) without running as root. Where the socket's group has
+  another gid (the `docker` group's gid is assigned dynamically, e.g. on
+  GitHub runners), `ci.sh` detects it (`stat -c %g /var/run/docker.sock`)
+  and the compose files pass it to the dashboard via
+  `group_add: ["${SOCKET_GROUP_GID:-0}"]`.
 - `DockerUIException` → 500, `DaemonUnavailableException` → 503,
   `NotFoundException` → 404, `ConflictException` → 409 (mapped in
   `api/Setup/ExceptionHandlerConfigurator.cs`); problems are RFC 9457

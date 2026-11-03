@@ -55,7 +55,7 @@ namespace Api.Features.Apps.Endpoints
                         throw new ConflictException($"The service '{service}' is already split out of the stack '{project}'.");
 
                     if (!remainingServices.Contains(service, StringComparer.Ordinal))
-                        throw new NotFoundException($"The service '{service}' was not found in the stack '{project}'.");
+                        throw new ServiceNotFoundException(service, project);
                 }
 
                 string[] split = [.. alreadySplit, .. services.Where(service => !alreadySplit.Contains(service, StringComparer.Ordinal))];

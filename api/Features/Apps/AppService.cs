@@ -76,7 +76,7 @@ namespace Api.Features.Apps
         {
             var apps = await GetAppsAsync(cancellationToken).ConfigureAwait(false);
             return apps.SingleOrDefault(app => app.Name == appName)
-                ?? throw new NotFoundException($"The app '{appName}' was not found.");
+                ?? throw new AppNotFoundException(appName);
         }
 
         public async Task<IReadOnlyList<ContainerSnapshot>> ResolveAppContainersAsync(string appName, CancellationToken cancellationToken)
@@ -85,7 +85,7 @@ namespace Api.Features.Apps
             var targets = AppCatalog.ResolveApp(snapshots, appName, settingsStore.Current);
 
             return targets.Count is 0
-                ? throw new NotFoundException($"The app '{appName}' was not found.")
+                ? throw new AppNotFoundException(appName)
                 : targets;
         }
 

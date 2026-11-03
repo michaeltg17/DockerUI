@@ -74,7 +74,7 @@ namespace Api.Features.Lan
             var index = existing.FindIndex(shortcut => string.Equals(shortcut.Name, name, StringComparison.OrdinalIgnoreCase));
 
             if (index < 0)
-                throw new NotFoundException($"The shortcut '{name}' was not found.");
+                throw new ShortcutNotFoundException(name);
 
             await ApplyEnrichmentsAsync(existing, [existing[index]], cancellationToken);
             await shortcuts.SaveManyAsync(existing, cancellationToken);

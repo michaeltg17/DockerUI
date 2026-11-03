@@ -45,7 +45,7 @@ namespace Api.Features.Shortcuts
             var index = FindIndex(shortcuts, name);
 
             if (index < 0)
-                throw new NotFoundException($"The shortcut '{name}' was not found.");
+                throw new ShortcutNotFoundException(name);
 
             // Renaming onto another shortcut's name would make name lookups ambiguous.
             if (shortcuts
@@ -88,7 +88,7 @@ namespace Api.Features.Shortcuts
             var index = FindIndex(shortcuts, name);
 
             if (index < 0)
-                throw new NotFoundException($"The shortcut '{name}' was not found.");
+                throw new ShortcutNotFoundException(name);
 
             shortcuts.RemoveAt(index);
             await SaveAndBroadcastAsync(shortcuts, cancellationToken).ConfigureAwait(false);

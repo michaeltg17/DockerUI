@@ -36,7 +36,7 @@ namespace Api.Features.Apps.Endpoints
 
                     throw exists
                         ? new ConflictException($"The app '{name}' is not a split part and cannot be joined.")
-                        : new NotFoundException($"The app '{name}' was not found.");
+                        : new AppNotFoundException(name);
                 }
 
                 var current = GetSplitServices(settings, part.Project);

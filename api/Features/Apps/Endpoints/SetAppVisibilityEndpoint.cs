@@ -33,7 +33,7 @@ namespace Api.Features.Apps.Endpoints
                 }
                 else if (!shortcutService.SetHidden(name, input.Hidden))
                 {
-                    throw new NotFoundException($"The app '{name}' was not found.");
+                    throw new AppNotFoundException(name);
                 }
 
                 await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);

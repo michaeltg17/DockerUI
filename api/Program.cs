@@ -173,7 +173,8 @@ internal static class Program
 
         // The FallbackPolicy protects every endpoint (API and hub) with the single
         // requirement that reacts to the hot-reloaded password setting per request; the
-        // login shell and the sign-in endpoints mark themselves AllowAnonymous.
+        // SPA fallback (which serves the login page) and the sign-in endpoints mark
+        // themselves AllowAnonymous.
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder()
                 .AddRequirements(new PasswordRequiredRequirement())
@@ -212,9 +213,9 @@ internal static class Program
     public static WebApplication Configure(this WebApplication app)
     {
         //Exception handler middleware first to catch exceptions. Authentication runs on
-        //every request; static files are served before authorization so the login shell's
-        //assets load without a session; the FallbackPolicy then guards the endpoints, and
-        //its bare 401s become problem documents afterwards.
+        //every request; static files are served before authorization so the app's assets
+        //load without a session; the FallbackPolicy then guards the endpoints, and its
+        //bare 401s become problem documents afterwards.
         app.AddExceptionHandlerMiddleware()
             .UseAuthentication()
             .UseStaticFiles()

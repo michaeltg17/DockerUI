@@ -20,7 +20,8 @@ namespace Api.Setup
         public static WebApplication UseSpaFallback(this WebApplication app)
         {
             //AllowAnonymous: the fallback is an endpoint, so without it the FallbackPolicy
-            //would 401 the login shell (its static assets are served earlier by UseStaticFiles).
+            //would 401 the login page (the fallback's document; its static assets are served
+            //earlier by UseStaticFiles).
             app.MapFallback(async httpContext =>
             {
                 var webRootPath = app.Environment.WebRootPath;

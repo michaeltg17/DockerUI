@@ -215,7 +215,7 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
                     .Should().BeTrue("because the password is set");
             }
 
-            // The SPA shell itself stays public, so the login page loads without a session.
+            // The SPA document itself stays public, so the login page loads without a session.
             await using var context = await browser.NewContextAsync(environment);
             var apps = new AppsPage(await context.NewPageAsync());
             await apps.LoadAsync(environment.BaseUrl);

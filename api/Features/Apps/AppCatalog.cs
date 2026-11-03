@@ -44,9 +44,8 @@ namespace Api.Features.Apps
 
         // The daemon's status line carries the exit code of exited and restarting
         // containers: 'Exited (7) 5 seconds ago', 'Restarting (5) 2 seconds ago'.
-        static readonly Regex StatusExitCodeRegex = new(
-            @"^(?:Exited|Restarting) \((\d+)\)",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        [GeneratedRegex(@"^(?:Exited|Restarting) \((\d+)\)", RegexOptions.CultureInvariant)]
+        private static partial Regex CreateStatusExitCodeRegex();
 
         const string UnhealthySuffix = "(unhealthy)";
 
@@ -252,7 +251,7 @@ namespace Api.Features.Apps
 
         static bool TryParseStatusExitCode(string status, out int exitCode)
         {
-            var match = StatusExitCodeRegex.Match(status);
+            var match = CreateStatusExitCodeRegex().Match(status);
             var captured = match.Success ? match.Groups[1].Value : null;
 
             return int.TryParse(captured, NumberStyles.Integer, CultureInfo.InvariantCulture, out exitCode);

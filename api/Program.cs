@@ -174,8 +174,8 @@ internal static class Program
         // The FallbackPolicy protects every endpoint (API and hub) with the single
         // requirement that reacts to the hot-reloaded password setting per request; the
         // login shell and the sign-in endpoints mark themselves AllowAnonymous.
-        services.AddAuthorization(options =>
-            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        services.AddAuthorizationBuilder()
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder()
                 .AddRequirements(new PasswordRequiredRequirement())
                 .Build());
 

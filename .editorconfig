@@ -7,6 +7,10 @@ end_of_line = lf
 # Make all style analyzers errors
 dotnet_analyzer_diagnostic.category-Style.severity = warning
 
+# Remaining analyzer diagnostics (e.g., SDK suggestions such as ASP0025) default to the
+# info level, which the build ignores; promote them to warning so the build reports them
+dotnet_analyzer_diagnostic.severity = warning
+
 # CA1515: Consider making public types internal
 dotnet_diagnostic.CA1515.severity = none
 

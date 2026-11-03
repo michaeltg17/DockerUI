@@ -94,7 +94,11 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   a host-mounted `appsettings.json` must be owned by uid 1000 for in-place
   saves to work. e2e relies on `ci.sh` chown'ing the scenario
   `appsettings.json` files to 1000:1000 before the scenarios start (the CI
-  runner's checkout is owned by uid 1001).
+  runner's checkout is owned by uid 1001). The user also carries
+  supplementary groups `0,999,993,983,997` (root plus the common distro
+  `docker` gids, created in the image when missing) so it can reach the
+  daemon socket on both Docker Desktop (`root:root`) and Linux hosts
+  (`root:docker`) without running as root.
 - `DockerUIException` → 500, `DaemonUnavailableException` → 503,
   `NotFoundException` → 404, `ConflictException` → 409 (mapped in
   `api/Setup/ExceptionHandlerConfigurator.cs`); problems are RFC 9457

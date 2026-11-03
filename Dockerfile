@@ -31,8 +31,17 @@ COPY --from=ui-build /app/dist ./wwwroot
 # uid/gid 1000, so rename them to 'dockerui' (the uid stays stable across base-image
 # upgrades). /app must be owned by the user: settings saves write a .tmp sibling next
 # to appsettings.json and copy it over the original in place.
+# The daemon socket is mounted read-only and its owning group depends on the host:
+# root:root on Docker Desktop, root:docker on Linux hosts, where 'docker' is gid 999
+# on Ubuntu/Debian, 993 on RHEL, 983 on Arch, and 997 on openSUSE. Granting dockerui
+# those gids as supplementary groups (creating them in the image when the base lacks
+# them) lets it reach the daemon on any of those hosts without running as root.
 RUN groupmod -n dockerui ubuntu \
     && usermod -l dockerui -d /home/dockerui -m ubuntu \
+    && for gid in 0 999 993 983 997; do \
+         getent group "$gid" || groupadd -g "$gid" "dockerui-gid-$gid"; \
+       done \
+    && usermod -aG 0,999,993,983,997 dockerui \
     && chown -R dockerui:dockerui /app
 USER dockerui
 EXPOSE 8080

@@ -89,20 +89,18 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
 - The published image runs as a non-root `dockerui` user (uid/gid 1000,
-  created and chowned in the Dockerfile's runtime stage). `/app` must stay
-  owned by uid 1000 because settings saves write a `.tmp` sibling in it, and
-  a host-mounted `appsettings.json` must be owned by uid 1000 for in-place
-  saves to work. e2e relies on `ci.sh` chown'ing the scenario
+  created explicitly in the Dockerfile's runtime stage). `/app` and the
+  packaged `appsettings.json` are the only paths owned by uid 1000, because
+  settings saves write a `.tmp` sibling in `/app` and rewrite the file in
+  place, and a host-mounted `appsettings.json` must be owned by uid 1000
+  for in-place saves to work. e2e relies on `ci.sh` chown'ing the scenario
   `appsettings.json` files to 1000:1000 before the scenarios start (the CI
-  runner's checkout is owned by uid 1001). The user also carries
-  supplementary groups `0,999,993,983,997` (root plus the common distro
-  `docker` gids, created in the image when missing) so it can reach the
-  daemon socket on both Docker Desktop (`root:root`) and Linux hosts
-  (`root:docker`) without running as root. Where the socket's group has
-  another gid (the `docker` group's gid is assigned dynamically, e.g. on
-  GitHub runners), `ci.sh` detects it (`stat -c %g /var/run/docker.sock`)
-  and the compose files pass it to the dashboard via
-  `group_add: ["${SOCKET_GROUP_GID:-0}"]`.
+  runner's checkout is owned by uid 1001). The image grants no socket
+  groups of its own: the compose files pass the daemon socket's gid to the
+  dashboard via `group_add: ["${SOCKET_GROUP_GID:-0}"]` (0 covers Docker
+  Desktop's `root:root` socket; where the socket's group has another gid —
+  the `docker` group's gid is assigned dynamically, e.g. on GitHub
+  runners — `ci.sh` detects it with `stat -c %g /var/run/docker.sock`).
 - `DockerUIException` → 500, `DaemonUnavailableException` → 503,
   `NotFoundException` → 404, `ConflictException` → 409 (mapped in
   `api/Setup/ExceptionHandlerConfigurator.cs`); problems are RFC 9457

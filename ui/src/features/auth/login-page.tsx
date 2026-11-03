@@ -1,0 +1,100 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Logo } from '@/components/ui/logo';
+import { getErrorMessage } from '@/lib/api-client';
+import { cn } from '@/utils/cn';
+
+import { useAuth } from './use-auth';
+
+/**
+ * Shown while a password is set and no valid session exists. The page title
+ * already carries the dashboard name: a fresh load gets it from the SPA
+ * fallback, an expired session from the page that was open.
+ */
+export const LoginPage = () => {
+  const signIn = useAuth((auth) => auth.signIn);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    passwordInputRef.current?.focus();
+  }, []);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await signIn(password);
+    } catch (submitError) {
+      // The api-client already kept the app on the login page; the form
+      // stays open so the user can fix the password and retry.
+      setError(getErrorMessage(submitError, 'Could not sign in. Try again.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-6">
+      <div className="w-full max-w-sm">
+        <div className="flex flex-col items-center gap-3">
+          <Logo className="size-12 text-muted-foreground" />
+          <h1 className="text-lg font-semibold">
+            {document.title || 'Docker UI'}
+          </h1>
+          <p className="text-center text-sm text-muted-foreground">
+            Enter the dashboard password to continue.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3">
+          <label className="sr-only" htmlFor="login-password">
+            Password
+          </label>
+          <Input
+            id="login-password"
+            ref={passwordInputRef}
+            type="password"
+            name="Password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setError(null);
+            }}
+            className="w-full"
+          />
+
+          <div className="flex flex-col gap-2 pt-1">
+            {/* The slot is always reserved so an error cannot resize the page. */}
+            <p
+              role="alert"
+              className={cn(
+                'min-h-10 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive',
+                error === null && 'invisible',
+              )}
+            >
+              {error}
+            </p>
+
+            <Button
+              type="submit"
+              isLoading={isSubmitting}
+              disabled={password.length === 0}
+            >
+              Sign in
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

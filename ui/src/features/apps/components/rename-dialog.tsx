@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { getErrorMessage } from '@/lib/api-client';
 import { cn } from '@/utils/cn';
 
 import { useRenameDashboard } from '../hooks/use-rename-dashboard';
-
-import { getErrorMessage } from './shortcut-dialog';
 
 type RenameDialogProps = {
   open: boolean;
@@ -60,7 +60,12 @@ const RenameDialogForm = ({
       await rename.mutateAsync(trimmedName);
       onClose();
     } catch (renameError) {
-      setError(getErrorMessage(renameError));
+      setError(
+        getErrorMessage(
+          renameError,
+          'Could not rename the dashboard. Try again.',
+        ),
+      );
     }
   };
 
@@ -75,7 +80,7 @@ const RenameDialogForm = ({
         <div className="flex flex-col gap-1.5 text-sm">
           <label className="flex flex-col gap-1.5">
             <span className="font-medium">Name</span>
-            <input
+            <Input
               ref={nameInputRef}
               type="text"
               required
@@ -85,7 +90,6 @@ const RenameDialogForm = ({
                 setName(event.target.value);
                 setError(null);
               }}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="min-h-4 text-xs text-destructive">
               {nameError ?? ''}

@@ -10,15 +10,22 @@ namespace Api.Features.Lan
     /// <c>&lt;title&gt;</c> and resolves its favicon to a data URI, so the card shows a real
     /// name and icon instead of the bare address.
     /// </summary>
-    internal sealed class LanEnricher(HttpClient http)
+    internal sealed partial class LanEnricher(HttpClient http)
     {
         const int MaxIconBytes = 512 * 1024;
         const int MaxTitleLength = 120;
 
-        static readonly Regex LinkTagRegex = new("<link[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static readonly Regex RelAttributeRegex = new("rel\\s*=\\s*[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static readonly Regex HrefAttributeRegex = new("href\\s*=\\s*[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static readonly Regex TitleRegex = new("<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+        [GeneratedRegex("<link[^>]*>")]
+        private static partial Regex CreateLinkTagRegex();
+
+        [GeneratedRegex("rel\\s*=\\s*[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase)]
+        private static partial Regex CreateRelAttributeRegex();
+
+        [GeneratedRegex("href\\s*=\\s*[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase)]
+        private static partial Regex CreateHrefAttributeRegex();
+
+        [GeneratedRegex("<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+        private static partial Regex CreateTitleRegex();
 
         public async Task<Enrichment> FetchAsync(Uri url, CancellationToken cancellationToken)
         {
@@ -40,7 +47,7 @@ namespace Api.Features.Lan
 
         static string? ExtractTitle(string html)
         {
-            var match = TitleRegex.Match(html);
+            var match = CreateTitleRegex().Match(html);
             var raw = match.Success ? match.Groups[1].Value : null;
 
             if (string.IsNullOrWhiteSpace(raw))
@@ -53,11 +60,11 @@ namespace Api.Features.Lan
 
         async Task<string?> ResolveIconAsync(string html, Uri pageUrl, CancellationToken cancellationToken)
         {
-            foreach (Match link in LinkTagRegex.Matches(html))
+            foreach (Match link in CreateLinkTagRegex().Matches(html))
             {
                 var tag = link.Value;
 
-                if (RelAttributeRegex.Match(tag) is not { Success: true } rel)
+                if (CreateRelAttributeRegex().Match(tag) is not { Success: true } rel)
                     continue;
 
                 var relValue = rel.Groups[1].Value.Trim().ToUpperInvariant();
@@ -65,7 +72,7 @@ namespace Api.Features.Lan
                 if (relValue is not ("ICON" or "APPLE-TOUCH-ICON" or "SHORTCUT ICON" or "MASK-ICON"))
                     continue;
 
-                if (HrefAttributeRegex.Match(tag) is not { Success: true } href)
+                if (CreateHrefAttributeRegex().Match(tag) is not { Success: true } href)
                     continue;
 
                 var iconUrl = new Uri(pageUrl, href.Groups[1].Value);

@@ -55,7 +55,7 @@ namespace Api.Features.Lan
                 if (coveredByDocker)
                     continue;
 
-                var shortcut = new Shortcut(finding.Name, finding.Url, Source: ShortcutSource.Lan);
+                var shortcut = new Shortcut(finding.Name, finding.Url, Source: ShortcutSource.Lan, Color: AppCatalog.RandomIconHue());
                 existing.Add(shortcut);
                 byName[finding.Name] = shortcut;
                 toEnrich.Add(shortcut);
@@ -74,7 +74,7 @@ namespace Api.Features.Lan
             var index = existing.FindIndex(shortcut => string.Equals(shortcut.Name, name, StringComparison.OrdinalIgnoreCase));
 
             if (index < 0)
-                throw new NotFoundException($"The shortcut '{name}' was not found.");
+                throw new ShortcutNotFoundException(name);
 
             await ApplyEnrichmentsAsync(existing, [existing[index]], cancellationToken);
             await shortcuts.SaveManyAsync(existing, cancellationToken);

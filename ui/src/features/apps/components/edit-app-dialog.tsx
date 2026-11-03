@@ -2,6 +2,8 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { getErrorMessage } from '@/lib/api-client';
 import { isValidUrl, normalizeUrl } from '@/lib/url';
 import { cn } from '@/utils/cn';
 
@@ -21,24 +23,6 @@ type EditAppDialogProps = {
 // The url is optional (empty auto-detects); when present it must be valid.
 const isSaveableUrl = (value: string) =>
   value.trim().length === 0 || isValidUrl(value);
-
-/** The API reports problems as RFC 9457 documents; surface the human message. */
-const getErrorMessage = (error: unknown) => {
-  const data = (error as { response?: { data?: unknown } } | null)?.response
-    ?.data;
-
-  if (typeof data === 'object' && data !== null) {
-    const { detail, message } = data as { detail?: unknown; message?: unknown };
-
-    if (typeof detail === 'string' && detail.length > 0) return detail;
-    if (typeof message === 'string' && message.length > 0) return message;
-  }
-
-  return 'Could not save the app. Try again.';
-};
-
-const fieldClasses =
-  'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
 export const EditAppDialog = ({ open, app, onClose }: EditAppDialogProps) => {
   if (!open || app === null) return null;
@@ -101,7 +85,9 @@ const EditAppDialogForm = ({
     } catch (submitError) {
       // The api-client interceptor also surfaces the error as a toast; the
       // dialog stays open so the user can fix the input and retry.
-      setError(getErrorMessage(submitError));
+      setError(
+        getErrorMessage(submitError, 'Could not save the app. Try again.'),
+      );
     }
   };
 
@@ -123,6 +109,7 @@ const EditAppDialogForm = ({
             <AppIcon
               icon={icon === '' ? null : icon}
               name={displayName.trim() || app.name}
+              hue={app.color}
               className="size-16 text-xl"
             />
           </button>
@@ -130,7 +117,7 @@ const EditAppDialogForm = ({
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium">Name</span>
-              <input
+              <Input
                 ref={nameInputRef}
                 type="text"
                 value={displayName}
@@ -139,13 +126,12 @@ const EditAppDialogForm = ({
                   setError(null);
                 }}
                 placeholder={app.name}
-                className={fieldClasses}
               />
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium">URL</span>
-              <input
+              <Input
                 type="text"
                 inputMode="url"
                 aria-invalid={urlError !== null}
@@ -154,8 +140,7 @@ const EditAppDialogForm = ({
                   setUrl(event.target.value);
                   setError(null);
                 }}
-                placeholder="Leave empty to auto-detect"
-                className={fieldClasses}
+                placeholder="Auto-detected"
               />
               <p className="min-h-4 text-xs text-destructive">
                 {urlError ?? ''}

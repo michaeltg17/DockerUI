@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Api.Domain;
@@ -18,6 +19,19 @@ namespace Api.Features.Apps
         public const string ComposeServiceLabel = "com.docker.compose.service";
         public const string IconLabel = "dockerui.icon";
 
+        /// <summary>
+        /// The character that joins a project name and a service name in a split part's name
+        /// ('web-stack-nginx'): the part's identity, used by the API routes, search, and order.
+        /// </summary>
+        public const char PartNameSeparator = '-';
+
+        /// <summary>The name of the card a service split out of the given project gets.</summary>
+        public static string PartName(string project, string service) => $"{project}{PartNameSeparator}{service}";
+
+        /// <summary>A random icon hue (0–359), decided once at creation and never changed afterwards.</summary>
+        [SuppressMessage("Security", "CA5394:Random is an insecure random number generator", Justification = "The hue is purely cosmetic; no security-sensitive randomness is required.")]
+        public static int RandomIconHue() => Random.Shared.Next(0, 360);
+
         // Docker daemon container states (the 'State' values of the list response).
         public const string StateCreated = "created";
         public const string StateRunning = "running";
@@ -30,9 +44,8 @@ namespace Api.Features.Apps
 
         // The daemon's status line carries the exit code of exited and restarting
         // containers: 'Exited (7) 5 seconds ago', 'Restarting (5) 2 seconds ago'.
-        static readonly Regex StatusExitCodeRegex = new(
-            @"^(?:Exited|Restarting) \((\d+)\)",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        [GeneratedRegex(@"^(?:Exited|Restarting) \((\d+)\)", RegexOptions.CultureInvariant)]
+        private static partial Regex CreateStatusExitCodeRegex();
 
         const string UnhealthySuffix = "(unhealthy)";
 
@@ -60,7 +73,36 @@ namespace Api.Features.Apps
                 .Where(group => group.Key is not null)
                 .OrderBy(group => group.Key, StringComparer.Ordinal))
             {
-                apps.Add(BuildApp(group.Key!, [.. group], iconCatalog, liveIconCatalog, baseUrl, settings, logger));
+                var projectName = group.Key!;
+                var splitServices = GetSplitServices(group, projectName, settings);
+                var splitSet = splitServices.ToHashSet(StringComparer.Ordinal);
+
+                // One card per split-out service (all its replicas grouped under it); the
+                // stack card covers only the remaining containers.
+                foreach (var service in splitServices)
+                {
+                    var part = group
+                        .Where(container => string.Equals(GetServiceName(container), service, StringComparison.Ordinal))
+                        .ToList();
+
+                    apps.Add(BuildApp(
+                        PartName(projectName, service),
+                        part,
+                        iconCatalog,
+                        liveIconCatalog,
+                        baseUrl,
+                        settings,
+                        logger,
+                        cardName: service,
+                        splitFrom: projectName));
+                }
+
+                var remaining = group
+                    .Where(container => !splitSet.Contains(GetServiceName(container)))
+                    .ToList();
+
+                if (remaining.Count > 0)
+                    apps.Add(BuildApp(projectName, remaining, iconCatalog, liveIconCatalog, baseUrl, settings, logger, splitServices: [.. splitServices]));
             }
 
             var standalone = groups.SingleOrDefault(group => group.Key is null);
@@ -77,17 +119,33 @@ namespace Api.Features.Apps
             return (OrderApps(apps, settings), hidden);
         }
 
-        /// <summary>Resolves the containers that make up the given app, or an empty list if it doesn't exist.</summary>
-        public static IReadOnlyList<ContainerSnapshot> ResolveApp(IEnumerable<ContainerSnapshot> containers, string appName)
+        /// <summary>
+        /// Resolves the containers that make up the given app, or an empty list if it doesn't
+        /// exist: a split part ('project-service') covers that service's containers, and a
+        /// stack's card covers its containers minus the split-out services.
+        /// </summary>
+        public static IReadOnlyList<ContainerSnapshot> ResolveApp(
+            IEnumerable<ContainerSnapshot> containers, string appName, DockerUISettings? settings)
         {
             var list = containers.ToList();
+            var groups = list.GroupBy(GetProject).ToList();
 
-            var group = list
-                .GroupBy(GetProject)
-                .SingleOrDefault(group => group.Key == appName);
+            if (TryResolvePartName(appName, settings) is { } part)
+            {
+                var project = groups.SingleOrDefault(group => group.Key == part.Project);
+
+                return project is null
+                    ? []
+                    : [.. project.Where(container => string.Equals(GetServiceName(container), part.Service, StringComparison.Ordinal))];
+            }
+
+            var group = groups.SingleOrDefault(group => group.Key == appName);
 
             if (group is not null)
-                return [.. group];
+            {
+                var splitSet = GetSplitServices([.. group], appName, settings).ToHashSet(StringComparer.Ordinal);
+                return [.. group.Where(container => !splitSet.Contains(GetServiceName(container)))];
+            }
 
             var standalone = list.SingleOrDefault(container =>
                 GetProject(container) is null &&
@@ -96,6 +154,55 @@ namespace Api.Features.Apps
             return standalone is null
                 ? []
                 : [standalone];
+        }
+
+        /// <summary>
+        /// The (project, service) a split part's name refers to, from the split list, or null
+        /// when the name is not a part: the backend knows the part names from
+        /// 'DockerUI:AppSplits', so no string parsing is needed to find them.
+        /// </summary>
+        public static (string Project, string Service)? TryResolvePartName(string appName, DockerUISettings? settings)
+        {
+            if (settings?.AppSplits is { } splits)
+            {
+                foreach (var (project, services) in splits)
+                {
+                    foreach (var service in services)
+                    {
+                        if (string.Equals(PartName(project, service), appName, StringComparison.Ordinal))
+                            return (project, service);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// The services of the given project that are split out ('DockerUI:AppSplits'), in
+        /// listing order and limited to services that still have containers in the project,
+        /// so a stale entry (a service removed from the compose file) is ignored.
+        /// </summary>
+        static List<string> GetSplitServices(
+            IEnumerable<ContainerSnapshot> group, string projectName, DockerUISettings? settings)
+        {
+            var split = new List<string>();
+            var containers = group.ToList();
+
+            if (settings?.AppSplits is not { } splits ||
+                !splits.TryGetValue(projectName, out var services))
+                return split;
+
+            foreach (var service in services.Distinct(StringComparer.Ordinal))
+            {
+                if (string.IsNullOrWhiteSpace(service))
+                    continue;
+
+                if (containers.Any(container => string.Equals(GetServiceName(container), service, StringComparison.Ordinal)))
+                    split.Add(service);
+            }
+
+            return split;
         }
 
         public static bool IsRunningState(string state) => state is StateRunning or StateRestarting;
@@ -144,25 +251,46 @@ namespace Api.Features.Apps
 
         static bool TryParseStatusExitCode(string status, out int exitCode)
         {
-            var match = StatusExitCodeRegex.Match(status);
+            var match = CreateStatusExitCodeRegex().Match(status);
             var captured = match.Success ? match.Groups[1].Value : null;
 
             return int.TryParse(captured, NumberStyles.Integer, CultureInfo.InvariantCulture, out exitCode);
         }
 
-        static string? GetProject(ContainerSnapshot container) =>
+        /// <summary>The compose project the container belongs to, or null for a standalone container.</summary>
+        public static string? GetProject(ContainerSnapshot container) =>
             container.Labels.TryGetValue(ComposeProjectLabel, out var project) && !string.IsNullOrWhiteSpace(project)
                 ? project
                 : null;
 
+        /// <summary>
+        /// Builds the app card for one project (or one standalone container): its services,
+        /// aggregated state and problem, and its resolved icon, display name, and url.
+        /// </summary>
+        /// <param name="name">The app's identity: the project name, a part's 'project-service' name, or the container name.</param>
+        /// <param name="containers">The containers that make up the card.</param>
+        /// <param name="iconCatalog">The built-in icon catalog.</param>
+        /// <param name="liveIconCatalog">The icon catalog from 'DockerUI:Icons' settings, when any are set.</param>
+        /// <param name="baseUrl">The dashboard's base url, used to resolve app urls.</param>
+        /// <param name="settings">The current settings (per-app overrides and splits), when available.</param>
+        /// <param name="logger">Logs invalid url overrides.</param>
+        /// <param name="cardName">
+        /// The name the card shows (and the icon catalog's name lookup uses) for a split
+        /// part: the plain service name, unlike the part's 'project-service' identity.
+        /// </param>
+        /// <param name="splitFrom">The project a split part was split out of; null otherwise.</param>
+        /// <param name="splitServices">The services split out of the stack; null when none.</param>
         static AppDto BuildApp(
             string name,
-            IReadOnlyList<ContainerSnapshot> containers,
+            List<ContainerSnapshot> containers,
             IAppIconCatalog? iconCatalog,
             IAppIconCatalog? liveIconCatalog,
             Uri? baseUrl,
             DockerUISettings? settings,
-            ILogger logger)
+            ILogger logger,
+            string? cardName = null,
+            string? splitFrom = null,
+            string[]? splitServices = null)
         {
             var services = containers
                 .Select(container => new AppServiceDto(
@@ -181,17 +309,21 @@ namespace Api.Features.Apps
                 ? appSettings
                 : null;
 
+            // A split part resolves its name-based icon lookups from the service name
+            // (the card title), not from its 'project-service' identity.
+            var lookupName = cardName ?? name;
+
             var icon = !string.IsNullOrWhiteSpace(perApp?.Icon)
                 ? perApp.Icon
                 : containers
                     .Select(GetIcon)
                     .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
                     ?? GetCatalogIcon(containers, liveIconCatalog)
-                    ?? TryNameIcon(liveIconCatalog, name)
-                    ?? TryNameIcon(iconCatalog, name)
+                    ?? TryNameIcon(liveIconCatalog, lookupName)
+                    ?? TryNameIcon(iconCatalog, lookupName)
                     ?? GetCatalogIcon(containers, iconCatalog);
 
-            var displayName = !string.IsNullOrWhiteSpace(perApp?.Name) ? perApp.Name : name;
+            var displayName = !string.IsNullOrWhiteSpace(perApp?.Name) ? perApp.Name : lookupName;
 
             // In a multi-container app the service name prefixes each problem so it is
             // clear which service is failing.
@@ -218,7 +350,12 @@ namespace Api.Features.Apps
                 ResolveAppUrl(name, containers, baseUrl, perApp, logger),
                 services,
                 AppSource.Docker,
-                Problem: problem);
+                perApp?.Color,
+                Problem: problem,
+                SplitFrom: splitFrom)
+            {
+                SplitServices = splitServices ?? [],
+            };
         }
 
         static Uri? ResolveAppUrl(
@@ -316,7 +453,8 @@ namespace Api.Features.Apps
             return ordered;
         }
 
-        static string GetServiceName(ContainerSnapshot container) =>
+        /// <summary>The compose service name, or the container name for a standalone container.</summary>
+        public static string GetServiceName(ContainerSnapshot container) =>
             container.Labels.TryGetValue(ComposeServiceLabel, out var service) && !string.IsNullOrWhiteSpace(service)
                 ? service
                 : container.Name;

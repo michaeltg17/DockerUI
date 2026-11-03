@@ -2,6 +2,8 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { getErrorMessage } from '@/lib/api-client';
 import { hasUrlScheme, isValidUrl, normalizeUrl } from '@/lib/url';
 import { cn } from '@/utils/cn';
 
@@ -12,7 +14,7 @@ import {
 } from '../hooks/use-shortcuts';
 import type { Shortcut } from '../types';
 
-import { AppIcon, getHue } from './app-icon';
+import { AppIcon, randomHue } from './app-icon';
 import { IconPickerDialog } from './icon-picker-dialog';
 
 type ShortcutDialogProps = {
@@ -24,21 +26,6 @@ type ShortcutDialogProps = {
 
 const isEditingShortcut = (initial?: Shortcut | null) => Boolean(initial?.name);
 
-/** The API reports problems as RFC 9457 documents; surface the human message. */
-export const getErrorMessage = (error: unknown) => {
-  const data = (error as { response?: { data?: unknown } } | null)?.response
-    ?.data;
-
-  if (typeof data === 'object' && data !== null) {
-    const { detail, message } = data as { detail?: unknown; message?: unknown };
-
-    if (typeof detail === 'string' && detail.length > 0) return detail;
-    if (typeof message === 'string' && message.length > 0) return message;
-  }
-
-  return 'Could not save the shortcut. Try again.';
-};
-
 type ShortcutValidation = {
   name: string | null;
   url: string | null;
@@ -49,9 +36,6 @@ const validateShortcut = (name: string, url: string): ShortcutValidation => ({
   name: name.trim() ? null : 'Enter a name.',
   url: isValidUrl(url) ? null : 'Enter a valid URL, e.g. https://example.com.',
 });
-
-const fieldClasses =
-  'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
 export const ShortcutDialog = ({
   open,
@@ -88,12 +72,9 @@ const ShortcutDialogForm = ({
   const [nameTouched, setNameTouched] = useState(false);
   const [urlTouched, setUrlTouched] = useState(false);
 
-  // The icon color is decided once so it never shifts while the name is typed:
-  // an edited shortcut keeps its stored color (or the hue its current name
-  // already yields), a new one settles from the name when the name field is left.
-  const [settledHue, setSettledHue] = useState<number | null>(
-    () => initial?.color ?? (isEditing ? getHue(initialName) : null),
-  );
+  // A new shortcut gets a random hue, an existing one keeps its stored color;
+  // it never changes afterwards.
+  const [color] = useState(() => initial?.color ?? randomHue());
 
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,24 +107,9 @@ const ShortcutDialogForm = ({
       ? normalizeUrl(url)
       : null;
 
-  // The icon shown in the preview: a settled hue, or the neutral placeholder
-  // hue until a new shortcut's name is first committed.
-  const displayHue = settledHue ?? getHue('?');
-
-  const settleNameHue = () => {
-    setNameTouched(true);
-    if (!isEditing) setSettledHue(getHue(trimmedName || '?'));
-  };
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSave) return;
-
-    // Persist the decided color: an edit keeps its existing hue, a create uses
-    // the hue derived from the final name.
-    const color = isEditing
-      ? (initial?.color ?? getHue(initialName))
-      : getHue(trimmedName);
 
     const shortcut: Shortcut = {
       name: trimmedName,
@@ -162,7 +128,9 @@ const ShortcutDialogForm = ({
     } catch (submitError) {
       // The api-client interceptor also surfaces the error as a toast; the
       // dialog stays open so the user can fix the input and retry.
-      setError(getErrorMessage(submitError));
+      setError(
+        getErrorMessage(submitError, 'Could not save the shortcut. Try again.'),
+      );
     }
   };
 
@@ -183,14 +151,14 @@ const ShortcutDialogForm = ({
           <AppIcon
             icon={icon === '' ? null : icon}
             name={trimmedName || '?'}
-            hue={displayHue}
+            hue={color}
             className="size-24 text-3xl"
           />
         </button>
 
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium">Name</span>
-          <input
+          <Input
             ref={nameInputRef}
             type="text"
             required
@@ -201,9 +169,8 @@ const ShortcutDialogForm = ({
               setName(event.target.value);
               setError(null);
             }}
-            onBlur={settleNameHue}
+            onBlur={() => setNameTouched(true)}
             placeholder="e.g. GitHub"
-            className={fieldClasses}
           />
           <p className="min-h-4 text-xs text-destructive">
             {showNameError ? nameError : ''}
@@ -212,7 +179,7 @@ const ShortcutDialogForm = ({
 
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium">URL</span>
-          <input
+          <Input
             type="text"
             inputMode="url"
             required
@@ -225,7 +192,6 @@ const ShortcutDialogForm = ({
             }}
             onBlur={() => setUrlTouched(true)}
             placeholder="e.g. https://example.com or example.com"
-            className={fieldClasses}
           />
           <p className="min-h-4 text-xs">
             {showUrlError ? (

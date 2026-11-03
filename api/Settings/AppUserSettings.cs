@@ -15,6 +15,9 @@ namespace Api.Settings
 
         /// <summary>Hide the app from the dashboard.</summary>
         public bool Hidden { get; set; }
+
+        /// <summary>Random icon hue decided when the app was first seen; never changes afterwards.</summary>
+        public int? Color { get; set; }
     }
 #pragma warning restore CA1056
 }

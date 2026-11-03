@@ -1,5 +1,6 @@
 ﻿using Api.Features.Apps.Endpoints;
 using Api.Features.Apps.Hubs;
+using Api.Features.Auth.Endpoints;
 using Api.Features.Health;
 using Api.Features.Lan.Endpoints;
 using Api.Features.Logging;
@@ -13,8 +14,13 @@ namespace Api.Setup;
 internal static class EndpointsMapper
 {
     public const string BasePath = "api";
+
+    /// <summary>The base path with a leading slash, for prefix checks (PathString requires the leading '/').</summary>
+    public const string BasePathPrefix = $"/{BasePath}";
+
     public const string AppsPath = $"{BasePath}/apps";
     public const string AppsHubPath = $"{AppsPath}/hub";
+    public const string AuthPath = $"{BasePath}/auth";
     public const string ShortcutsPath = $"{BasePath}/shortcuts";
     public const string SelfPath = $"{BasePath}/self";
     public const string LanPath = $"{BasePath}/lan";
@@ -37,12 +43,19 @@ internal static class EndpointsMapper
         SetAppOrderEndpoint.Map(apps);
         SetAppVisibilityEndpoint.Map(apps);
         SetAppSettingsEndpoint.Map(apps);
+        SplitAppEndpoint.Map(apps);
+        JoinAppEndpoint.Map(apps);
 
         var shortcuts = app.MapGroup(ShortcutsPath);
         GetShortcutsEndpoint.Map(shortcuts);
         CreateShortcutEndpoint.Map(shortcuts);
         UpdateShortcutEndpoint.Map(shortcuts);
         DeleteShortcutEndpoint.Map(shortcuts);
+
+        var auth = app.MapGroup(AuthPath);
+        GetMeEndpoint.Map(auth);
+        LoginEndpoint.Map(auth);
+        ChangePasswordEndpoint.Map(auth);
 
         var lan = app.MapGroup(LanPath);
         ScanLanEndpoint.Map(lan);

@@ -48,10 +48,23 @@ namespace Api.Settings
         public IReadOnlyCollection<string>? Order { get; set; }
 
         /// <summary>
+        /// Services split out of a compose stack, keyed by project name. Each listed
+        /// service is shown as its own card named 'project-service'; the stack card
+        /// covers the remaining services. Persisted by the split/join endpoints.
+        /// </summary>
+        public IReadOnlyDictionary<string, IReadOnlyCollection<string>>? AppSplits { get; set; }
+
+        /// <summary>
         /// LAN discovery settings used by the on-demand "Scan LAN" action: the subnet to
         /// probe, the ports to try, and whether to also browse mDNS.
         /// </summary>
         public LanSettings? Lan { get; set; }
+
+        /// <summary>
+        /// Optional single-password authentication: the admin password's hash. When absent
+        /// (or the section is) the dashboard is open, no password.
+        /// </summary>
+        public AuthSettings? Auth { get; set; }
     }
 #pragma warning restore CA1056
 }

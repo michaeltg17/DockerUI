@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { restartApp, startApp, stopApp } from '../api/app-actions';
 import { setAppSettings, type AppSettings } from '../api/app-settings';
+import { joinApp, splitApp } from '../api/app-splits';
 import { getHiddenApps, setAppVisibility } from '../api/app-visibility';
 import { getApps } from '../api/get-apps';
 import { setAppOrder } from '../api/set-app-order';
@@ -70,6 +71,30 @@ export const useSetAppSettings = () => {
     },
   });
 };
+
+export const useSplitApp = () =>
+  useAppSplitMutation(
+    ({ name, services }: { name: string; services: string[] }) =>
+      splitApp(name, services),
+  );
+
+export const useJoinApp = () =>
+  useAppSplitMutation((name: string) => joinApp(name));
+
+function useAppSplitMutation<TVariables>(
+  action: (variables: TVariables) => Promise<void>,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: action,
+    onSuccess: () => {
+      // The server will push the new app list over SignalR as well;
+      // refetching gives immediate, authoritative feedback.
+      void queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
+    },
+  });
+}
 
 function useAppActionMutation(action: (name: string) => Promise<unknown>) {
   const queryClient = useQueryClient();

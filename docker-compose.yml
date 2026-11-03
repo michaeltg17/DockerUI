@@ -14,6 +14,23 @@ services:
       # appsettings.example.json next to this file as appsettings.json, edit
       # it, and uncomment this line (the file replaces the packaged defaults,
       # so it must keep 'DockerUI:DockerSocketPath'; shortcut edits are
-      # persisted into it, so keep the mount read-write).
+      # persisted into it, so keep the mount read-write). The dashboard
+      # rewrites the file in place as uid 1000, so the file must be owned by
+      # uid 1000 (chown 1000:1000 appsettings.json if your host user is not).
+      # There is no password by default; set one from the dashboard's
+      # right-click menu (it writes the hash into this file) or add
+      # 'DockerUI:Auth:AdminPasswordHash' here.
       # - ./appsettings.json:/app/appsettings.json
+    # The non-root dashboard reaches the daemon socket through group access.
+    # The image ships the common docker group gids (0/root for Docker
+    # Desktop, 999/993/983/997 for the usual distros); if your host's docker
+    # group has another gid, pass it:
+    #   SOCKET_GROUP_GID=$(stat -c %g /var/run/docker.sock) docker compose up
+    group_add:
+      - "${SOCKET_GROUP_GID:-0}"
+    # The image runs as non-root (uid 1000) and needs no capabilities.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped

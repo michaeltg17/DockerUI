@@ -1,6 +1,7 @@
 ﻿using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
+using Api.Features.Auth;
 using Api.Features.Health;
 using Api.Features.Lan;
 using Api.Features.Settings;
@@ -8,6 +9,7 @@ using Api.Features.Shortcuts;
 using Api.Settings;
 using Api.Setup;
 using Docker.DotNet;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -19,6 +21,9 @@ namespace Api;
 
 internal static class Program
 {
+    /// <summary>The dashboard's authentication cookie name.</summary>
+    const string AuthCookieName = "dockerui.auth";
+
     public static void Main(string[] args)
     {
         WebApplication
@@ -45,7 +50,8 @@ internal static class Program
             .AddSettingsDependencies()
             .AddDockerClient(builder.Configuration.GetSection(DockerUISettings.Section))
             .AddAppsDependencies()
-            .AddLanDependencies();
+            .AddLanDependencies()
+            .AddAuthDependencies();
 
         builder.Services.AddSignalR();
 
@@ -139,6 +145,47 @@ internal static class Program
         return services;
     }
 
+    public static IServiceCollection AddAuthDependencies(this IServiceCollection services)
+    {
+        services
+            .AddAuthentication()
+            .AddCookie(options =>
+            {
+                // The session's lifetime is decided at sign-in from the live settings;
+                // the options below are static for the whole request pipeline.
+                options.Cookie.Name = AuthCookieName;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.SlidingExpiration = true;
+                options.LoginPath = "/";
+                options.Events.OnRedirectToLogin = context =>
+                {
+                    // The SPA shows the login page itself, so a challenge on the API answers
+                    // with a 401 problem document instead of a redirect the fetch clients
+                    // cannot follow.
+                    return context.Request.Path.StartsWithSegments(EndpointsMapper.BasePathPrefix, StringComparison.Ordinal)
+                        ? UnauthorizedResponse.Problem(UnauthorizedResponse.NotSignedInDetail)
+                            .ExecuteAsync(context.HttpContext)
+                        : Task.CompletedTask;
+                };
+            });
+
+        // The FallbackPolicy protects every endpoint (API and hub) with the single
+        // requirement that reacts to the hot-reloaded password setting per request; the
+        // SPA fallback (which serves the login page) and the sign-in endpoints mark
+        // themselves AllowAnonymous.
+        services.AddAuthorizationBuilder()
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+                .AddRequirements(new PasswordRequiredRequirement())
+                .Build());
+
+        services.AddSingleton<IAuthorizationHandler, PasswordRequiredHandler>();
+        services.AddSingleton<PasswordStore>();
+
+        return services;
+    }
+
     public static IServiceCollection AddHealthCheckDependencies(this IServiceCollection services)
     {
         services
@@ -165,9 +212,15 @@ internal static class Program
 
     public static WebApplication Configure(this WebApplication app)
     {
-        //Exception handler middleware first to catch exceptions
+        //Exception handler middleware first to catch exceptions. Authentication runs on
+        //every request; static files are served before authorization so the app's assets
+        //load without a session; the FallbackPolicy then guards the endpoints, and its
+        //bare 401s become problem documents afterwards.
         app.AddExceptionHandlerMiddleware()
-            .UseStaticFiles();
+            .UseAuthentication()
+            .UseStaticFiles()
+            .UseAuthorization()
+            .UseUnauthorizedProblem();
 
         app.MapEndpoints();
 

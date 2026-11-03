@@ -1,19 +1,11 @@
 namespace Api.Exceptions
 {
-    internal sealed class NotFoundException : DockerUIException
+    /// <summary>
+    /// Thrown when a requested resource does not exist (404). Subclasses build the
+    /// message from the resource's identifying parts, so call sites only pass those
+    /// parts and the wording stays consistent.
+    /// </summary>
+    internal abstract class NotFoundException(string message) : DockerUIException(message)
     {
-        public NotFoundException()
-        {
-        }
-
-        public NotFoundException(string message)
-            : base(message)
-        {
-        }
-
-        public NotFoundException(string message, Exception? innerException)
-            : base(message, innerException)
-        {
-        }
     }
 }

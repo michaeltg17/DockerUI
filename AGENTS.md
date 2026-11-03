@@ -11,7 +11,8 @@ through its socket.
   (`Directory.Build.props`, `Directory.Packages.props`, `global.json`); the
   single `Api` project (csproj) sits in the same folder.
 - `Api` — ASP.NET Core minimal API. Feature-based: `Features/Apps`
-  (endpoints, `AppService`, `AppCatalog`, SignalR hub, background monitor),
+  (endpoints incl. split/join of stack services into their own cards,
+  `AppService`, `AppCatalog`, SignalR hub, background monitor),
   `Features/Health`. `Settings/` holds `DockerUISettings` (all settings, bound
   from the `DockerUI` appsettings section; the app-state monitor reloads the
   configuration when a settings file changes) and its startup validator.
@@ -87,6 +88,21 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   with `unix:///path/to.sock` or `npipe://./pipe/docker_engine` URIs.
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
+- The published image runs as a non-root `dockerui` user (uid/gid 1000,
+  created and chowned in the Dockerfile's runtime stage). `/app` must stay
+  owned by uid 1000 because settings saves write a `.tmp` sibling in it, and
+  a host-mounted `appsettings.json` must be owned by uid 1000 for in-place
+  saves to work. e2e relies on `ci.sh` chown'ing the scenario
+  `appsettings.json` files to 1000:1000 before the scenarios start (the CI
+  runner's checkout is owned by uid 1001). The user also carries
+  supplementary groups `0,999,993,983,997` (root plus the common distro
+  `docker` gids, created in the image when missing) so it can reach the
+  daemon socket on both Docker Desktop (`root:root`) and Linux hosts
+  (`root:docker`) without running as root. Where the socket's group has
+  another gid (the `docker` group's gid is assigned dynamically, e.g. on
+  GitHub runners), `ci.sh` detects it (`stat -c %g /var/run/docker.sock`)
+  and the compose files pass it to the dashboard via
+  `group_add: ["${SOCKET_GROUP_GID:-0}"]`.
 - `DockerUIException` → 500, `DaemonUnavailableException` → 503,
   `NotFoundException` → 404, `ConflictException` → 409 (mapped in
   `api/Setup/ExceptionHandlerConfigurator.cs`); problems are RFC 9457
@@ -139,6 +155,10 @@ Applies only when the user asks to start the automatic dev cycle.
   `ci.sh`: API Release build, UI lint/type check/build, and the full
   e2e suite against the local Docker daemon), then treat the task as
   done and go to the next one.
+- Never ask the user questions during the cycle. If clarification or a
+  decision is needed, move the card to `In review`, assign it to
+  `michaeltg17`, leave a comment on the task describing the open question,
+  and continue with the next eligible task.
 - On finish, move the card to `Done`. If the work needs user review,
   move it to `In review` instead, assign it to `michaeltg17`, and leave a
   comment on the task describing what was done and what to review.

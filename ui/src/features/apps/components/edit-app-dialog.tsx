@@ -140,7 +140,7 @@ const EditAppDialogForm = ({
                   setUrl(event.target.value);
                   setError(null);
                 }}
-                placeholder="Leave empty to auto-detect"
+                placeholder="Auto-detected"
               />
               <p className="min-h-4 text-xs text-destructive">
                 {urlError ?? ''}

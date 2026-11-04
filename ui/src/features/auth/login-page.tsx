@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ErrorSlot } from '@/components/ui/error-slot';
 import { Input } from '@/components/ui/input';
 import { Logo } from '@/components/ui/logo';
 import { getErrorMessage } from '@/lib/api-client';
-import { cn } from '@/utils/cn';
 
 import { useAuth } from './use-auth';
 
@@ -46,9 +46,7 @@ export const LoginPage = () => {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center gap-3">
           <Logo className="size-12 text-muted-foreground" />
-          <h1 className="text-lg font-semibold">
-            {document.title || 'Docker UI'}
-          </h1>
+          <h1 className="text-lg font-semibold">{document.title}</h1>
           <p className="text-center text-sm text-muted-foreground">
             Enter the dashboard password to continue.
           </p>
@@ -74,16 +72,7 @@ export const LoginPage = () => {
           />
 
           <div className="flex flex-col gap-2 pt-1">
-            {/* The slot is always reserved so an error cannot resize the page. */}
-            <p
-              role="alert"
-              className={cn(
-                'min-h-10 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive',
-                error === null && 'invisible',
-              )}
-            >
-              {error}
-            </p>
+            <ErrorSlot error={error} />
 
             <Button
               type="submit"

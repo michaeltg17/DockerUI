@@ -2,10 +2,11 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { ErrorSlot } from '@/components/ui/error-slot';
+import { FieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { getErrorMessage } from '@/lib/api-client';
 import { hasUrlScheme, isValidUrl, normalizeUrl } from '@/lib/url';
-import { cn } from '@/utils/cn';
 
 import {
   useAddShortcut,
@@ -172,9 +173,7 @@ const ShortcutDialogForm = ({
             onBlur={() => setNameTouched(true)}
             placeholder="e.g. GitHub"
           />
-          <p className="min-h-4 text-xs text-destructive">
-            {showNameError ? nameError : ''}
-          </p>
+          <FieldError error={showNameError ? nameError : null} />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm">
@@ -193,28 +192,14 @@ const ShortcutDialogForm = ({
             onBlur={() => setUrlTouched(true)}
             placeholder="e.g. https://example.com or example.com"
           />
-          <p className="min-h-4 text-xs">
-            {showUrlError ? (
-              <span className="text-destructive">{urlError}</span>
-            ) : urlSchemeHint ? (
-              <span className="text-muted-foreground">
-                Will open as {urlSchemeHint}
-              </span>
-            ) : null}
-          </p>
+          <FieldError
+            error={showUrlError ? urlError : null}
+            hint={urlSchemeHint ? `Will open as ${urlSchemeHint}` : null}
+          />
         </label>
 
         <div className="flex flex-col gap-2 pt-1">
-          {/* The slot is always reserved so a submit error cannot resize the dialog. */}
-          <p
-            role="alert"
-            className={cn(
-              'min-h-10 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive',
-              error === null && 'invisible',
-            )}
-          >
-            {error}
-          </p>
+          <ErrorSlot error={error} />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>

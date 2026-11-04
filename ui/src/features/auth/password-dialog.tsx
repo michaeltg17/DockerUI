@@ -2,9 +2,10 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { ErrorSlot } from '@/components/ui/error-slot';
+import { FieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { getErrorMessage } from '@/lib/api-client';
-import { cn } from '@/utils/cn';
 
 import { useAuth } from './use-auth';
 
@@ -107,11 +108,7 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
                 setError(null);
               }}
             />
-            <p className="min-h-4 text-xs">
-              {currentError ? (
-                <span className="text-destructive">{currentError}</span>
-              ) : null}
-            </p>
+            <FieldError error={currentError} />
           </label>
         )}
 
@@ -131,15 +128,10 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
               setError(null);
             }}
           />
-          <p className="min-h-4 text-xs">
-            {newLengthError ? (
-              <span className="text-destructive">{newLengthError}</span>
-            ) : isRemoving ? (
-              <span className="text-muted-foreground">
-                Leave empty to remove the password.
-              </span>
-            ) : null}
-          </p>
+          <FieldError
+            error={newLengthError}
+            hint={isRemoving ? 'Leave empty to remove the password.' : null}
+          />
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm">
@@ -157,24 +149,11 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
               setError(null);
             }}
           />
-          <p className="min-h-4 text-xs">
-            {matchError ? (
-              <span className="text-destructive">{matchError}</span>
-            ) : null}
-          </p>
+          <FieldError error={matchError} />
         </label>
 
         <div className="flex flex-col gap-2 pt-1">
-          {/* The slot is always reserved so a submit error cannot resize the dialog. */}
-          <p
-            role="alert"
-            className={cn(
-              'min-h-10 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive',
-              error === null && 'invisible',
-            )}
-          >
-            {error}
-          </p>
+          <ErrorSlot error={error} />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>

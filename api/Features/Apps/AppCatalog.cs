@@ -181,31 +181,23 @@ namespace Api.Features.Apps
         }
 
         /// <summary>
+        /// The services the settings have split out of the given project ('DockerUI:AppSplits'),
+        /// in listing order; whitespace entries and duplicates are dropped.
+        /// </summary>
+        public static List<string> GetConfiguredSplitServices(DockerUISettings? settings, string project) =>
+            settings?.AppSplits is { } splits && splits.TryGetValue(project, out var services)
+                ? [.. services.Where(service => !string.IsNullOrWhiteSpace(service)).Distinct(StringComparer.Ordinal)]
+                : [];
+
+        /// <summary>
         /// The services of the given project that are split out ('DockerUI:AppSplits'), in
         /// listing order and limited to services that still have containers in the project,
         /// so a stale entry (a service removed from the compose file) is ignored.
         /// </summary>
         static List<string> GetSplitServices(
-            IEnumerable<ContainerSnapshot> group, string projectName, DockerUISettings? settings)
-        {
-            var split = new List<string>();
-            var containers = group.ToList();
-
-            if (settings?.AppSplits is not { } splits ||
-                !splits.TryGetValue(projectName, out var services))
-                return split;
-
-            foreach (var service in services.Distinct(StringComparer.Ordinal))
-            {
-                if (string.IsNullOrWhiteSpace(service))
-                    continue;
-
-                if (containers.Any(container => string.Equals(GetServiceName(container), service, StringComparison.Ordinal)))
-                    split.Add(service);
-            }
-
-            return split;
-        }
+            IEnumerable<ContainerSnapshot> group, string projectName, DockerUISettings? settings) =>
+            [.. GetConfiguredSplitServices(settings, projectName)
+                .Intersect(group.Select(GetServiceName), StringComparer.Ordinal)];
 
         public static bool IsRunningState(string state) => state is StateRunning or StateRestarting;
 

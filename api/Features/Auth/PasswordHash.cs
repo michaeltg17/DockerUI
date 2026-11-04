@@ -17,6 +17,12 @@ namespace Api.Features.Auth
         /// <summary>Iteration count aligned with the current OWASP guidance for PBKDF2-HMAC-SHA256.</summary>
         public const int Iterations = 600_000;
 
+        /// <summary>
+        /// Hashes below the current work factor are considered weak; above this cap a
+        /// verification would take unreasonably long.
+        /// </summary>
+        const int MaximumIterations = 2_000_000;
+
         const char Separator = '$';
         const int SaltSizeBytes = 16;
         const int HashSizeBytes = 32;
@@ -59,8 +65,10 @@ namespace Api.Features.Auth
             if (parts.Length != 4 ||
                 !string.Equals(parts[0], Algorithm, StringComparison.Ordinal) ||
                 !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedIterations) ||
-                parsedIterations < 1 ||
+                parsedIterations < Iterations ||
+                parsedIterations > MaximumIterations ||
                 !TryDecodeBase64(parts[2], out var parsedSalt) ||
+                parsedSalt.Length != SaltSizeBytes ||
                 !TryDecodeBase64(parts[3], out var parsedHash) ||
                 parsedHash.Length < MinimumHashSizeBytes)
             {

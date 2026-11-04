@@ -7,9 +7,11 @@ import { FieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { getErrorMessage } from '@/lib/api-client';
 
+import {
+  assessPasswordStrength,
+  type PasswordStrength,
+} from './password-strength';
 import { useAuth } from './use-auth';
-
-const MIN_PASSWORD_LENGTH = 16;
 
 type PasswordDialogProps = {
   open: boolean;
@@ -19,6 +21,16 @@ type PasswordDialogProps = {
 export const PasswordDialog = ({ open, onClose }: PasswordDialogProps) => {
   if (!open) return null;
   return <PasswordDialogForm onClose={onClose} />;
+};
+
+// The strength rating's presentation; the rating itself is informational only.
+const strengthPresentation: Record<
+  PasswordStrength,
+  { label: string; className: string }
+> = {
+  weak: { label: 'Weak', className: 'text-destructive' },
+  medium: { label: 'Medium', className: 'text-warning' },
+  strong: { label: 'Strong', className: 'text-success' },
 };
 
 /**
@@ -46,19 +58,23 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
   // In change mode an empty new password removes the password.
   const isRemoving = passwordSet && trimmedNext === '';
 
-  const newLengthError =
-    trimmedNext.length > 0 && trimmedNext.length < MIN_PASSWORD_LENGTH
-      ? `Use at least ${MIN_PASSWORD_LENGTH} characters.`
-      : null;
+  // The strength rating shows while a new password is being typed; it never
+  // blocks the save (the API accepts any non-empty password).
+  const strength =
+    trimmedNext.length > 0 ? assessPasswordStrength(trimmedNext) : null;
+
   const matchError =
     trimmedNext === trimmedConfirm ? null : 'The new passwords do not match.';
   const currentError =
     passwordSet && trimmedCurrent === '' ? 'Enter the current password.' : null;
 
   const canSave =
-    newLengthError === null &&
     matchError === null &&
     currentError === null &&
+    // Open mode has no 'remove' escape: an empty new password is not a valid
+    // save there. In change mode an empty new password is exactly how the
+    // password is removed, so only the match and current checks apply.
+    (!passwordSet || trimmedNext.length > 0) &&
     !isSaving;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -128,10 +144,17 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
               setError(null);
             }}
           />
-          <FieldError
-            error={newLengthError}
-            hint={isRemoving ? 'Leave empty to remove the password.' : null}
-          />
+          <p className="min-h-4 text-xs">
+            {strength ? (
+              <span className={strengthPresentation[strength].className}>
+                {strengthPresentation[strength].label}
+              </span>
+            ) : isRemoving ? (
+              <span className="text-muted-foreground">
+                Leave empty to remove the password.
+              </span>
+            ) : null}
+          </p>
         </label>
 
         <label className="flex flex-col gap-1.5 text-sm">

@@ -25,13 +25,13 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
     /// <summary>How long to wait for the dashboard to return to open mode after a password removal.</summary>
     const int OpenModeTimeoutSeconds = 30;
 
-    /// <summary>The password the tests set; the UI requires at least 16 characters.</summary>
+    /// <summary>The password the tests set.</summary>
     const string Password = "e2e-password-12345";
 
     /// <summary>The password the tests change to.</summary>
     const string SecondPassword = "e2e-password-changed";
 
-    /// <summary>A wrong password; at least 16 characters so it passes the dialog's validation.</summary>
+    /// <summary>A wrong password.</summary>
     const string WrongPassword = "wrong-password-4321";
 
     [Fact]
@@ -142,6 +142,85 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
             await openPage.LoadAsync(environment.BaseUrl);
             await openPage.WaitForAppAsync("web-stack");
             await WaitForPasswordRemovedAsync();
+        }
+        finally
+        {
+            await EnsurePasswordRemovedAsync();
+        }
+    }
+
+    [Fact]
+    public async Task A_short_password_can_be_set_and_signs_in()
+    {
+        await EnsurePasswordRemovedAsync();
+
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        try
+        {
+            await apps.WaitForAppAsync("web-stack");
+
+            // A short password is rated 'weak' by the strength hint, but nothing
+            // blocks the save: length is no longer a validation rule.
+            var dialog = await apps.OpenPasswordDialogAsync(passwordSet: false);
+            var newBox = dialog.GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "New password", Exact = true });
+            await newBox.FillAsync("abcd");
+
+            var weak = dialog.GetByText("Weak", new LocatorGetByTextOptions { Exact = true });
+            await weak.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+            await dialog
+                .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Confirm new password", Exact = true })
+                .FillAsync("abcd");
+
+            await AppsPage.SavePasswordAsync(dialog, passwordSet: false);
+            await apps.WaitForAppAsync("web-stack");
+
+            // The short password actually locks the dashboard, and a fresh
+            // context signs in with it.
+            await using var locked = await browser.NewContextAsync(environment);
+            var loginPage = new AppsPage(await locked.NewPageAsync());
+            await loginPage.LoadAsync(environment.BaseUrl);
+            await loginPage.WaitForLoginPageAsync();
+            await loginPage.SubmitLoginAsync("abcd");
+            await loginPage.WaitForAppAsync("web-stack");
+        }
+        finally
+        {
+            await EnsurePasswordRemovedAsync();
+        }
+    }
+
+    [Fact]
+    public async Task The_strength_hint_tracks_the_password_being_typed()
+    {
+        await EnsurePasswordRemovedAsync();
+
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        try
+        {
+            var dialog = await apps.OpenPasswordDialogAsync(passwordSet: false);
+            var newBox = dialog.GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "New password", Exact = true });
+
+            // A long mixed password scores the top length band plus all four
+            // character classes: 'strong'.
+            await newBox.FillAsync("Abcdef1234!@#$%^");
+            var strong = dialog.GetByText("Strong", new LocatorGetByTextOptions { Exact = true });
+            await strong.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+            // Shortening the same field drops the rating to 'weak', so the hint
+            // tracks the input instead of a fixed validation message.
+            await newBox.FillAsync("abcd");
+            var weak = dialog.GetByText("Weak", new LocatorGetByTextOptions { Exact = true });
+            await weak.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+            await apps.ClickDialogBackdropAsync();
         }
         finally
         {

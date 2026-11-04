@@ -6,11 +6,20 @@ import { AppCard } from './app-card';
 
 type AppsGridProps = {
   apps: App[];
+  /** The names of the docker apps still showing their 'new' tag. */
+  newAppNames: ReadonlySet<string>;
+  /** Reports the first interaction with an app, clearing its 'new' tag. */
+  onInteractApp: (name: string) => void;
   /** Persists a new full order of the visible app names. When absent, dragging is disabled. */
   onReorder?: (names: string[]) => void;
 };
 
-export const AppsGrid = ({ apps, onReorder }: AppsGridProps) => {
+export const AppsGrid = ({
+  apps,
+  newAppNames,
+  onInteractApp,
+  onReorder,
+}: AppsGridProps) => {
   const [dragged, setDragged] = useState<string | null>(null);
   const [dragOrder, setDragOrder] = useState<App[] | null>(null);
 
@@ -80,6 +89,8 @@ export const AppsGrid = ({ apps, onReorder }: AppsGridProps) => {
         <AppCard
           key={app.name}
           app={app}
+          isNew={newAppNames.has(app.name)}
+          onInteract={() => onInteractApp(app.name)}
           draggable={reorderEnabled}
           isDragging={dragged === app.name}
           dragActive={dragged !== null}

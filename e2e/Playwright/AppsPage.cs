@@ -52,6 +52,9 @@ public sealed class AppsPage(IPage page)
     /// <summary>The card (button) of the given app, addressed via its name heading.</summary>
     public ILocator Card(string appName) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator("xpath=..");
 
+    /// <summary>The 'New' tag on the given app's card; shown while a newly detected docker app awaits its first interaction.</summary>
+    public ILocator NewTag(string appName) => Card(appName).GetByText("New", new LocatorGetByTextOptions { Exact = true });
+
     /// <summary>The visible app card names in their current display order.</summary>
     public async Task<IReadOnlyList<string>> CardNamesAsync()
     {

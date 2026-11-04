@@ -19,10 +19,12 @@ import { filterApps } from './filter-apps';
 import { useApps, useSetAppOrder } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
 import { useScanLan } from './hooks/use-lan';
+import { useNewApps } from './hooks/use-new-apps';
 import { useSettings } from './hooks/use-settings';
 
 export const AppsPage = () => {
   const { data, isPending, isError, refetch } = useApps();
+  const { newAppNames, markInteracted } = useNewApps(data ?? []);
   const setOrder = useSetAppOrder();
   const { data: settings } = useSettings();
   const [query, setQuery] = useState('');
@@ -184,6 +186,8 @@ export const AppsPage = () => {
           ) : (
             <AppsGrid
               apps={apps}
+              newAppNames={newAppNames}
+              onInteractApp={markInteracted}
               // Reordering a filtered subset would only pin that subset, so dragging
               // is enabled while the whole list is visible.
               onReorder={

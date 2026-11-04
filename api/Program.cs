@@ -54,8 +54,14 @@ internal static class Program
 
         builder.AddSerilog();
 
+        builder.Services.AddSettingsDependencies();
+
+        //Fail the boot, not the first save: an unwritable settings mount is a
+        //deployment error the operator must fix, and the raw exception lands in the
+        //container log where the e2e suite can see it.
+        AppSettingsStore.EnsureWritable(builder.Environment.ContentRootPath);
+
         builder.Services
-            .AddSettingsDependencies()
             .AddDockerClient(builder.Configuration.GetSection(DockerUISettings.Section))
             .AddAppsDependencies()
             .AddLanDependencies()

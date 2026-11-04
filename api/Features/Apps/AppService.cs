@@ -32,7 +32,7 @@ namespace Api.Features.Apps
         readonly Dictionary<string, (long ExitCode, DateTime FetchedAtUtc)> exitCodeCache = [];
         readonly Lock exitCodeCacheGate = new();
 
-        // Icon hues decided in memory but not yet persisted (the settings file is read-only);
+        // Icon hues decided in memory but not yet persisted (a save failed transiently);
         // kept for the lifetime of the process so the colors stay stable across polls.
         readonly Dictionary<(string Scope, string Name), int> unpersistedHues = [];
         readonly Lock unpersistedHuesGate = new();
@@ -174,8 +174,8 @@ namespace Api.Features.Apps
         /// <summary>
         /// Records a random icon hue for docker apps that don't have one yet — the color is
         /// decided once, at first sight, and never changes afterwards. The values are applied
-        /// in memory as well, so the very first response already carries them. A read-only
-        /// settings file can't store them, so they stay stable for this process instead.
+        /// in memory as well, so the very first response already carries them. If persisting
+        /// fails transiently, the hues stay stable for this process instead.
         /// </summary>
         void EnsureAppColors(List<AppDto> apps)
         {
@@ -202,7 +202,7 @@ namespace Api.Features.Apps
 
         /// <summary>
         /// The hue for an app without a stored hue yet: one decided earlier in this process
-        /// but not persisted (the settings file is read-only), or a fresh random hue.
+        /// but not persisted (a save failed transiently), or a fresh random hue.
         /// </summary>
         int DecideIconHue(string scope, string name)
         {
@@ -220,7 +220,7 @@ namespace Api.Features.Apps
         }
 
         /// <summary>
-        /// Persists hues best-effort: a read-only settings file must not break the app list,
+        /// Persists hues best-effort: a transient save failure must not break the app list,
         /// so an unpersistable hue simply stays in memory for this process.
         /// </summary>
         bool TryPersistIconHues(Action persist)
@@ -413,8 +413,8 @@ namespace Api.Features.Apps
         static partial void LogCreatedContainerProbeFailed(ILogger logger, Exception exception, string containerId);
 
         [LoggerMessage(
-            Level = LogLevel.Debug,
-            Message = "The icon hues could not be persisted (the settings file may be read-only); they stay stable for this process only.")]
+            Level = LogLevel.Warning,
+            Message = "The icon hues could not be persisted (unexpected now that boot verified the settings file is writable); they stay stable for this process only.")]
         static partial void LogIconHuesNotPersisted(ILogger logger);
     }
 }

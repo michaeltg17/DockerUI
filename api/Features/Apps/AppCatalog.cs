@@ -59,6 +59,7 @@ namespace Api.Features.Apps
         public static (IReadOnlyList<AppDto> Visible, IReadOnlyList<AppDto> Hidden) BuildApps(
             ILogger logger,
             IEnumerable<ContainerSnapshot> containers,
+            Func<string, int> missingColorHue,
             IAppIconCatalog? iconCatalog = null,
             Uri? baseUrl = null,
             DockerUISettings? settings = null,
@@ -95,6 +96,7 @@ namespace Api.Features.Apps
                         baseUrl,
                         settings,
                         logger,
+                        missingColorHue,
                         cardName: service,
                         splitFrom: projectName));
                 }
@@ -104,7 +106,7 @@ namespace Api.Features.Apps
                     .ToList();
 
                 if (remaining.Count > 0)
-                    apps.Add(BuildApp(projectName, remaining, iconCatalog, liveIconCatalog, baseUrl, settings, logger, splitServices: [.. splitServices]));
+                    apps.Add(BuildApp(projectName, remaining, iconCatalog, liveIconCatalog, baseUrl, settings, logger, missingColorHue, splitServices: [.. splitServices]));
             }
 
             var standalone = groups.SingleOrDefault(group => group.Key is null);
@@ -112,7 +114,7 @@ namespace Api.Features.Apps
             {
                 foreach (var container in standalone)
                 {
-                    apps.Add(BuildApp(container.Name, [container], iconCatalog, liveIconCatalog, baseUrl, settings, logger));
+                    apps.Add(BuildApp(container.Name, [container], iconCatalog, liveIconCatalog, baseUrl, settings, logger, missingColorHue));
                 }
             }
 
@@ -268,6 +270,10 @@ namespace Api.Features.Apps
         /// <param name="baseUrl">The dashboard's base url, used to resolve app urls.</param>
         /// <param name="settings">The current settings (per-app overrides and splits), when available.</param>
         /// <param name="logger">Logs invalid url overrides.</param>
+        /// <param name="missingColorHue">
+        /// Resolves the hue for an app whose settings carry no color yet (the in-memory,
+        /// process-stable decision), so the card always leaves the catalog with a color.
+        /// </param>
         /// <param name="cardName">
         /// The name the card shows (and the icon catalog's name lookup uses) for a split
         /// part: the plain service name, unlike the part's 'project-service' identity.
@@ -282,6 +288,7 @@ namespace Api.Features.Apps
             Uri? baseUrl,
             DockerUISettings? settings,
             ILogger logger,
+            Func<string, int> missingColorHue,
             string? cardName = null,
             string? splitFrom = null,
             string[]? splitServices = null)
@@ -344,7 +351,7 @@ namespace Api.Features.Apps
                 ResolveAppUrl(name, containers, baseUrl, perApp, logger),
                 services,
                 AppSource.Docker,
-                perApp?.Color,
+                perApp?.Color ?? missingColorHue(name),
                 Problem: problem,
                 SplitFrom: splitFrom)
             {

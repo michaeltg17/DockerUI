@@ -7,7 +7,7 @@ type AppIconProps = {
   icon: string | null;
   name: string;
   /** A persisted icon hue; when set it wins over the neutral fallback. */
-  hue?: number | null;
+  hue?: number;
   className?: string;
 };
 

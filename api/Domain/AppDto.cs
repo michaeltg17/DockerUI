@@ -26,7 +26,9 @@ namespace Api.Domain
         Uri? Url,
         IReadOnlyList<AppServiceDto> Services,
         AppSource Source,
-        int? Color = null,
+        // Decided once (at first sight, or read from the settings) and never changes
+        // afterwards; the API resolves a random hue before any app reaches the wire.
+        int Color,
         // The human-readable problem the app is in (crashed, crash-looping, unhealthy, ...),
         // or null when healthy. Always null for shortcuts and lan apps.
         string? Problem = null,

@@ -75,7 +75,7 @@ const ShortcutDialogForm = ({
 
   // A new shortcut gets a random hue, an existing one keeps its stored color;
   // it never changes afterwards.
-  const [color] = useState(() => initial?.color ?? randomHue());
+  const [color] = useState(() => (initial ? initial.color : randomHue()));
 
   const nameInputRef = useRef<HTMLInputElement>(null);
 

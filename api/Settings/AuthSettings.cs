@@ -9,6 +9,9 @@ namespace Api.Settings
     {
         public const int DefaultSessionLifetimeDays = 7;
 
+        /// <summary>The longest session lifetime the dashboard allows.</summary>
+        public const int MaximumSessionLifetimeDays = 365;
+
         /// <summary>
         /// The dashboard's admin password as a self-describing hash, e.g.
         /// 'PBKDF2-SHA256$600000$&lt;saltB64&gt;$&lt;hashB64&gt;'. Absent means no password is set.

@@ -1,6 +1,4 @@
-using Api.Settings;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Options;
 
 namespace Api.Features.Auth
 {
@@ -12,18 +10,16 @@ namespace Api.Features.Auth
     {
     }
 
-    internal sealed class PasswordRequiredHandler(IOptionsMonitor<DockerUISettings> settings) : IAuthorizationHandler
+    internal sealed class PasswordRequiredHandler(AuthService authService) : IAuthorizationHandler
     {
         public Task HandleAsync(AuthorizationHandlerContext context)
         {
-            // In open mode (no hash configured) everyone passes; otherwise the user must be
+            // In open mode (no password set) everyone passes; otherwise the user must be
             // authenticated. The requirement only succeeds while that condition holds, so
             // the policy fails and the request answers with a 401 when it does not.
-            var isPasswordConfigured = !string.IsNullOrWhiteSpace(settings.CurrentValue.Auth?.AdminPasswordHash);
-
             foreach (var requirement in context.Requirements.OfType<PasswordRequiredRequirement>())
             {
-                if (!isPasswordConfigured || context.User.Identity?.IsAuthenticated == true)
+                if (!authService.IsPasswordSet || context.User.Identity?.IsAuthenticated == true)
                     context.Succeed(requirement);
             }
 

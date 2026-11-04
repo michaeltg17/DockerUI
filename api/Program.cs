@@ -2,6 +2,7 @@
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
 using Api.Features.Auth;
+using Api.Features.Auth.Endpoints;
 using Api.Features.Health;
 using Api.Features.Lan;
 using Api.Features.Settings;
@@ -16,6 +17,7 @@ using Serilog;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 namespace Api;
 
@@ -23,6 +25,12 @@ internal static class Program
 {
     /// <summary>The dashboard's authentication cookie name.</summary>
     const string AuthCookieName = "dockerui.auth";
+
+    /// <summary>Sign-in attempts a client may make per window before the login route answers 429.</summary>
+    const int MaxLoginAttemptsPerWindow = 10;
+
+    /// <summary>The window <see cref="MaxLoginAttemptsPerWindow"/> applies to.</summary>
+    const int LoginRateLimitWindowMinutes = 5;
 
     public static void Main(string[] args)
     {
@@ -182,6 +190,31 @@ internal static class Program
 
         services.AddSingleton<IAuthorizationHandler, PasswordRequiredHandler>();
         services.AddSingleton<PasswordStore>();
+        services.AddSingleton<AuthService>();
+
+        // A password-only login is a brute-force target, so the sign-in route caps
+        // attempts per client; every other endpoint stays unlimited.
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = async (context, _) =>
+            {
+                await Results.Problem(
+                        title: "Too many requests",
+                        detail: "Too many sign-in attempts; try again later.",
+                        statusCode: StatusCodes.Status429TooManyRequests)
+                    .ExecuteAsync(context.HttpContext);
+            };
+
+            options.AddPolicy(LoginEndpoint.RateLimitPolicy, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = MaxLoginAttemptsPerWindow,
+                        Window = TimeSpan.FromMinutes(LoginRateLimitWindowMinutes),
+                    }));
+        });
 
         return services;
     }
@@ -213,11 +246,13 @@ internal static class Program
     public static WebApplication Configure(this WebApplication app)
     {
         //Exception handler middleware first to catch exceptions. Authentication runs on
-        //every request; static files are served before authorization so the app's assets
-        //load without a session; the FallbackPolicy then guards the endpoints, and its
-        //bare 401s become problem documents afterwards.
+        //every request; rate limiting sits in front of the endpoints so the sign-in route
+        //caps attempts per client; static files are served before authorization so the
+        //app's assets load without a session; the FallbackPolicy then guards the
+        //endpoints, and its bare 401s become problem documents afterwards.
         app.AddExceptionHandlerMiddleware()
             .UseAuthentication()
+            .UseRateLimiter()
             .UseStaticFiles()
             .UseAuthorization()
             .UseUnauthorizedProblem();

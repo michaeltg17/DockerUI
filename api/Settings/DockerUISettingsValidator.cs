@@ -89,8 +89,8 @@ namespace Api.Settings
                     validationErrors.Add($"The '{nameof(DockerUISettings.Auth)}:{nameof(AuthSettings.AdminPasswordHash)}' setting must be a password hash of the form 'PBKDF2-SHA256$<iterations>$<saltB64>$<hashB64>'");
                 }
 
-                if (auth.SessionLifetimeDays < 1)
-                    validationErrors.Add($"The '{nameof(DockerUISettings.Auth)}:{nameof(AuthSettings.SessionLifetimeDays)}' setting must be at least 1");
+                if (auth.SessionLifetimeDays is < 1 or > AuthSettings.MaximumSessionLifetimeDays)
+                    validationErrors.Add($"The '{nameof(DockerUISettings.Auth)}:{nameof(AuthSettings.SessionLifetimeDays)}' setting must be between 1 and {AuthSettings.MaximumSessionLifetimeDays}");
             }
 
             return validationErrors.Count > 0 ? ValidateOptionsResult.Fail(validationErrors) : ValidateOptionsResult.Success;

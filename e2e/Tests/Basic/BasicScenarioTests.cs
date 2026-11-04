@@ -382,7 +382,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // The theme options are grouped under the 'Theme' item's submenu.
         var themeMenu = await apps.OpenGroupSubmenuAsync(menu, "Theme");
-        string[] themeOptions = ["Light", "Dark", "Dark blue", "Docker"];
+        string[] themeOptions = ["System", "Light", "Dark", "Dark blue", "Docker"];
 
         foreach (var label in themeOptions)
         {
@@ -690,6 +690,37 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.Page.ReloadAsync();
         await apps.WaitForAppAsync("web-stack");
         (await apps.Page.Locator("html[data-theme='dark-blue']").CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task System_theme_resolves_against_the_emulated_color_scheme()
+    {
+        // With a dark OS scheme, 'system' resolves to the dark theme and the
+        // preference persists across reloads.
+        await using var darkContext = await browser.NewContextAsync(environment, ColorScheme.Dark);
+        var darkApps = new AppsPage(await darkContext.NewPageAsync());
+        await darkApps.LoadAsync(environment.BaseUrl);
+        await darkApps.WaitForAppAsync("web-stack");
+
+        var menu = await darkApps.OpenDashboardMenuAsync();
+        var themeMenu = await darkApps.OpenGroupSubmenuAsync(menu, "Theme");
+        await AppsPage.MenuItem(themeMenu, "System").ClickAsync();
+        (await darkApps.Page.Locator("html[data-theme='dark']").CountAsync()).Should().Be(1);
+
+        await darkApps.Page.ReloadAsync();
+        await darkApps.WaitForAppAsync("web-stack");
+        (await darkApps.Page.Locator("html[data-theme='dark']").CountAsync()).Should().Be(1);
+
+        // With a light OS scheme, the same 'system' preference resolves to light.
+        await using var lightContext = await browser.NewContextAsync(environment, ColorScheme.Light);
+        var lightApps = new AppsPage(await lightContext.NewPageAsync());
+        await lightApps.LoadAsync(environment.BaseUrl);
+        await lightApps.WaitForAppAsync("web-stack");
+
+        var lightMenu = await lightApps.OpenDashboardMenuAsync();
+        var lightThemeMenu = await lightApps.OpenGroupSubmenuAsync(lightMenu, "Theme");
+        await AppsPage.MenuItem(lightThemeMenu, "System").ClickAsync();
+        (await lightApps.Page.Locator("html[data-theme='light']").CountAsync()).Should().Be(1);
     }
 
     [Fact]

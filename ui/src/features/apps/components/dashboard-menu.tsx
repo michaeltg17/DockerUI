@@ -20,6 +20,7 @@ import { restartSelf } from '../api/self-actions';
 import { useSettings } from '../hooks/use-settings';
 
 const themeLabels: Record<Theme, string> = {
+  system: 'System',
   light: 'Light',
   dark: 'Dark',
   'dark-blue': 'Dark blue',

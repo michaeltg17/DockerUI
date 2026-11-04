@@ -8,6 +8,12 @@ namespace Api.Settings
     [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "Registered in the dependency container.")]
     internal sealed class DockerUISettingsValidator : IValidateOptions<DockerUISettings>
     {
+        /// <summary>The highest valid icon hue: hues are whole degrees of the 360-degree color wheel.</summary>
+        const int MaxIconHue = 359;
+
+        /// <summary>Whether the value is a valid icon hue: absent, or within [0, MaxIconHue].</summary>
+        static bool IsValidIconHue(int? color) => color is null or (>= 0 and <= MaxIconHue);
+
         public ValidateOptionsResult Validate(string? name, DockerUISettings settings)
         {
             var validationErrors = new List<string>();
@@ -61,8 +67,8 @@ namespace Api.Settings
             {
                 foreach (var (appName, appSettings) in appOverrides)
                 {
-                    if (appSettings.Color is { } color && (color < 0 || color > 359))
-                        validationErrors.Add($"The '{nameof(DockerUISettings.Apps)}:{appName}:{nameof(AppUserSettings.Color)}' setting must be between 0 and 359");
+                    if (!IsValidIconHue(appSettings.Color))
+                        validationErrors.Add($"The '{nameof(DockerUISettings.Apps)}:{appName}:{nameof(AppUserSettings.Color)}' setting must be between 0 and {MaxIconHue}");
                 }
             }
 
@@ -70,8 +76,8 @@ namespace Api.Settings
             {
                 foreach (var shortcut in shortcuts)
                 {
-                    if (shortcut.Color is { } color && (color < 0 || color > 359))
-                        validationErrors.Add($"The color of the shortcut '{shortcut.Name}' must be between 0 and 359");
+                    if (!IsValidIconHue(shortcut.Color))
+                        validationErrors.Add($"The color of the shortcut '{shortcut.Name}' must be between 0 and {MaxIconHue}");
                 }
             }
 

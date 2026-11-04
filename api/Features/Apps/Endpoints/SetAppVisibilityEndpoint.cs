@@ -29,7 +29,7 @@ namespace Api.Features.Apps.Endpoints
                 // shortcuts live in the settings file and are resolved the same way.
                 if (await appService.TryResolveAppAsync(name, cancellationToken).ConfigureAwait(false))
                 {
-                    settingsStore.SetAppHidden(name, input.Hidden);
+                    settingsStore.SaveAppHidden(name, input.Hidden);
                 }
                 else if (!shortcutService.SetHidden(name, input.Hidden))
                 {

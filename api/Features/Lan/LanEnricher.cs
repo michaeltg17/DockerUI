@@ -6,9 +6,9 @@ namespace Api.Features.Lan
     internal sealed record Enrichment(string? IconDataUri, string? Title);
 
     /// <summary>
-    /// Best-effort enrichment of a discovered service: fetches the page to read its
-    /// <c>&lt;title&gt;</c> and resolves its favicon to a data URI, so the card shows a real
-    /// name and icon instead of the bare address.
+    /// Best-effort enrichment of a discovered service: fetches the page to read its title
+    /// and fetches its favicon as a data URI, so the card shows a real name and icon
+    /// instead of the bare address.
     /// </summary>
     internal sealed partial class LanEnricher(HttpClient http)
     {

@@ -4,7 +4,7 @@ using Api.Settings;
 namespace Api.Features.Settings;
 
 /// <summary>
-/// Persists per-app overrides in the 'DockerUI:Apps' section of appsettings.json. All file
+/// Saves per-app overrides in the 'DockerUI:Apps' section of appsettings.json. All file
 /// access goes through the shared <see cref="AppSettingsStore"/>.
 /// </summary>
 internal sealed class SettingsStore(AppSettingsStore store)
@@ -12,8 +12,8 @@ internal sealed class SettingsStore(AppSettingsStore store)
     /// <summary>The current settings, bound from the configuration on every access.</summary>
     public DockerUISettings? Current => store.Current;
 
-    /// <summary>Sets (or removes) the 'Hidden' override of the given app in the settings file.</summary>
-    public void SetAppHidden(string appName, bool hidden)
+    /// <summary>Saves (or removes) the 'Hidden' override of the given app in the settings file.</summary>
+    public void SaveAppHidden(string appName, bool hidden)
         => store.UpdateSection(section =>
         {
             var entry = GetAppEntry(section, appName);
@@ -33,10 +33,10 @@ internal sealed class SettingsStore(AppSettingsStore store)
         });
 
     /// <summary>
-    /// Persists the display name, icon, and url overrides of the given app. Empty values
+    /// Saves the display name, icon, and url overrides of the given app. Empty values
     /// clear the override so the app falls back to its resolved name/icon/url.
     /// </summary>
-    public void SetAppSettings(string appName, string? displayName, string? icon, string? url)
+    public void SaveAppSettings(string appName, string? displayName, string? icon, string? url)
         => store.UpdateSection(section =>
         {
             var entry = GetAppEntry(section, appName);
@@ -65,8 +65,8 @@ internal sealed class SettingsStore(AppSettingsStore store)
             return PruneAppEntry(section, appName);
         });
 
-    /// <summary>Persists the dashboard name in the 'DockerUI:Name' setting of the settings file.</summary>
-    public void SetName(string name)
+    /// <summary>Saves the dashboard name in the 'DockerUI:Name' setting of the settings file.</summary>
+    public void SaveName(string name)
         => store.UpdateSection(section =>
         {
             var target = string.Equals(name, DockerUISettings.DefaultName, StringComparison.Ordinal) ? null : name;
@@ -82,8 +82,8 @@ internal sealed class SettingsStore(AppSettingsStore store)
             return true;
         });
 
-    /// <summary>Persists the custom display order in the 'DockerUI:Order' section of the settings file.</summary>
-    public void SetAppOrder(IReadOnlyCollection<string> order)
+    /// <summary>Saves the custom display order in the 'DockerUI:Order' section of the settings file.</summary>
+    public void SaveAppOrder(IReadOnlyCollection<string> order)
         => store.UpdateSection(section =>
         {
             var current = section[nameof(DockerUISettings.Order)] as JsonArray;
@@ -129,11 +129,11 @@ internal sealed class SettingsStore(AppSettingsStore store)
         });
 
     /// <summary>
-    /// Persists the services split out of the given project in the 'DockerUI:AppSplits'
+    /// Saves the services split out of the given project in the 'DockerUI:AppSplits'
     /// section. An empty list removes the project's entry; when no entries remain, the
     /// whole section is dropped.
     /// </summary>
-    public void SetAppSplits(string project, IReadOnlyCollection<string> services)
+    public void SaveAppSplits(string project, IReadOnlyCollection<string> services)
         => store.UpdateSection(section =>
         {
             var splits = section[nameof(DockerUISettings.AppSplits)] as JsonObject;

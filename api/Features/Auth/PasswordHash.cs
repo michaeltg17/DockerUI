@@ -5,9 +5,10 @@ using System.Security.Cryptography;
 namespace Api.Features.Auth
 {
     /// <summary>
-    /// Creates, verifies, and parses admin password hashes in the self-describing form
-    /// 'PBKDF2-SHA256$&lt;iterations&gt;$&lt;saltB64&gt;$&lt;hashB64&gt;' that the
-    /// 'DockerUI:Auth:AdminPasswordHash' setting stores.
+    /// Creates, verifies, and parses the admin password hash stored in the
+    /// 'DockerUI:Auth:AdminPasswordHash' setting. The hash is self-describing: the algorithm
+    /// name, the iteration count, the base64 salt, and the base64 derived hash, joined with
+    /// the '$' character.
     /// </summary>
     internal static class PasswordHash
     {

@@ -59,7 +59,7 @@ namespace Api.Features.Apps.Endpoints
                 }
 
                 string[] split = [.. alreadySplit, .. services.Where(service => !alreadySplit.Contains(service, StringComparer.Ordinal))];
-                settingsStore.SetAppSplits(project, split);
+                settingsStore.SaveAppSplits(project, split);
                 await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();
             });

@@ -44,7 +44,7 @@ namespace Api.Features.Apps.Endpoints
                     .Where(service => !string.Equals(service, part.Service, StringComparison.Ordinal))
                     .ToList();
 
-                settingsStore.SetAppSplits(part.Project, joined);
+                settingsStore.SaveAppSplits(part.Project, joined);
                 await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();
             });

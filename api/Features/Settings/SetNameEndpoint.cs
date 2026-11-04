@@ -15,7 +15,7 @@ namespace Api.Features.Settings
                 if (name.Length == 0)
                     throw new BadHttpRequestException("The dashboard name is required.");
 
-                settingsStore.SetName(name);
+                settingsStore.SaveName(name);
                 return Results.NoContent();
             });
         }

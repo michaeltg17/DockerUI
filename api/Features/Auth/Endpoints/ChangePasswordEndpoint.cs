@@ -38,7 +38,7 @@ namespace Api.Features.Auth.Endpoints
                         return UnauthorizedResponse.Conflict(UnauthorizedResponse.IncorrectPasswordDetail);
                     }
 
-                    passwordStore.SetPasswordHash(PasswordHash.Create(input.NewPassword));
+                    passwordStore.SavePasswordHash(PasswordHash.Create(input.NewPassword));
                     passwordSet = true;
 
                     // Setting the first password keeps the user in the app: the session cookie
@@ -57,7 +57,7 @@ namespace Api.Features.Auth.Endpoints
                         return UnauthorizedResponse.Conflict(UnauthorizedResponse.IncorrectPasswordDetail);
                     }
 
-                    passwordStore.SetPasswordHash(null);
+                    passwordStore.SavePasswordHash(null);
                     passwordSet = false;
 
                     // The dashboard is open again; drop the (now meaningless) session cookie.

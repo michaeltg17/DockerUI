@@ -1,5 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Api.Domain;
 using Api.Features.Apps.Icons;
@@ -28,9 +28,11 @@ namespace Api.Features.Apps
         /// <summary>The name of the card a service split out of the given project gets.</summary>
         public static string PartName(string project, string service) => $"{project}{PartNameSeparator}{service}";
 
+        /// <summary>The number of possible icon hues: a hue is an integer in [0, IconHueCount).</summary>
+        const int IconHueCount = 360;
+
         /// <summary>A random icon hue (0–359), decided once at creation and never changed afterwards.</summary>
-        [SuppressMessage("Security", "CA5394:Random is an insecure random number generator", Justification = "The hue is purely cosmetic; no security-sensitive randomness is required.")]
-        public static int RandomIconHue() => Random.Shared.Next(0, 360);
+        public static int RandomIconHue() => RandomNumberGenerator.GetInt32(0, IconHueCount);
 
         // Docker daemon container states (the 'State' values of the list response).
         public const string StateCreated = "created";

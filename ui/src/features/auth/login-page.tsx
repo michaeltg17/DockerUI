@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Logo } from '@/components/ui/logo';
 import { getErrorMessage } from '@/lib/api-client';
 
+import { PasswordResetDialog } from './password-reset-dialog';
 import { useAuth } from './use-auth';
 
 /**
@@ -18,6 +19,7 @@ export const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -82,7 +84,22 @@ export const LoginPage = () => {
               Sign in
             </Button>
           </div>
+
+          <div className="mt-2 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setForgotOpen(true)}
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
         </form>
+
+        <PasswordResetDialog
+          open={forgotOpen}
+          onClose={() => setForgotOpen(false)}
+        />
       </div>
     </div>
   );

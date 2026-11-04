@@ -229,6 +229,77 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
     }
 
     [Fact]
+    public async Task Forgot_password_on_the_login_page_explains_the_manual_reset()
+    {
+        await EnsurePasswordRemovedAsync();
+
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        try
+        {
+            await apps.SetPasswordAsync(Password);
+
+            // A fresh context holds no session, so it lands on the login page; a
+            // locked-out user recovers through the reset instructions.
+            await using var loginContext = await browser.NewContextAsync(environment);
+            var loginPage = new AppsPage(await loginContext.NewPageAsync());
+            await loginPage.LoadAsync(environment.BaseUrl);
+            await loginPage.WaitForLoginPageAsync();
+
+            await loginPage.ForgotPasswordLink.ClickAsync();
+            var dialog = loginPage.PasswordResetDialog;
+            await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+            // The instructions point at the settings file and name the key to remove.
+            var instructions = await dialog.InnerTextAsync();
+            instructions.Should().Contain("appsettings.json", "because the reset happens in the settings file");
+            instructions.Should().Contain("AdminPasswordHash", "because the instructions name the key to remove");
+            instructions.Should().Contain("DockerUI:Auth", "because the instructions name the section holding the key");
+        }
+        finally
+        {
+            await EnsurePasswordRemovedAsync();
+        }
+    }
+
+    [Fact]
+    public async Task The_dashboard_menu_offers_removing_the_password()
+    {
+        await EnsurePasswordRemovedAsync();
+
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        try
+        {
+            // Setting the first password keeps the user in the app, so the menu stays open.
+            await apps.SetPasswordAsync(Password);
+
+            var menu = await apps.OpenDashboardMenuAsync();
+            (await AppsPage.MenuItem(menu, AppsPage.RemovePasswordLabel).CountAsync())
+                .Should().Be(1, "because a set password offers the remove action");
+
+            await AppsPage.MenuItem(menu, AppsPage.RemovePasswordLabel).ClickAsync();
+            var dialog = apps.PasswordResetDialog;
+            await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+            // The remove action explains the manual reset instead of acting in the UI.
+            var instructions = await dialog.InnerTextAsync();
+            instructions.Should().Contain("appsettings.json", "because the reset happens in the settings file");
+            instructions.Should().Contain("AdminPasswordHash", "because the instructions name the key to remove");
+        }
+        finally
+        {
+            await EnsurePasswordRemovedAsync();
+        }
+    }
+
+    [Fact]
     public async Task Locked_dashboard_answers_unauthenticated_calls_with_a_401_problem()
     {
         await EnsurePasswordRemovedAsync();

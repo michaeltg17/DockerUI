@@ -423,8 +423,17 @@ public sealed class AppsPage(IPage page)
     /// <summary>The dashboard menu's label for the password action while a password is set.</summary>
     public const string ChangePasswordLabel = "Change password";
 
+    /// <summary>The dashboard menu's label for the remove action, offered only while a password is set.</summary>
+    public const string RemovePasswordLabel = "Remove password";
+
     /// <summary>The login page's password field; shown while a password is set and this context holds no valid session.</summary>
     public ILocator LoginPasswordBox => Page.GetByRole(AriaRole.Textbox, new PageGetByRoleOptions { Name = "Password", Exact = true });
+
+    /// <summary>The login page's "Forgot password?" link; opens the reset instructions for a locked-out user.</summary>
+    public ILocator ForgotPasswordLink => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Forgot password?", Exact = true });
+
+    /// <summary>The password reset dialog, which explains removing the password manually from appsettings.json.</summary>
+    public ILocator PasswordResetDialog => Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Remove the dashboard password", Exact = true });
 
     /// <summary>The login page's "Sign in" button.</summary>
     public ILocator LoginButton => Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Sign in", Exact = true });

@@ -38,6 +38,7 @@ type DashboardMenuProps = {
   onRename: () => void;
   onViewHiddenApps: () => void;
   onPassword: () => void;
+  onRemovePassword: () => void;
   /** Extra classes for the wrapper that defines the menu's trigger zone. */
   className?: string;
   children: ReactNode;
@@ -51,6 +52,7 @@ export const DashboardMenu = ({
   onRename,
   onViewHiddenApps,
   onPassword,
+  onRemovePassword,
   className,
   children,
 }: DashboardMenuProps) => {
@@ -171,6 +173,18 @@ export const DashboardMenu = ({
       icon: <KeyRound className="size-4" aria-hidden="true" />,
       onSelect: onPassword,
     },
+    // Removing is only possible while a password is set; it explains the
+    // manual reset in the settings file instead of acting in the UI.
+    ...(passwordSet
+      ? [
+          {
+            id: 'remove-password',
+            label: 'Remove password',
+            icon: <KeyRound className="size-4" aria-hidden="true" />,
+            onSelect: onRemovePassword,
+          },
+        ]
+      : []),
   ];
 
   return (

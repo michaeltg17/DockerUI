@@ -5,7 +5,7 @@ import { Logo } from '@/components/ui/logo';
 import { useNotifications } from '@/components/ui/notifications';
 import { SearchBar } from '@/components/ui/search-bar';
 import { Spinner } from '@/components/ui/spinner';
-import { PasswordDialog } from '@/features/auth';
+import { PasswordDialog, PasswordResetDialog } from '@/features/auth';
 import { cn } from '@/utils/cn';
 
 import { getLogs } from './api/get-logs';
@@ -31,6 +31,7 @@ export const AppsPage = () => {
   const [renameOpen, setRenameOpen] = useState(false);
   const [hiddenAppsOpen, setHiddenAppsOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [removePasswordOpen, setRemovePasswordOpen] = useState(false);
 
   useAppsHub();
 
@@ -123,6 +124,11 @@ export const AppsPage = () => {
         onClose={() => setPasswordOpen(false)}
       />
 
+      <PasswordResetDialog
+        open={removePasswordOpen}
+        onClose={() => setRemovePasswordOpen(false)}
+      />
+
       <DashboardMenu
         // The whole area below the header (cards, gaps, and empty space)
         // is the dashboard menu's trigger zone.
@@ -134,6 +140,7 @@ export const AppsPage = () => {
         onRename={() => setRenameOpen(true)}
         onViewHiddenApps={() => setHiddenAppsOpen(true)}
         onPassword={() => setPasswordOpen(true)}
+        onRemovePassword={() => setRemovePasswordOpen(true)}
       >
         <main
           className={cn(

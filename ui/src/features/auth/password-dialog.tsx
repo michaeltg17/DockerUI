@@ -74,7 +74,7 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
     // Open mode has no 'remove' escape: an empty new password is not a valid
     // save there. In change mode an empty new password is exactly how the
     // password is removed, so only the match and current checks apply.
-    (!passwordSet || trimmedNext.length > 0) &&
+    (passwordSet || trimmedNext.length > 0) &&
     !isSaving;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

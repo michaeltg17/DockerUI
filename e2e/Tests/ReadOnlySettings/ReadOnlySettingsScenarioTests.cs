@@ -29,7 +29,7 @@ public sealed class ReadOnlySettingsScenarioTests(ReadOnlySettingsEnvironment en
             cancellationToken);
 
         Assert.Contains(
-            "The settings file '/app/appsettings.json' is not writable.",
+            "The settings file '/app/appsettings.json' is not writable; mount it read-write so settings can be persisted.",
             logs.StandardOutput + logs.StandardError,
             StringComparison.Ordinal);
     }

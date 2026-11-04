@@ -36,8 +36,10 @@ export const applyTheme = (theme: Theme): void => {
   // 'system' is a stored preference, not a DOM theme: it always resolves to a
   // concrete light or dark, matching the OS's color scheme.
   const resolved =
-    theme === 'system' && window.matchMedia(PREFERS_DARK_QUERY).matches
-      ? 'dark'
+    theme === 'system'
+      ? window.matchMedia(PREFERS_DARK_QUERY).matches
+        ? 'dark'
+        : 'light'
       : theme;
   document.documentElement.dataset.theme = resolved;
 };

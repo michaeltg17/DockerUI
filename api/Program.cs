@@ -27,7 +27,7 @@ internal static class Program
     const string AuthCookieName = "dockerui.auth";
 
     /// <summary>Sign-in attempts a client may make per window before the login route answers 429.</summary>
-    const int MaxLoginAttemptsPerWindow = 10;
+    const int MaxLoginAttemptsPerWindow = 20;
 
     /// <summary>The window <see cref="MaxLoginAttemptsPerWindow"/> applies to.</summary>
     const int LoginRateLimitWindowMinutes = 5;

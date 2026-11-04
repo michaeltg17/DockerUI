@@ -50,7 +50,7 @@ public sealed class AppsPage(IPage page)
     public ILocator ScanCompleteNotification => Page.GetByRole(AriaRole.Alert, new PageGetByRoleOptions { Name = "LAN scan complete", Exact = true });
 
     /// <summary>The card (button) of the given app, addressed via its name heading.</summary>
-    public ILocator Card(string appName) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator("xpath=..");
+    public ILocator Card(string appName) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator("xpath=ancestor::button");
 
     /// <summary>The 'New' tag on the given app's card; shown while a newly detected docker app awaits its first interaction.</summary>
     public ILocator NewTag(string appName) => Card(appName).GetByText("New", new LocatorGetByTextOptions { Exact = true });
@@ -140,7 +140,7 @@ public sealed class AppsPage(IPage page)
     }
 
     /// <summary>The given app's card, matched only while the card's data-state attribute equals the given state.</summary>
-    public ILocator CardInState(string appName, string state) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator($"xpath=parent::button[@data-state='{state}']");
+    public ILocator CardInState(string appName, string state) => Main.GetByRole(AriaRole.Heading, new LocatorGetByRoleOptions { Name = appName, Exact = true }).Locator($"xpath=ancestor::button[@data-state='{state}']");
 
     /// <summary>The app card icon image (absent when the app falls back to its initials).</summary>
     public ILocator CardIconImage(string appName) => Card(appName).Locator("img");

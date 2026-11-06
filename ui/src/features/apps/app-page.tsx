@@ -5,7 +5,7 @@ import { Logo } from '@/components/ui/logo';
 import { useNotifications } from '@/components/ui/notifications';
 import { SearchBar } from '@/components/ui/search-bar';
 import { Spinner } from '@/components/ui/spinner';
-import { PasswordDialog } from '@/features/auth';
+import { PasswordDialog, PasswordResetDialog } from '@/features/auth';
 import { cn } from '@/utils/cn';
 
 import { getLogs } from './api/get-logs';
@@ -19,10 +19,12 @@ import { filterApps } from './filter-apps';
 import { useApps, useSetAppOrder } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
 import { useScanLan } from './hooks/use-lan';
+import { useNewApps } from './hooks/use-new-apps';
 import { useSettings } from './hooks/use-settings';
 
 export const AppsPage = () => {
   const { data, isPending, isError, refetch } = useApps();
+  const { newAppNames, markInteracted } = useNewApps(data ?? []);
   const setOrder = useSetAppOrder();
   const { data: settings } = useSettings();
   const [query, setQuery] = useState('');
@@ -31,6 +33,7 @@ export const AppsPage = () => {
   const [renameOpen, setRenameOpen] = useState(false);
   const [hiddenAppsOpen, setHiddenAppsOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [removePasswordOpen, setRemovePasswordOpen] = useState(false);
 
   useAppsHub();
 
@@ -123,6 +126,11 @@ export const AppsPage = () => {
         onClose={() => setPasswordOpen(false)}
       />
 
+      <PasswordResetDialog
+        open={removePasswordOpen}
+        onClose={() => setRemovePasswordOpen(false)}
+      />
+
       <DashboardMenu
         // The whole area below the header (cards, gaps, and empty space)
         // is the dashboard menu's trigger zone.
@@ -134,6 +142,7 @@ export const AppsPage = () => {
         onRename={() => setRenameOpen(true)}
         onViewHiddenApps={() => setHiddenAppsOpen(true)}
         onPassword={() => setPasswordOpen(true)}
+        onRemovePassword={() => setRemovePasswordOpen(true)}
       >
         <main
           className={cn(
@@ -177,6 +186,8 @@ export const AppsPage = () => {
           ) : (
             <AppsGrid
               apps={apps}
+              newAppNames={newAppNames}
+              onInteractApp={markInteracted}
               // Reordering a filtered subset would only pin that subset, so dragging
               // is enabled while the whole list is visible.
               onReorder={

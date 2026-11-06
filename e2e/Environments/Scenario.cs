@@ -22,6 +22,9 @@ public sealed record Scenario
     /// <summary>Extra cleanup on top of 'compose down' (e.g. standalone containers).</summary>
     public Func<Scenario, CancellationToken, Task>? CleanupAsync { get; init; }
 
+    /// <summary>The dashboard must become healthy; false for a scenario that dies by design.</summary>
+    public bool ExpectReady { get; init; } = true;
+
     public string DashboardDirectory => Paths.CombineE2e(Dashboard);
 
     public IEnumerable<string> StackDirectories => Stacks.Select(stack => Paths.CombineE2e(stack));

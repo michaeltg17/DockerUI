@@ -14,7 +14,8 @@ services:
       # appsettings.example.json next to this file as appsettings.json, edit
       # it, and uncomment this line (the file replaces the packaged defaults,
       # so it must keep 'DockerUI:DockerSocketPath'; shortcut edits are
-      # persisted into it, so keep the mount read-write). The dashboard
+      # persisted into it, so keep the mount read-write — a read-only mount
+      # is a boot error: the dashboard refuses to start). The dashboard
       # rewrites the file in place as uid 1000, so the file must be owned by
       # uid 1000 (chown 1000:1000 appsettings.json if your host user is not).
       # There is no password by default; set one from the dashboard's

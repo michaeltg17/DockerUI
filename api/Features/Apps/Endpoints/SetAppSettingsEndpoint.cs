@@ -25,7 +25,7 @@ namespace Api.Features.Apps.Endpoints
                 // Resolve against the raw container list so the app must exist before its settings change.
                 await appService.ResolveAppContainersAsync(name, cancellationToken).ConfigureAwait(false);
 
-                settingsStore.SetAppSettings(name, input.DisplayName, input.Icon, input.Url);
+                settingsStore.SaveAppSettings(name, input.DisplayName, input.Icon, input.Url);
                 await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();
             });

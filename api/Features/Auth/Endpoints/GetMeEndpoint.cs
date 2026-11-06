@@ -1,6 +1,4 @@
 using Api.Features.Auth.Models;
-using Api.Settings;
-using Microsoft.Extensions.Options;
 
 namespace Api.Features.Auth.Endpoints
 {
@@ -10,9 +8,9 @@ namespace Api.Features.Auth.Endpoints
 
         public static void Map(IEndpointRouteBuilder group)
         {
-            group.MapGet(Path, (HttpContext http, IOptionsMonitor<DockerUISettings> settings) =>
+            group.MapGet(Path, (HttpContext http, AuthService authService) =>
             {
-                var passwordSet = !string.IsNullOrWhiteSpace(settings.CurrentValue.Auth?.AdminPasswordHash);
+                var passwordSet = authService.IsPasswordSet;
 
                 // While a password is set, only a valid session may query it; in open mode
                 // the answer is public so the login page can tell the two modes apart.

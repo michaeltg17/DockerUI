@@ -1,5 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Api.Domain;
 using Api.Features.Apps.Icons;
@@ -28,9 +28,11 @@ namespace Api.Features.Apps
         /// <summary>The name of the card a service split out of the given project gets.</summary>
         public static string PartName(string project, string service) => $"{project}{PartNameSeparator}{service}";
 
+        /// <summary>The number of possible icon hues: a hue is an integer in [0, IconHueCount).</summary>
+        const int IconHueCount = 360;
+
         /// <summary>A random icon hue (0–359), decided once at creation and never changed afterwards.</summary>
-        [SuppressMessage("Security", "CA5394:Random is an insecure random number generator", Justification = "The hue is purely cosmetic; no security-sensitive randomness is required.")]
-        public static int RandomIconHue() => Random.Shared.Next(0, 360);
+        public static int RandomIconHue() => RandomNumberGenerator.GetInt32(0, IconHueCount);
 
         // Docker daemon container states (the 'State' values of the list response).
         public const string StateCreated = "created";
@@ -57,6 +59,7 @@ namespace Api.Features.Apps
         public static (IReadOnlyList<AppDto> Visible, IReadOnlyList<AppDto> Hidden) BuildApps(
             ILogger logger,
             IEnumerable<ContainerSnapshot> containers,
+            Func<string, int> missingColorHue,
             IAppIconCatalog? iconCatalog = null,
             Uri? baseUrl = null,
             DockerUISettings? settings = null,
@@ -93,6 +96,7 @@ namespace Api.Features.Apps
                         baseUrl,
                         settings,
                         logger,
+                        missingColorHue,
                         cardName: service,
                         splitFrom: projectName));
                 }
@@ -102,7 +106,7 @@ namespace Api.Features.Apps
                     .ToList();
 
                 if (remaining.Count > 0)
-                    apps.Add(BuildApp(projectName, remaining, iconCatalog, liveIconCatalog, baseUrl, settings, logger, splitServices: [.. splitServices]));
+                    apps.Add(BuildApp(projectName, remaining, iconCatalog, liveIconCatalog, baseUrl, settings, logger, missingColorHue, splitServices: [.. splitServices]));
             }
 
             var standalone = groups.SingleOrDefault(group => group.Key is null);
@@ -110,7 +114,7 @@ namespace Api.Features.Apps
             {
                 foreach (var container in standalone)
                 {
-                    apps.Add(BuildApp(container.Name, [container], iconCatalog, liveIconCatalog, baseUrl, settings, logger));
+                    apps.Add(BuildApp(container.Name, [container], iconCatalog, liveIconCatalog, baseUrl, settings, logger, missingColorHue));
                 }
             }
 
@@ -179,31 +183,23 @@ namespace Api.Features.Apps
         }
 
         /// <summary>
+        /// The services the settings have split out of the given project ('DockerUI:AppSplits'),
+        /// in listing order; whitespace entries and duplicates are dropped.
+        /// </summary>
+        public static List<string> GetConfiguredSplitServices(DockerUISettings? settings, string project) =>
+            settings?.AppSplits is { } splits && splits.TryGetValue(project, out var services)
+                ? [.. services.Where(service => !string.IsNullOrWhiteSpace(service)).Distinct(StringComparer.Ordinal)]
+                : [];
+
+        /// <summary>
         /// The services of the given project that are split out ('DockerUI:AppSplits'), in
         /// listing order and limited to services that still have containers in the project,
         /// so a stale entry (a service removed from the compose file) is ignored.
         /// </summary>
         static List<string> GetSplitServices(
-            IEnumerable<ContainerSnapshot> group, string projectName, DockerUISettings? settings)
-        {
-            var split = new List<string>();
-            var containers = group.ToList();
-
-            if (settings?.AppSplits is not { } splits ||
-                !splits.TryGetValue(projectName, out var services))
-                return split;
-
-            foreach (var service in services.Distinct(StringComparer.Ordinal))
-            {
-                if (string.IsNullOrWhiteSpace(service))
-                    continue;
-
-                if (containers.Any(container => string.Equals(GetServiceName(container), service, StringComparison.Ordinal)))
-                    split.Add(service);
-            }
-
-            return split;
-        }
+            IEnumerable<ContainerSnapshot> group, string projectName, DockerUISettings? settings) =>
+            [.. GetConfiguredSplitServices(settings, projectName)
+                .Intersect(group.Select(GetServiceName), StringComparer.Ordinal)];
 
         public static bool IsRunningState(string state) => state is StateRunning or StateRestarting;
 
@@ -274,6 +270,10 @@ namespace Api.Features.Apps
         /// <param name="baseUrl">The dashboard's base url, used to resolve app urls.</param>
         /// <param name="settings">The current settings (per-app overrides and splits), when available.</param>
         /// <param name="logger">Logs invalid url overrides.</param>
+        /// <param name="missingColorHue">
+        /// Resolves the hue for an app whose settings carry no color yet (the in-memory,
+        /// process-stable decision), so the card always leaves the catalog with a color.
+        /// </param>
         /// <param name="cardName">
         /// The name the card shows (and the icon catalog's name lookup uses) for a split
         /// part: the plain service name, unlike the part's 'project-service' identity.
@@ -288,6 +288,7 @@ namespace Api.Features.Apps
             Uri? baseUrl,
             DockerUISettings? settings,
             ILogger logger,
+            Func<string, int> missingColorHue,
             string? cardName = null,
             string? splitFrom = null,
             string[]? splitServices = null)
@@ -350,7 +351,7 @@ namespace Api.Features.Apps
                 ResolveAppUrl(name, containers, baseUrl, perApp, logger),
                 services,
                 AppSource.Docker,
-                perApp?.Color,
+                perApp?.Color ?? missingColorHue(name),
                 Problem: problem,
                 SplitFrom: splitFrom)
             {

@@ -2,7 +2,6 @@ using Api.Exceptions;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Hubs;
 using Api.Features.Settings;
-using Api.Settings;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Api.Features.Apps.Endpoints
@@ -39,20 +38,15 @@ namespace Api.Features.Apps.Endpoints
                         : new AppNotFoundException(name);
                 }
 
-                var current = GetSplitServices(settings, part.Project);
+                var current = AppCatalog.GetConfiguredSplitServices(settings, part.Project);
                 var joined = current
                     .Where(service => !string.Equals(service, part.Service, StringComparison.Ordinal))
                     .ToList();
 
-                settingsStore.SetAppSplits(part.Project, joined);
+                settingsStore.SaveAppSplits(part.Project, joined);
                 await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();
             });
         }
-
-        static List<string> GetSplitServices(DockerUISettings? settings, string project) =>
-            settings?.AppSplits is { } splits && splits.TryGetValue(project, out var services)
-                ? [.. services.Where(service => !string.IsNullOrWhiteSpace(service)).Distinct(StringComparer.Ordinal)]
-                : [];
     }
 }

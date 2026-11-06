@@ -69,10 +69,11 @@ docker compose up -d --build                # http://localhost:5000
 # E2E (Docker Desktop must be running)
 dotnet build e2e/DockerUIE2E.slnx
 dotnet e2e/bin/Debug/net10.0/E2E.dll
-# Builds the DockerUI image once, then brings up the basic/settings/error
-# scenarios (ports 5010-5012) and tears them all down afterwards.
+# Builds the DockerUI image once, then brings up the basic/settings/error/
+# lan/readonly-settings scenarios (ports 5010-5014) and tears them all down afterwards.
 
-# Local CI (same checks as GitHub CI: Dockerfile.ci runs ci.sh)
+# Local CI (same checks as GitHub CI: Dockerfile.ci runs ci.sh, which also
+# audits the dashboard with Lighthouse CI after the e2e scenarios)
 docker build -t docker-ui-ci:latest -f Dockerfile.ci .
 # <ws> is the checkout as a POSIX path (E:\1\Repos\docker-ui ->
 # /e/1/Repos/docker-ui on Docker Desktop); client and daemon must see
@@ -88,6 +89,13 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   with `unix:///path/to.sock` or `npipe://./pipe/docker_engine` URIs.
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
+- CI audits the dashboard with Lighthouse CI (`lighthouserc.cjs` at the repo
+  root; pinned `@lhci/cli` in `ci.sh`): after the e2e scenarios it brings up a
+  fresh basic scenario on :5010, asserts the category score thresholds
+  (throttled mobile profile; keep the thresholds just below the measured
+  baseline), and tears it down. A local run is
+  `npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs` with the
+  basic scenario up.
 - The published image runs as a non-root `dockerui` user (uid/gid 1000,
   created explicitly in the Dockerfile's runtime stage). `/app` and the
   packaged `appsettings.json` are the only paths owned by uid 1000, because
@@ -117,7 +125,7 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   discover xunit v3 tests on this machine's SDK. CI runs the suite inside the
   `Dockerfile.ci` container with the runner's Docker socket mounted and
   `--network host` (the scenarios publish ports on the runner's localhost,
-  5010-5012). The checkout is mounted onto its own path (`-w` +
+  5010-5014). The checkout is mounted onto its own path (`-w` +
   `-v ws:ws`): the scenario compose files bind-mount `./appsettings.json`,
   and the daemon resolves that source on its own host, so the client's and
   the daemon's view of the path must be identical. The dashboard lists every

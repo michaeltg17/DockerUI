@@ -35,6 +35,10 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Deep enough to read as small text on the light cards. */
+    --success: 142 71% 35%;
+    --warning: 28 90% 40%;
+
     --border: 214.3 31.8% 87%;
     --input: 214.3 31.8% 87%;
     --ring: 204 74% 42%;
@@ -71,6 +75,9 @@
     --destructive: 0 84% 66%;
     --destructive-foreground: 210 40% 98%;
 
+    --success: 142 69% 58%;
+    --warning: 38 92% 62%;
+
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
@@ -104,6 +111,9 @@
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 210 40% 98%;
 
+    --success: 142 69% 58%;
+    --warning: 38 92% 62%;
+
     --border: 215 22% 24%;
     --input: 215 22% 24%;
     --ring: 204 84% 53%;
@@ -136,6 +146,9 @@
 
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 210 40% 98%;
+
+    --success: 142 69% 58%;
+    --warning: 38 92% 62%;
 
     --border: 215 22% 24%;
     --input: 215 22% 24%;

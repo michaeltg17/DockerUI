@@ -31,3 +31,11 @@ public sealed class LanEnvironment : ScenarioEnvironment
     {
     }
 }
+
+/// <summary>The <see cref="ScenarioEnvironment"/> for the read-only settings scenario (boot failure).</summary>
+public sealed class ReadOnlySettingsEnvironment : ScenarioEnvironment
+{
+    public ReadOnlySettingsEnvironment() : base(Scenarios.ReadOnlySettings)
+    {
+    }
+}

@@ -23,6 +23,9 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
 
     public Uri BaseUrl => Scenario.BaseUrl;
 
+    /// <summary>The dashboard's compose directory (its appsettings.json and demo stacks live there).</summary>
+    public string DashboardDirectory => Scenario.DashboardDirectory;
+
     /// <summary>The dashboard service's container logs since the given instant (per-test diagnostics).</summary>
     public Task<DockerResult> GetDashboardLogsSinceAsync(
         DateTimeOffset sinceUtc,
@@ -88,7 +91,8 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
         if (scenario.SetupAsync is { } setup)
             await setup(scenario, CancellationToken.None);
 
-        await WaitUntilReadyAsync(scenario);
+        if (scenario.ExpectReady)
+            await WaitUntilReadyAsync(scenario);
     }
 
     static async Task SafeTearDownAsync(Scenario scenario)

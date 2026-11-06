@@ -36,15 +36,21 @@ public sealed class BrowserFixture : IAsyncLifetime
     /// <summary>
     /// Creates an isolated browser context (fresh cookies/storage) for a single test,
     /// optionally emulating a color scheme so <c>prefers-color-scheme</c> resolves as in that theme.
-    /// The context also captures per-test browser diagnostics and, on dispose, flushes them
-    /// plus the dashboard's container logs to the test output.
+    /// The context's diagnostic events are logged through the shared test logger, which is
+    /// pointed at this test's output before the first event can arrive; on dispose the
+    /// session also flushes the dashboard's container logs since the test started.
     /// </summary>
-    public async Task<IBrowserContext> NewContextAsync(ScenarioEnvironment environment, ColorScheme? colorScheme = null)
+    public async Task<BrowserSession> NewContextAsync(ScenarioEnvironment environment, ColorScheme? colorScheme = null)
     {
-        var inner = colorScheme is { } scheme
+        // TestContext.Current is only available on this (test) thread; Playwright's events
+        // later fire on the dispatcher thread, where the shared sink must already be aimed
+        // at this test's output.
+        TestLogging.InjectCurrentTestOutput();
+
+        var context = colorScheme is { } scheme
             ? await Browser.NewContextAsync(new BrowserNewContextOptions { ColorScheme = scheme })
             : await Browser.NewContextAsync();
 
-        return new TestBrowserContext(inner, environment, DateTimeOffset.UtcNow);
+        return new BrowserSession(context, environment, TestLogging.Logger);
     }
 }

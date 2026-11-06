@@ -2,13 +2,16 @@ import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { ErrorSlot } from '@/components/ui/error-slot';
+import { FieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { getErrorMessage } from '@/lib/api-client';
-import { cn } from '@/utils/cn';
 
+import {
+  assessPasswordStrength,
+  type PasswordStrength,
+} from './password-strength';
 import { useAuth } from './use-auth';
-
-const MIN_PASSWORD_LENGTH = 16;
 
 type PasswordDialogProps = {
   open: boolean;
@@ -18,6 +21,16 @@ type PasswordDialogProps = {
 export const PasswordDialog = ({ open, onClose }: PasswordDialogProps) => {
   if (!open) return null;
   return <PasswordDialogForm onClose={onClose} />;
+};
+
+// The strength rating's presentation; the rating itself is informational only.
+const strengthPresentation: Record<
+  PasswordStrength,
+  { label: string; className: string }
+> = {
+  weak: { label: 'Weak', className: 'text-destructive' },
+  medium: { label: 'Medium', className: 'text-warning' },
+  strong: { label: 'Strong', className: 'text-success' },
 };
 
 /**
@@ -45,19 +58,23 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
   // In change mode an empty new password removes the password.
   const isRemoving = passwordSet && trimmedNext === '';
 
-  const newLengthError =
-    trimmedNext.length > 0 && trimmedNext.length < MIN_PASSWORD_LENGTH
-      ? `Use at least ${MIN_PASSWORD_LENGTH} characters.`
-      : null;
+  // The strength rating shows while a new password is being typed; it never
+  // blocks the save (the API accepts any non-empty password).
+  const strength =
+    trimmedNext.length > 0 ? assessPasswordStrength(trimmedNext) : null;
+
   const matchError =
     trimmedNext === trimmedConfirm ? null : 'The new passwords do not match.';
   const currentError =
     passwordSet && trimmedCurrent === '' ? 'Enter the current password.' : null;
 
   const canSave =
-    newLengthError === null &&
     matchError === null &&
     currentError === null &&
+    // Open mode has no 'remove' escape: an empty new password is not a valid
+    // save there. In change mode an empty new password is exactly how the
+    // password is removed, so only the match and current checks apply.
+    (passwordSet || trimmedNext.length > 0) &&
     !isSaving;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -107,11 +124,7 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
                 setError(null);
               }}
             />
-            <p className="min-h-4 text-xs">
-              {currentError ? (
-                <span className="text-destructive">{currentError}</span>
-              ) : null}
-            </p>
+            <FieldError error={currentError} />
           </label>
         )}
 
@@ -132,8 +145,10 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
             }}
           />
           <p className="min-h-4 text-xs">
-            {newLengthError ? (
-              <span className="text-destructive">{newLengthError}</span>
+            {strength ? (
+              <span className={strengthPresentation[strength].className}>
+                {strengthPresentation[strength].label}
+              </span>
             ) : isRemoving ? (
               <span className="text-muted-foreground">
                 Leave empty to remove the password.
@@ -157,24 +172,11 @@ const PasswordDialogForm = ({ onClose }: Omit<PasswordDialogProps, 'open'>) => {
               setError(null);
             }}
           />
-          <p className="min-h-4 text-xs">
-            {matchError ? (
-              <span className="text-destructive">{matchError}</span>
-            ) : null}
-          </p>
+          <FieldError error={matchError} />
         </label>
 
         <div className="flex flex-col gap-2 pt-1">
-          {/* The slot is always reserved so a submit error cannot resize the dialog. */}
-          <p
-            role="alert"
-            className={cn(
-              'min-h-10 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive',
-              error === null && 'invisible',
-            )}
-          >
-            {error}
-          </p>
+          <ErrorSlot error={error} />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>

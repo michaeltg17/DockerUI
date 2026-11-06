@@ -35,6 +35,10 @@ import { ShortcutDialog } from './shortcut-dialog';
 
 type AppCardProps = {
   app: App;
+  /** True while the docker app is still 'new' (detected, not yet interacted with). */
+  isNew: boolean;
+  /** Reports the first UI interaction with the card, clearing its 'new' tag. */
+  onInteract: () => void;
   draggable: boolean;
   isDragging: boolean;
   /** True while any card is being dragged; suppresses the hover highlight. */
@@ -46,6 +50,8 @@ type AppCardProps = {
 
 export const AppCard = ({
   app,
+  isNew,
+  onInteract,
   draggable,
   isDragging,
   dragActive,
@@ -99,6 +105,7 @@ export const AppCard = ({
   // card listens to both and opens the app in a new tab either way.
   const openUrl = (event: MouseEvent) => {
     if (event.button !== 0 && event.button !== 1) return;
+    if (app.source === 'docker') onInteract();
     if (app.url) {
       window.open(app.url, '_blank', 'noopener,noreferrer');
     }
@@ -232,6 +239,22 @@ export const AppCard = ({
     ],
   };
 
+  // Selecting any action is the first interaction with the card, which clears
+  // its 'new' tag; the submenu entries (Split services) count the same.
+  const withInteraction = (item: AppMenuItem): AppMenuItem => {
+    const onSelect = item.onSelect;
+    return {
+      ...item,
+      onSelect: onSelect
+        ? () => {
+            onInteract();
+            onSelect();
+          }
+        : undefined,
+      children: item.children?.map(withInteraction),
+    };
+  };
+
   const actions: AppMenuItem[] = [
     {
       id: 'edit',
@@ -283,7 +306,7 @@ export const AppCard = ({
       onSelect: () =>
         void setVisibility.mutate({ name: app.name, hidden: true }),
     },
-  ];
+  ].map(withInteraction);
 
   return (
     <>
@@ -314,12 +337,14 @@ export const AppCard = ({
                   aria-label={`Start ${app.name}`}
                   onClick={(event) => {
                     event.stopPropagation();
+                    onInteract();
                     void startApp.mutate(app.name);
                   }}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return;
                     event.preventDefault();
                     event.stopPropagation();
+                    onInteract();
                     void startApp.mutate(app.name);
                   }}
                   className="absolute inset-0 flex cursor-pointer items-center justify-center"
@@ -364,9 +389,16 @@ export const AppCard = ({
               )}
             </div>
 
-            <h3 className="max-w-full truncate text-sm font-medium">
-              {app.displayName}
-            </h3>
+            <div className="flex max-w-full items-center gap-1.5">
+              <h3 className="min-w-0 truncate text-sm font-medium">
+                {app.displayName}
+              </h3>
+              {isNew && (
+                <span className="shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-primary-foreground">
+                  New
+                </span>
+              )}
+            </div>
           </button>
         </AppMenu>
         {isDragging && <DropIndicator />}

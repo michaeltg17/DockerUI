@@ -25,7 +25,7 @@ namespace Api.Features.Apps.Endpoints
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                settingsStore.SetAppOrder(order);
+                settingsStore.SaveAppOrder(order);
 
                 await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);
                 return Results.NoContent();

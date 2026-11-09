@@ -112,5 +112,14 @@ public static class Scenarios
         Dashboard = "scenarios/lan",
     };
 
-    public static IReadOnlyList<Scenario> All { get; } = [Basic, Settings, Error, Lan];
+    /// <summary>Read-only settings file; the dashboard must fail to boot with a clear error.</summary>
+    public static readonly Scenario ReadOnlySettings = new()
+    {
+        Name = "readonly-settings",
+        BaseUrl = new Uri("http://localhost:5014"),
+        Dashboard = "scenarios/readonly-settings",
+        ExpectReady = false,
+    };
+
+    public static IReadOnlyList<Scenario> All { get; } = [Basic, Settings, Error, Lan, ReadOnlySettings];
 }

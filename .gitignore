@@ -411,5 +411,8 @@ npm-debug.log*
 # Docker
 docker-compose.override.yml
 
+# Lighthouse CI (lighthouserc.cjs) report output
+.lighthouseci/
+
 # Local operator settings (see appsettings.example.json)
 /appsettings.json

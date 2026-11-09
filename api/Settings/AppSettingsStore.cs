@@ -30,6 +30,41 @@ internal sealed class AppSettingsStore(
         configurationRoot.GetSection(DockerUISettings.Section).Get<DockerUISettings>();
 
     /// <summary>
+    /// Verifies the settings file is writable and throws an <see cref="InvalidOperationException"/>
+    /// otherwise, so an unwritable mount fails the boot with a clear error instead of
+    /// surfacing on the first settings save. The probe exercises the real save path: a
+    /// temp write plus delete in the settings directory (where <see cref="SaveSettings"/>
+    /// would fail on a read-only directory) and, for an existing file, an open for
+    /// read-write (where it would fail on a read-only file, without touching the
+    /// content). A missing file is fine: <see cref="LoadSettings"/> tolerates it and
+    /// the first save creates it.
+    /// </summary>
+    public static void EnsureWritable(string contentRootPath)
+    {
+        var appSettingsPath = Path.Combine(contentRootPath, "appsettings.json");
+
+        try
+        {
+            var temporaryPath = appSettingsPath + ".tmp";
+            File.WriteAllText(temporaryPath, string.Empty);
+            File.Delete(temporaryPath);
+
+            if (File.Exists(appSettingsPath))
+            {
+                using var probe = File.Open(appSettingsPath, FileMode.Open, FileAccess.ReadWrite);
+            }
+        }
+        // An unwritable file or directory surfaces as UnauthorizedAccessException
+        // (a SystemException, not an IOException); both mean 'not writable'.
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidOperationException(
+                $"The settings file '{appSettingsPath}' is not writable; mount it read-write so settings can be persisted.",
+                exception);
+        }
+    }
+
+    /// <summary>
     /// Reads the settings file, applies <paramref name="mutate"/> to the 'DockerUI' section,
     /// and — when it reports a change — saves the file and reloads the configuration, all
     /// under the single lock.

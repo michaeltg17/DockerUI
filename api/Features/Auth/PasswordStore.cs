@@ -4,13 +4,13 @@ using Api.Settings;
 namespace Api.Features.Auth
 {
     /// <summary>
-    /// Persists the optional auth password hash in the 'DockerUI:Auth' section of
+    /// Saves the optional auth password hash in the 'DockerUI:Auth' section of
     /// appsettings.json. All file access goes through the shared <see cref="AppSettingsStore"/>.
     /// </summary>
     internal sealed class PasswordStore(AppSettingsStore store)
     {
-        /// <summary>Sets (or removes) the admin password hash in the settings file.</summary>
-        public void SetPasswordHash(string? hash)
+        /// <summary>Saves (or removes) the admin password hash in the settings file.</summary>
+        public void SavePasswordHash(string? hash)
             => store.UpdateSection(section =>
             {
                 var current = section[nameof(DockerUISettings.Auth)] as JsonObject;

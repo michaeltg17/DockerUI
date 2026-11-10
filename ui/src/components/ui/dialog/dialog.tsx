@@ -146,7 +146,10 @@ export const Dialog = ({
         aria-labelledby={titleId}
         style={minHeight > 0 ? { minHeight } : undefined}
         className={cn(
-          'w-full max-w-md overflow-hidden rounded-lg border border-border bg-background shadow-lg',
+          // The panel is the dialog's scroll container: content taller than the
+          // panel scrolls inside it, and overscroll-behavior contains the wheel
+          // there, so maxing a dialog's scrollbar never scrolls the page behind.
+          'w-full max-w-md overflow-auto overscroll-contain rounded-lg border border-border bg-background shadow-lg',
           className,
         )}
       >

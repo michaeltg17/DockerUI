@@ -198,6 +198,54 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Maxing_a_dialog_scrollbar_does_not_scroll_the_page_behind()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var page = await context.NewPageAsync();
+
+        // A short viewport so the dashboard page itself has a scrollbar behind the dialog.
+        await page.SetViewportSizeAsync(1280, 400);
+        var apps = new AppsPage(page);
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        (await page.EvaluateAsync<long>("document.documentElement.scrollHeight")).Should()
+            .BeGreaterThan(400, "because the test needs a scrollable page behind the dialog");
+
+        // The icon picker is a dialog with its own tall scrollbar.
+        await apps.OpenEditDialogAsync("web-stack");
+        var dialog = apps.EditAppDialog("web-stack");
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.WaitForAsync();
+
+        var pickerBox = await picker.BoundingBoxAsync();
+        pickerBox.Should().NotBeNull();
+
+        // With the mouse outside the dialog (on the backdrop), the page behind still scrolls.
+        await page.Mouse.MoveAsync(30, 200);
+        var scrollYBeforeBackdropWheel = await page.EvaluateAsync<long>("window.scrollY");
+        await page.Mouse.WheelAsync(0, 400);
+        (await page.EvaluateAsync<long>("window.scrollY")).Should()
+            .BeGreaterThan(scrollYBeforeBackdropWheel, "because the mouse is outside the dialog");
+
+        // Max the picker's scrollbar, then wheel with the mouse inside it: the
+        // dialog's scroll must not chain to the page.
+        var grid = picker.Locator(".grid.overflow-auto");
+        await grid.EvaluateAsync("element => { element.scrollTop = element.scrollHeight; }");
+        var gridCenterX = (float)(pickerBox!.X + (pickerBox!.Width / 2));
+        var gridCenterY = (float)(pickerBox!.Y + (pickerBox!.Height * 0.75));
+        await page.Mouse.MoveAsync(gridCenterX, gridCenterY);
+        var scrollYBefore = await page.EvaluateAsync<long>("window.scrollY");
+        await page.Mouse.WheelAsync(0, 400);
+        await page.Mouse.WheelAsync(0, 400);
+        (await page.EvaluateAsync<long>("window.scrollY")).Should()
+            .Be(scrollYBefore, "because the dialog's scrollbar is maxed and its scroll must not chain to the page");
+    }
+
+    [Fact]
     public async Task Context_menu_shows_the_stack_logs()
     {
         await using var context = await browser.NewContextAsync(environment);

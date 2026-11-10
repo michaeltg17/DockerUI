@@ -10,7 +10,11 @@ namespace Api.Settings
         /// <summary>Full URL the app should open with (wins over port-based resolution).</summary>
         public string? Url { get; set; }
 
-        /// <summary>Icon path or URL (wins over the 'dockerui.icon' label and the built-in catalog).</summary>
+        /// <summary>
+        /// Icon path or URL (wins over the 'dockerui.icon' label and the built-in catalog).
+        /// An explicit empty string means the user chose no icon; an absent value lets the
+        /// app fall back to its resolved icon.
+        /// </summary>
         public string? Icon { get; set; }
 
         /// <summary>Hide the app from the dashboard.</summary>

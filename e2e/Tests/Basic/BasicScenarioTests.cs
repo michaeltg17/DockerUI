@@ -643,6 +643,52 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Edit_dialog_removes_a_docker_apps_resolved_icon()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // web-stack's containers match the built-in icon catalog, so the card shows a
+        // resolved icon while no override is set.
+        var resolvedIcon = await GetAppIconAsync("web-stack", cancellationToken);
+        resolvedIcon.Should().NotBeNull("because web-stack's images have built-in icons");
+
+        // Picking 'None' in the icon picker must remove the resolved icon, not just an override.
+        await apps.OpenEditDialogAsync("web-stack");
+        var dialog = apps.EditAppDialog("web-stack");
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true })
+            .ClickAsync();
+        await AppsPage.SaveEditAsync(dialog);
+
+        // The card drops the image (falling back to its initials tile) and the API reports no icon.
+        await apps.CardIconImage("web-stack").WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+        (await GetAppIconAsync("web-stack", cancellationToken)).Should().BeNull();
+
+        // Restore the resolved icon so tests that expect the default state pass regardless of order.
+        await apps.OpenEditDialogAsync("web-stack");
+        var restore = apps.EditAppDialog("web-stack");
+        await restore
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+        await restore
+            .Locator($"img[src=\"{resolvedIcon}\"]")
+            .ClickAsync();
+        await AppsPage.SaveEditAsync(restore);
+        await apps.CardIconImage("web-stack").WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
     public async Task Dashboard_menu_restarts_its_own_container()
     {
         await using var context = await browser.NewContextAsync(environment);
@@ -2079,6 +2125,23 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         }
 
         throw new InvalidOperationException($"Shortcut '{name}' was not returned by the API.");
+    }
+
+    /// <summary>The icon the API reports for the given app, or null when it has none.</summary>
+    async Task<string?> GetAppIconAsync(string name, CancellationToken cancellationToken)
+    {
+        using var client = new HttpClient();
+        var json = await client.GetStringAsync(new Uri(environment.BaseUrl, "api/apps"), cancellationToken);
+
+        using var document = JsonDocument.Parse(json);
+
+        foreach (var element in document.RootElement.EnumerateArray())
+        {
+            if (string.Equals(element.GetProperty("name").GetString(), name, StringComparison.Ordinal))
+                return element.GetProperty("icon").GetString();
+        }
+
+        throw new InvalidOperationException($"App '{name}' was not returned by the API.");
     }
 
     /// <summary>Fetches the given favicon from the dashboard and returns its SVG content.</summary>

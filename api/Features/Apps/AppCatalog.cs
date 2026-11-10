@@ -314,8 +314,11 @@ namespace Api.Features.Apps
             // (the card title), not from its 'project-service' identity.
             var lookupName = cardName ?? name;
 
-            var icon = !string.IsNullOrWhiteSpace(perApp?.Icon)
-                ? perApp.Icon
+            // The icon override is tri-state: a path wins, an explicit empty string
+            // (the user chose 'no icon') suppresses the auto-resolution, and an absent
+            // override lets the label and catalogs decide.
+            var icon = perApp?.Icon is { } iconOverride
+                ? string.IsNullOrEmpty(iconOverride) ? null : iconOverride
                 : containers
                     .Select(GetIcon)
                     .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))

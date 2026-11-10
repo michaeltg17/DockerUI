@@ -33,8 +33,9 @@ internal sealed class SettingsStore(AppSettingsStore store)
         });
 
     /// <summary>
-    /// Saves the display name, icon, and url overrides of the given app. Empty values
-    /// clear the override so the app falls back to its resolved name/icon/url.
+    /// Saves the display name, icon, and url overrides of the given app. An empty name or
+    /// url clears the override so the app falls back to its resolved name/url; an empty
+    /// icon persists an explicit 'no icon', so the app's auto-resolved icon stays off.
     /// </summary>
     public void SaveAppSettings(string appName, string? displayName, string? icon, string? url)
         => store.UpdateSection(section =>
@@ -43,7 +44,7 @@ internal sealed class SettingsStore(AppSettingsStore store)
             var targetName = !string.IsNullOrWhiteSpace(displayName) && !string.Equals(displayName, appName, StringComparison.Ordinal)
                 ? displayName
                 : null;
-            var targetIcon = string.IsNullOrWhiteSpace(icon) ? null : icon;
+            var targetIcon = string.IsNullOrWhiteSpace(icon) ? string.Empty : icon;
             var targetUrl = string.IsNullOrWhiteSpace(url) ? null : url;
 
             if (GetEntryValue(entry, nameof(AppUserSettings.Name)) == targetName &&

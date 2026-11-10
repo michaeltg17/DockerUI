@@ -38,6 +38,8 @@ export type DialogProps = {
   className?: string;
   /** Focus this element when the dialog opens. */
   initialFocusRef?: RefObject<HTMLElement | null>;
+  /** Actions rendered in the header, to the left of the close button. */
+  headerActions?: ReactNode;
   children: ReactNode;
 };
 
@@ -48,6 +50,7 @@ export const Dialog = ({
   layered = false,
   className,
   initialFocusRef,
+  headerActions,
   children,
 }: DialogProps) => {
   const titleId = useId();
@@ -151,14 +154,17 @@ export const Dialog = ({
           <h2 id={titleId} className="text-sm font-semibold">
             {title}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
+          <div className="flex items-center gap-1">
+            {headerActions}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
         {children}
       </div>

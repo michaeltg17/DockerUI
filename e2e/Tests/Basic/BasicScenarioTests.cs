@@ -164,6 +164,40 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Logs_dialog_refresh_button_sits_left_of_close_and_rereads_the_logs()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "View logs").ClickAsync();
+        var dialog = apps.LogsDialog("Docker UI logs");
+        await dialog.WaitForAsync();
+        await dialog
+            .GetByText("Now listening on")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // Both buttons live in the dialog header; the refresh one is to the left of close.
+        var refresh = dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Refresh", Exact = true });
+        var refreshBox = await refresh.BoundingBoxAsync();
+        var closeBox = await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Close", Exact = true })
+            .BoundingBoxAsync();
+        refreshBox.Should().NotBeNull();
+        closeBox.Should().NotBeNull();
+        refreshBox!.Y.Should().Be(closeBox!.Y, "because both sit in the dialog header");
+        refreshBox.X.Should().BeLessThan(closeBox.X, "because the refresh button is to the left of the close button");
+
+        // Re-reading the logs while the dialog is open succeeds and keeps showing them.
+        await refresh.ClickAsync();
+        await dialog
+            .GetByText("Now listening on")
+            .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
     public async Task Context_menu_shows_the_stack_logs()
     {
         await using var context = await browser.NewContextAsync(environment);

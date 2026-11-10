@@ -155,9 +155,8 @@ namespace Api.Features.Apps
                 if (!Uri.TryCreate(shortcut.Url, UriKind.Absolute, out var url))
                     continue;
 
-                // The backfill above already decided a hue for every entry, so the fallback
-                // is dead code — it keeps the non-nullable type honest (and the hue
-                // process-stable) if a null ever raced in.
+                // The backfill above already decided a hue for every entry, so the color is
+                // guaranteed non-null here.
                 var app = new AppDto(
                     shortcut.Name,
                     shortcut.DisplayName ?? shortcut.Name,
@@ -166,7 +165,7 @@ namespace Api.Features.Apps
                     url,
                     [],
                     shortcut.Source == ShortcutSource.Lan ? AppSource.Lan : AppSource.Shortcut,
-                    shortcut.Color ?? DecideIconHue(shortcutScope, shortcut.Name));
+                    shortcut.Color!.Value);
 
                 (shortcut.Hidden ? hidden : visible).Add(app);
             }

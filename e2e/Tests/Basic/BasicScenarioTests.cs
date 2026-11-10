@@ -203,14 +203,16 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await using var context = await browser.NewContextAsync(environment);
         var page = await context.NewPageAsync();
 
-        // A short viewport so the dashboard page itself has a scrollbar behind the dialog.
-        await page.SetViewportSizeAsync(1280, 400);
+        // A short viewport so the apps panel behind the dialog has to scroll.
+        await page.SetViewportSizeAsync(1280, 200);
         var apps = new AppsPage(page);
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
 
-        (await page.EvaluateAsync<long>("document.documentElement.scrollHeight")).Should()
-            .BeGreaterThan(400, "because the test needs a scrollable page behind the dialog");
+        // The apps panel (not the window) is the page's scroll container.
+        var panel = page.Locator("main");
+        (await panel.EvaluateAsync<long>("element => element.scrollHeight - element.clientHeight")).Should()
+            .BeGreaterThan(0, "because the test needs a scrollable panel behind the dialog");
 
         // The icon picker is a dialog with its own tall scrollbar.
         await apps.OpenEditDialogAsync("web-stack");
@@ -224,25 +226,53 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var pickerBox = await picker.BoundingBoxAsync();
         pickerBox.Should().NotBeNull();
 
-        // With the mouse outside the dialog (on the backdrop), the page behind still scrolls.
-        await page.Mouse.MoveAsync(30, 200);
-        var scrollYBeforeBackdropWheel = await page.EvaluateAsync<long>("window.scrollY");
-        await page.Mouse.WheelAsync(0, 400);
-        (await page.EvaluateAsync<long>("window.scrollY")).Should()
-            .BeGreaterThan(scrollYBeforeBackdropWheel, "because the mouse is outside the dialog");
-
         // Max the picker's scrollbar, then wheel with the mouse inside it: the
-        // dialog's scroll must not chain to the page.
+        // dialog's scroll must not chain to the panel behind.
         var grid = picker.Locator(".grid.overflow-auto");
         await grid.EvaluateAsync("element => { element.scrollTop = element.scrollHeight; }");
-        var gridCenterX = (float)(pickerBox!.X + (pickerBox!.Width / 2));
-        var gridCenterY = (float)(pickerBox!.Y + (pickerBox!.Height * 0.75));
-        await page.Mouse.MoveAsync(gridCenterX, gridCenterY);
-        var scrollYBefore = await page.EvaluateAsync<long>("window.scrollY");
+        var wheelX = (float)(pickerBox!.X + (pickerBox!.Width / 2));
+        var wheelY = (float)(pickerBox!.Y + (pickerBox!.Height * 0.75));
+        await page.Mouse.MoveAsync(wheelX, wheelY);
+        var panelScrollBefore = await panel.EvaluateAsync<long>("element => element.scrollTop");
         await page.Mouse.WheelAsync(0, 400);
         await page.Mouse.WheelAsync(0, 400);
-        (await page.EvaluateAsync<long>("window.scrollY")).Should()
-            .Be(scrollYBefore, "because the dialog's scrollbar is maxed and its scroll must not chain to the page");
+        (await panel.EvaluateAsync<long>("element => element.scrollTop")).Should()
+            .Be(panelScrollBefore, "because the dialog's scrollbar is maxed and its scroll must not chain to the page");
+    }
+
+    [Fact]
+    public async Task The_apps_panel_scrollbar_sits_inside_the_panel_and_only_appears_on_overflow()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var page = await context.NewPageAsync();
+
+        // Wide enough that the centered panel is narrower than the window (so a
+        // window-edge scrollbar would be visible), short enough that the apps
+        // overflow the panel.
+        const int windowWidth = 1400;
+        const int windowHeight = 200;
+        await page.SetViewportSizeAsync(windowWidth, windowHeight);
+        var apps = new AppsPage(page);
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var panel = page.Locator("main");
+        var panelBox = await panel.BoundingBoxAsync();
+        panelBox.Should().NotBeNull();
+        panelBox!.X.Should().BeGreaterThan(0, "because the panel is centered in the wider window");
+        (panelBox.X + panelBox.Width).Should()
+            .BeLessThan(windowWidth, "because the panel is narrower than the window, so its scrollbar sits inside it");
+
+        // The panel, not the page, is the scroll container: it overflows at this
+        // height while the document itself never does.
+        (await panel.EvaluateAsync<long>("element => element.scrollHeight - element.clientHeight")).Should()
+            .BeGreaterThan(0, "because the apps overflow the short panel");
+        (await page.EvaluateAsync<long>("() => document.documentElement.scrollHeight - document.documentElement.clientHeight")).Should()
+            .Be(0, "because the page itself must not scroll");
+
+        // The scrollbar only appears when the panel overflows (auto, not scroll).
+        (await panel.EvaluateAsync<string>("element => getComputedStyle(element).overflowY")).Should()
+            .Be("auto", "because the scrollbar must only appear when a row of apps doesn't fit");
     }
 
     [Fact]

@@ -72,7 +72,9 @@ export const AppsPage = () => {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    // The shell is exactly viewport-height: the header stays pinned and the
+    // apps panel below it scrolls, so the page itself never gets a scrollbar.
+    <div className="flex h-screen flex-col bg-background">
       <Helmet>
         <title>{settings?.name}</title>
         <meta
@@ -133,8 +135,9 @@ export const AppsPage = () => {
 
       <DashboardMenu
         // The whole area below the header (cards, gaps, and empty space)
-        // is the dashboard menu's trigger zone.
-        className="flex-1"
+        // is the dashboard menu's trigger zone. min-h-0 lets it shrink to the
+        // remaining viewport height so the panel inside can scroll on its own.
+        className="min-h-0 flex-1"
         onAddShortcut={() => setShortcutOpen(true)}
         onScanLan={runScanLan}
         isScanningLan={scanLan.isPending}
@@ -145,8 +148,11 @@ export const AppsPage = () => {
         onRemovePassword={() => setRemovePasswordOpen(true)}
       >
         <main
+          // The panel is the apps area's scroll container: its scrollbar sits
+          // at the panel's own right edge (inside the centered max-width) and
+          // only appears when a row of apps doesn't fit the screen.
           className={cn(
-            'mx-auto max-w-7xl px-6 py-8',
+            'mx-auto h-full max-w-7xl overflow-y-auto px-6 py-8',
             // The content fades in once the apps finish loading, so the page
             // settles gently instead of popping in.
             !isPending && 'animate-fade-in',

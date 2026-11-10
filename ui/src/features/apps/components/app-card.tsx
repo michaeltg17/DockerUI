@@ -330,6 +330,12 @@ export const AppCard = ({
                   isDimmed && 'brightness-50',
                 )}
               />
+              {isNew && (
+                // Centered on the icon's top edge: half the tag inside, half outside.
+                <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-primary-foreground">
+                  New
+                </span>
+              )}
               {(app.state === 'stopped' || problem !== null) && (
                 <span
                   role="button"
@@ -389,16 +395,9 @@ export const AppCard = ({
               )}
             </div>
 
-            <div className="flex max-w-full items-center gap-1.5">
-              <h3 className="min-w-0 truncate text-sm font-medium">
-                {app.displayName}
-              </h3>
-              {isNew && (
-                <span className="shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-primary-foreground">
-                  New
-                </span>
-              )}
-            </div>
+            <h3 className="min-w-0 max-w-full truncate text-sm font-medium">
+              {app.displayName}
+            </h3>
           </button>
         </AppMenu>
         {isDragging && <DropIndicator />}

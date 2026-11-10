@@ -13,6 +13,10 @@ module.exports = {
       },
     },
     extend: {
+      screens: {
+        // Between the default 'sm' and a phone: the app grid drops to one column.
+        xs: '480px',
+      },
       fontFamily: {
         sans: ['Inter var', ...defaultTheme.fontFamily.sans],
       },

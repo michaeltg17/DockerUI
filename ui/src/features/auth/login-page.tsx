@@ -70,7 +70,7 @@ export const LoginPage = () => {
               setPassword(event.target.value);
               setError(null);
             }}
-            className="w-full"
+            className="w-full border-muted-foreground"
           />
 
           <div className="flex flex-col gap-2 pt-1">

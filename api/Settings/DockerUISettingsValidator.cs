@@ -91,6 +91,12 @@ namespace Api.Settings
 
                 if (auth.SessionLifetimeDays is < 1 or > AuthSettings.MaximumSessionLifetimeDays)
                     validationErrors.Add($"The '{nameof(DockerUISettings.Auth)}:{nameof(AuthSettings.SessionLifetimeDays)}' setting must be between 1 and {AuthSettings.MaximumSessionLifetimeDays}");
+
+                if (auth.MaxLoginAttemptsPerWindow < 1)
+                    validationErrors.Add($"The '{nameof(DockerUISettings.Auth)}:{nameof(AuthSettings.MaxLoginAttemptsPerWindow)}' setting must be at least 1");
+
+                if (auth.LoginRateLimitWindowMinutes < 1)
+                    validationErrors.Add($"The '{nameof(DockerUISettings.Auth)}:{nameof(AuthSettings.LoginRateLimitWindowMinutes)}' setting must be at least 1");
             }
 
             return validationErrors.Count > 0 ? ValidateOptionsResult.Fail(validationErrors) : ValidateOptionsResult.Success;

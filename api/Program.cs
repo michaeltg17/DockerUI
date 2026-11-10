@@ -2,7 +2,6 @@
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
 using Api.Features.Auth;
-using Api.Features.Auth.Endpoints;
 using Api.Features.Health;
 using Api.Features.Lan;
 using Api.Features.Settings;
@@ -11,13 +10,13 @@ using Api.Settings;
 using Api.Setup;
 using Docker.DotNet;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using Serilog;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.RateLimiting;
 
 namespace Api;
 
@@ -25,12 +24,6 @@ internal static class Program
 {
     /// <summary>The dashboard's authentication cookie name.</summary>
     const string AuthCookieName = "dockerui.auth";
-
-    /// <summary>Sign-in attempts a client may make per window before the login route answers 429.</summary>
-    const int MaxLoginAttemptsPerWindow = 20;
-
-    /// <summary>The window <see cref="MaxLoginAttemptsPerWindow"/> applies to.</summary>
-    const int LoginRateLimitWindowMinutes = 5;
 
     public static void Main(string[] args)
     {
@@ -199,28 +192,10 @@ internal static class Program
         services.AddSingleton<AuthService>();
 
         // A password-only login is a brute-force target, so the sign-in route caps
-        // attempts per client; every other endpoint stays unlimited.
-        services.AddRateLimiter(options =>
-        {
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.OnRejected = async (context, _) =>
-            {
-                await Results.Problem(
-                        title: "Too many requests",
-                        detail: "Too many sign-in attempts; try again later.",
-                        statusCode: StatusCodes.Status429TooManyRequests)
-                    .ExecuteAsync(context.HttpContext);
-            };
-
-            options.AddPolicy(LoginEndpoint.RateLimitPolicy, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = MaxLoginAttemptsPerWindow,
-                        Window = TimeSpan.FromMinutes(LoginRateLimitWindowMinutes),
-                    }));
-        });
+        // attempts per client; every other endpoint stays unlimited. The policy reads
+        // its limits from the hot-reloaded auth settings at request time.
+        services.AddRateLimiter();
+        services.AddSingleton<IConfigureOptions<RateLimiterOptions>, LoginRateLimiterPolicy>();
 
         return services;
     }

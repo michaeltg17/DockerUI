@@ -1,10 +1,12 @@
 ﻿using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Text.Json;
 using Api.Exceptions;
 using Api.Extensions;
+using Api.Settings;
 
 namespace Api.Setup
 {
@@ -41,12 +43,21 @@ namespace Api.Setup
             var isInternalServerError = httpContext.Response.StatusCode == (int)HttpStatusCode.InternalServerError;
             var isDevelopment = httpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
 
+            // Details are always shown in development; in every other environment the
+            // hot-reloaded 'DockerUI:ShowInternalServerErrorDetails' setting decides
+            // (defaults to shown, so the UI's error notification carries the real message).
+            var showDetails = isDevelopment ||
+                httpContext.RequestServices
+                    .GetRequiredService<IOptionsMonitor<DockerUISettings>>()
+                    .CurrentValue.ShowInternalServerErrorDetails;
+            var hideErrorDetails = isInternalServerError && !showDetails;
+
             var detail = exception switch
             {
                 BadHttpRequestException { InnerException: JsonException jsonEx } =>
                     string.JoinNonEmpty(exception.Message, jsonEx.Message, jsonEx.InnerException?.Message),
                 BadHttpRequestException => exception.Message,
-                _ when isInternalServerError && !isDevelopment => "Internal server error. Please contact the API support.",
+                _ when hideErrorDetails => "Internal server error. Please contact the API support.",
                 _ => exception.Message
             };
 
@@ -61,7 +72,7 @@ namespace Api.Setup
             var problemDetails = new ProblemDetails
             {
                 Type = typeUri,
-                Title = isInternalServerError && !isDevelopment
+                Title = hideErrorDetails
                     ? "InternalServerError"
                     : exception.GetType().GetNameWithoutGenericArity(),
                 Detail = detail,
@@ -70,12 +81,12 @@ namespace Api.Setup
                 Extensions = new Dictionary<string, object?>()
             };
 
-            if (isInternalServerError && isDevelopment)
+            if (isInternalServerError && showDetails)
                 problemDetails.Extensions["exception"] = exception.ToString();
 
             return new ProblemDetailsContext
             {
-                Exception = isInternalServerError && !isDevelopment ? null : exception,
+                Exception = hideErrorDetails ? null : exception,
                 HttpContext = httpContext,
                 ProblemDetails = problemDetails
             };

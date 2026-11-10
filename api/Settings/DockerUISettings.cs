@@ -29,6 +29,13 @@ namespace Api.Settings
         /// </summary>
         public string? BaseUrl { get; set; }
 
+        /// <summary>
+        /// Whether 500 responses include the exception's details (its message and type)
+        /// instead of a generic message. Defaults to true; set it to false to keep
+        /// internal details out of non-development responses.
+        /// </summary>
+        public bool ShowInternalServerErrorDetails { get; set; } = true;
+
         /// <summary>Image-to-icon mappings that extend or override the built-in catalog.</summary>
         public IReadOnlyCollection<AppIconMapping>? Icons { get; set; }
 

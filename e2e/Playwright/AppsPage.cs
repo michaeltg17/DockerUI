@@ -210,9 +210,15 @@ public sealed class AppsPage(IPage page)
         }
     }
 
-    /// <summary>Right-clicks the given app's card and returns the context menu.</summary>
+    /// <summary>
+    /// Right-clicks the given app's card and returns the context menu. The card is first scrolled
+    /// to the top of the apps panel: the menu closes on any panel scroll, so the right-click must
+    /// not have to scroll the card into view, and while the panel is scrolled a reflow can fire a
+    /// scroll event that closes the menu before an item is clicked.
+    /// </summary>
     public async Task<ILocator> OpenCardMenuAsync(string appName)
     {
+        await Card(appName).EvaluateAsync("element => element.scrollIntoView({ block: 'start' });");
         await Card(appName).ClickAsync(new LocatorClickOptions { Button = MouseButton.Right });
         return Page.GetByRole(AriaRole.Menu, new PageGetByRoleOptions { Name = $"Actions for {appName}", Exact = true });
     }

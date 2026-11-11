@@ -810,7 +810,10 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await restore
             .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
             .ClickAsync();
-        await restore
+        // The picker is a layered dialog portaled to the page body, so the icon is
+        // located through it rather than the edit dialog it was opened from.
+        var restorePicker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await restorePicker
             .Locator($"img[src=\"{resolvedIcon}\"]")
             .ClickAsync();
         await AppsPage.SaveEditAsync(restore);

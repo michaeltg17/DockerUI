@@ -233,6 +233,20 @@ internal sealed class SettingsStore(AppSettingsStore store)
             return PruneAppEntry(section, appName);
         });
 
+    /// <summary>Saves the subnet a LAN scan used in the 'DockerUI:Lan:Subnet' setting.</summary>
+    public void SaveLanSubnet(string subnet)
+        => store.UpdateSection(section =>
+        {
+            var lan = section[nameof(DockerUISettings.Lan)] as JsonObject ?? [];
+            section[nameof(DockerUISettings.Lan)] = lan;
+
+            if (lan[nameof(LanSettings.Subnet)]?.GetValue<string>() == subnet)
+                return false;
+
+            lan[nameof(LanSettings.Subnet)] = subnet;
+            return true;
+        });
+
     static JsonObject GetAppEntry(JsonObject section, string appName)
     {
         var apps = section[nameof(DockerUISettings.Apps)] as JsonObject ?? [];

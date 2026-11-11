@@ -504,22 +504,33 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
-    public async Task Lan_scan_in_a_container_without_subnet_config_finds_nothing()
+    public async Task Lan_scan_without_a_saved_subnet_scans_the_default_and_saves_it()
     {
         await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
 
+        // The scenario sets no 'DockerUI:Lan:Subnet', so the scan dialog's field is left
+        // empty (or pre-filled with a previous run's scan, which saved the same value):
+        // the scan runs over the default subnet.
         await apps.ScanLanAsync();
 
-        // The dashboard runs in a container and the scenario sets no 'DockerUI:Lan:Subnet',
-        // so the subnet scan is skipped (the bridge is not the user's LAN; its other
-        // containers and the host gateway would otherwise be found) and the scenario's
-        // bridge advertises no mDNS services: the scan must find nothing.
         await apps.ScanCompleteNotification
-            .GetByText("Found 0 services and added 0 new.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // The effective subnet is saved, so the next scan (and the dialog's prefill) uses it.
+        using var client = new HttpClient();
+        var settingsJson = await client.GetStringAsync(
+            new Uri(environment.BaseUrl, "api/settings"),
+            TestContext.Current.CancellationToken);
+
+        using var document = JsonDocument.Parse(settingsJson);
+        document.RootElement
+            .GetProperty("lan")
+            .GetProperty("subnet")
+            .GetString()
+            .Should().Be("192.168.1.0/24", "because the scanned subnet is saved for the next scan");
     }
 
     [Fact]
@@ -709,6 +720,10 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
 
+        // Remember the icon the app starts with so the restore below leaves it exactly as
+        // found: 'None' in the picker pins an explicit no-icon override, it does not clear one.
+        var originalIcon = await GetAppIconAsync("web-stack", TestContext.Current.CancellationToken);
+
         // Change the display name, icon, and url from the app's own menu.
         await apps.OpenEditDialogAsync("web-stack");
         var dialog = apps.EditAppDialog("web-stack");
@@ -746,7 +761,10 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
             .ClickAsync();
         var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
-        await picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true }).ClickAsync();
+        if (originalIcon is null)
+            await picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true }).ClickAsync();
+        else
+            await picker.Locator($"img[src=\"{originalIcon}\"]").ClickAsync();
         await restore
             .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
             .FillAsync("");

@@ -12,6 +12,7 @@ import { getLogs } from './api/get-logs';
 import { AppsGrid } from './components/apps-grid';
 import { DashboardMenu } from './components/dashboard-menu';
 import { HiddenAppsDialog } from './components/hidden-apps-dialog';
+import { LanScanDialog } from './components/lan-scan-dialog';
 import { LogsDialog } from './components/logs-dialog';
 import { RenameDialog } from './components/rename-dialog';
 import { ShortcutDialog } from './components/shortcut-dialog';
@@ -31,6 +32,7 @@ export const AppsPage = () => {
   const [shortcutOpen, setShortcutOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [hiddenAppsOpen, setHiddenAppsOpen] = useState(false);
+  const [lanScanOpen, setLanScanOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [removePasswordOpen, setRemovePasswordOpen] = useState(false);
 
@@ -38,7 +40,7 @@ export const AppsPage = () => {
 
   const scanLan = useScanLan();
 
-  const runScanLan = () => {
+  const runScanLan = (subnet: string) => {
     // A LAN scan can take a while, so show a persistent notification with a
     // spinner while it runs and update it in place once the result arrives.
     const pendingId = useNotifications.getState().addNotification({
@@ -49,7 +51,7 @@ export const AppsPage = () => {
     });
 
     void scanLan
-      .mutateAsync()
+      .mutateAsync(subnet)
       .then((result) => {
         useNotifications.getState().updateNotification(pendingId, {
           type: 'success',
@@ -122,6 +124,12 @@ export const AppsPage = () => {
         onClose={() => setHiddenAppsOpen(false)}
       />
 
+      <LanScanDialog
+        open={lanScanOpen}
+        onScan={runScanLan}
+        onClose={() => setLanScanOpen(false)}
+      />
+
       <PasswordDialog
         open={passwordOpen}
         onClose={() => setPasswordOpen(false)}
@@ -138,7 +146,7 @@ export const AppsPage = () => {
         // remaining viewport height so the panel inside can scroll on its own.
         className="min-h-0 flex-1"
         onAddShortcut={() => setShortcutOpen(true)}
-        onScanLan={runScanLan}
+        onScanLan={() => setLanScanOpen(true)}
         isScanningLan={scanLan.isPending}
         onViewLogs={() => setLogsOpen(true)}
         onRename={() => setRenameOpen(true)}

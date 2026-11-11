@@ -1,7 +1,9 @@
+using System.Net;
 using Api.Domain;
 using Api.Exceptions;
 using Api.Features.Apps;
 using Api.Features.Lan.Models;
+using Api.Features.Settings;
 using Api.Features.Shortcuts;
 using Api.Settings;
 using Microsoft.Extensions.Options;
@@ -19,11 +21,28 @@ namespace Api.Features.Lan
         LanEnricher enricher,
         AppService appService,
         ShortcutService shortcuts,
+        SettingsStore settingsStore,
         IOptionsMonitor<DockerUISettings> settings)
     {
-        public async Task<LanScanResult> ScanAndAddAsync(CancellationToken cancellationToken)
+        /// <summary>The most common home LAN, scanned when the request carries no subnet.</summary>
+        const string DefaultSubnet = "192.168.1.0/24";
+
+        public async Task<LanScanResult> ScanAndAddAsync(string? subnet, CancellationToken cancellationToken)
         {
-            var lanSettings = settings.CurrentValue.Lan ?? new LanSettings();
+            // The dialog sends the subnet it scanned (the saved one, a user-edited one, or
+            // the default when left empty). The effective value is saved, so the setting —
+            // and the dialog's next prefill — show what the user actually used.
+            var effectiveSubnet = string.IsNullOrWhiteSpace(subnet) ? DefaultSubnet : subnet.Trim();
+
+            if (!IPNetwork.TryParse(effectiveSubnet, out _))
+                throw new BadHttpRequestException($"The subnet '{effectiveSubnet}' is not a valid CIDR range, e.g. '{DefaultSubnet}'.");
+
+            settingsStore.SaveLanSubnet(effectiveSubnet);
+
+            // The scan uses the effective subnet explicitly: the save's configuration
+            // reload may not be visible through the monitor yet, and the scan must not
+            // wait for it.
+            var lanSettings = (settings.CurrentValue.Lan ?? new LanSettings()) with { Subnet = effectiveSubnet };
             var findings = await scanner.ScanAsync(lanSettings, cancellationToken);
             var dockerAddresses = await appService.GetDockerReachableAddressesAsync(cancellationToken);
 

@@ -55,6 +55,14 @@ namespace Api.Settings
         public IReadOnlyCollection<string>? Order { get; set; }
 
         /// <summary>
+        /// The docker app names the dashboard has observed so far: the baseline that
+        /// separates apps that were already there from ones detected later, which the
+        /// dashboard tags 'new' until the first interaction with them. Managed by the
+        /// app list, not by the user; its absence is the dashboard's first observation.
+        /// </summary>
+        public IReadOnlyCollection<string>? KnownApps { get; set; }
+
+        /// <summary>
         /// Services split out of a compose stack, keyed by project name. Each listed
         /// service is shown as its own card named 'project-service'; the stack card
         /// covers the remaining services. Persisted by the split/join endpoints.

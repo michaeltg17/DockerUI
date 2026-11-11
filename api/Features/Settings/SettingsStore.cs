@@ -180,6 +180,59 @@ internal sealed class SettingsStore(AppSettingsStore store)
             return changed;
         });
 
+    /// <summary>
+    /// Updates the observed-apps baseline ('DockerUI:KnownApps') with the names the app
+    /// list just built: the first observation writes the whole baseline without tagging
+    /// anything, and a later observation appends the names it has not seen before and
+    /// flags them 'new' until the first interaction clears the flag. Does nothing when
+    /// every name is already observed, so a steady state never rewrites the settings file.
+    /// </summary>
+    public void SaveAppNewness(IReadOnlyCollection<string> names)
+        => store.UpdateSection(section =>
+        {
+            if (section[nameof(DockerUISettings.KnownApps)] is not JsonArray knownApps)
+            {
+                // The first observation is the baseline: everything observed now was
+                // already there, so nothing is tagged.
+                section[nameof(DockerUISettings.KnownApps)] = new JsonArray([.. names.Select(name => (JsonNode)name)]);
+                return true;
+            }
+
+            var newNames = names
+                .Where(name => !knownApps.Select(node => node?.GetValue<string>()).Contains(name, StringComparer.Ordinal))
+                .ToList();
+
+            if (newNames.Count == 0)
+                return false;
+
+            foreach (var name in newNames)
+            {
+                knownApps.Add((JsonNode)name);
+                GetAppEntry(section, name)[nameof(AppUserSettings.New)] = true;
+            }
+
+            return true;
+        });
+
+    /// <summary>
+    /// Clears the 'new' flag of the given app once the user interacts with its card. The
+    /// flag defaults to false, so only the non-default value is persisted and the key is
+    /// removed again (with the app entry when it becomes empty).
+    /// </summary>
+    public void SaveAppSeen(string appName)
+        => store.UpdateSection(section =>
+        {
+            if (section[nameof(DockerUISettings.Apps)] is not JsonObject apps ||
+                apps[appName] is not JsonObject entry)
+                return false;
+
+            if (entry[nameof(AppUserSettings.New)]?.GetValue<bool>() != true)
+                return false;
+
+            entry.Remove(nameof(AppUserSettings.New));
+            return PruneAppEntry(section, appName);
+        });
+
     static JsonObject GetAppEntry(JsonObject section, string appName)
     {
         var apps = section[nameof(DockerUISettings.Apps)] as JsonObject ?? [];

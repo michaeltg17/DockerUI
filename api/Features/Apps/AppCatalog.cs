@@ -329,6 +329,13 @@ namespace Api.Features.Apps
 
             var displayName = !string.IsNullOrWhiteSpace(perApp?.Name) ? perApp.Name : lookupName;
 
+            // The 'new' tag: an app outside the observed-apps baseline was detected after
+            // the dashboard's first observation; one inside it stays tagged only while its
+            // settings carry the flag (set on detection, cleared on the first interaction).
+            // An absent baseline is the dashboard's first observation, which tags nothing.
+            var isNew = (perApp?.New ?? false) ||
+                (settings?.KnownApps is { } knownApps && !knownApps.Contains(name));
+
             // In a multi-container app the service name prefixes each problem so it is
             // clear which service is failing.
             var problems = containers
@@ -355,6 +362,7 @@ namespace Api.Features.Apps
                 services,
                 AppSource.Docker,
                 perApp?.Color ?? missingColorHue(name),
+                IsNew: isNew,
                 Problem: problem,
                 SplitFrom: splitFrom)
             {

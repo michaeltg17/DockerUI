@@ -72,6 +72,15 @@ namespace Api.Settings
                 }
             }
 
+            if (settings.KnownApps is { } knownApps)
+            {
+                foreach (var appName in knownApps)
+                {
+                    if (string.IsNullOrWhiteSpace(appName))
+                        validationErrors.Add($"The '{nameof(DockerUISettings.KnownApps)}' list must not contain empty app names");
+                }
+            }
+
             if (settings.Shortcuts is { } shortcuts)
             {
                 foreach (var shortcut in shortcuts)

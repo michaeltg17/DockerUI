@@ -91,6 +91,12 @@ export const AppCard = ({
   const isBusy = isStarting || isStopping || isRestarting;
   const problem = app.problem;
 
+  // The first interaction clears the 'new' tag server-side; report it only while
+  // the flag is set, so the card stops posting once the fresh list has landed.
+  const reportInteraction = () => {
+    if (isNew) onInteract();
+  };
+
   // As soon as a stop (or restart) is initiated the app is already treated
   // as not running, so the icon darkens immediately — before the daemon
   // reports the new state. A running app with a problem (crash-looping,
@@ -105,7 +111,7 @@ export const AppCard = ({
   // card listens to both and opens the app in a new tab either way.
   const openUrl = (event: MouseEvent) => {
     if (event.button !== 0 && event.button !== 1) return;
-    if (app.source === 'docker') onInteract();
+    if (app.source === 'docker') reportInteraction();
     if (app.url) {
       window.open(app.url, '_blank', 'noopener,noreferrer');
     }
@@ -247,7 +253,7 @@ export const AppCard = ({
       ...item,
       onSelect: onSelect
         ? () => {
-            onInteract();
+            reportInteraction();
             onSelect();
           }
         : undefined,
@@ -343,14 +349,14 @@ export const AppCard = ({
                   aria-label={`Start ${app.name}`}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onInteract();
+                    reportInteraction();
                     void startApp.mutate(app.name);
                   }}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return;
                     event.preventDefault();
                     event.stopPropagation();
-                    onInteract();
+                    reportInteraction();
                     void startApp.mutate(app.name);
                   }}
                   className="absolute inset-0 flex cursor-pointer items-center justify-center"

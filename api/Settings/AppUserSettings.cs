@@ -22,6 +22,13 @@ namespace Api.Settings
 
         /// <summary>Random icon hue decided when the app was first seen; never changes afterwards.</summary>
         public int? Color { get; set; }
+
+        /// <summary>
+        /// Whether the app is still tagged 'new': detected after the dashboard's first
+        /// observation and not yet interacted with. Managed by the app list and cleared by
+        /// the first interaction; defaults to false.
+        /// </summary>
+        public bool New { get; set; }
     }
 #pragma warning restore CA1056
 }

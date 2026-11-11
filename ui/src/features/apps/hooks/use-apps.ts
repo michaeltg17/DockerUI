@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { restartApp, startApp, stopApp } from '../api/app-actions';
+import { markAppSeen } from '../api/app-new';
 import { setAppSettings, type AppSettings } from '../api/app-settings';
 import { joinApp, splitApp } from '../api/app-splits';
 import { getHiddenApps, setAppVisibility } from '../api/app-visibility';
@@ -54,6 +55,18 @@ export const useSetAppVisibility = () => {
       // gives immediate, authoritative feedback in the grid and the hidden-apps dialog.
       void queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: HIDDEN_APPS_QUERY_KEY });
+    },
+  });
+};
+
+export const useMarkAppSeen = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: markAppSeen,
+    onSuccess: () => {
+      // The 'new' tag is cleared server-side; refetching makes the card drop it.
+      void queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
     },
   });
 };

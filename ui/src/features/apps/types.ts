@@ -29,6 +29,13 @@ export interface App {
    */
   color: number;
   /**
+   * Whether the docker app is still tagged 'new': detected after the dashboard's
+   * first observation and not yet interacted with. Persisted server-side and
+   * cleared by the first interaction with the card; always false for shortcuts
+   * and lan apps.
+   */
+  isNew: boolean;
+  /**
    * The human-readable problem the app is in (crashed, crash-looping, unhealthy,
    * ...), shown as a badge on the card. Null when healthy; always null for
    * shortcuts and lan apps.

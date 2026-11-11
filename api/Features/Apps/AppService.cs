@@ -41,10 +41,14 @@ namespace Api.Features.Apps
         {
             var settings = settingsStore.Current;
             var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            var (visible, _) = AppCatalog
+            var (visible, hidden) = AppCatalog
                 .BuildApps(logger, snapshots, name => DecideIconHue(nameof(AppSource.Docker), name), iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
             var apps = visible.ToList();
+
+            // The baseline and the 'new' flags cover hidden apps too: the dashboard
+            // observes them even though the dashboard card list does not show them.
             PersistAppColors(apps);
+            PersistAppNewness(apps.Concat(hidden));
 
             var (shortcutApps, _) = BuildShortcutApps();
             apps.AddRange(shortcutApps);
@@ -216,6 +220,34 @@ namespace Api.Features.Apps
             storedApps is not null &&
             storedApps.TryGetValue(name, out var stored) &&
             stored.Color is not null;
+
+        /// <summary>
+        /// Makes the 'new' observation durable: the first app list build writes the baseline
+        /// of every app it sees (so none of them is tagged), and every later build appends
+        /// the names it has not seen before, tagging them 'new' until the first interaction
+        /// clears the flag. Runs on every build (the monitor polls constantly), so a steady
+        /// state must be a no-op, and a transient save failure must not break the app list:
+        /// an unpersisted observation is simply persisted again on the next build.
+        /// </summary>
+        void PersistAppNewness(IEnumerable<AppDto> apps)
+        {
+            var names = apps
+                .Where(app => app.Source == AppSource.Docker)
+                .Select(app => app.Name)
+                .ToList();
+
+            if (names.Count == 0)
+                return;
+
+            try
+            {
+                settingsStore.SaveAppNewness(names);
+            }
+            catch (IOException)
+            {
+                LogAppNewnessNotPersisted(logger);
+            }
+        }
 
         /// <summary>
         /// The hue for an app without a stored hue yet: one decided earlier in this process
@@ -433,5 +465,10 @@ namespace Api.Features.Apps
             Level = LogLevel.Warning,
             Message = "The icon hues could not be persisted (unexpected now that boot verified the settings file is writable); they stay stable for this process only.")]
         static partial void LogIconHuesNotPersisted(ILogger logger);
+
+        [LoggerMessage(
+            Level = LogLevel.Warning,
+            Message = "The observed apps could not be persisted (unexpected now that boot verified the settings file is writable); the 'new' observation is persisted again on the next build.")]
+        static partial void LogAppNewnessNotPersisted(ILogger logger);
     }
 }

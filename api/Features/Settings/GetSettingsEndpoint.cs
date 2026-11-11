@@ -37,6 +37,7 @@ namespace Api.Features.Settings
                     Apps = current.Apps,
                     Shortcuts = current.Shortcuts,
                     Order = current.Order,
+                    KnownApps = current.KnownApps,
                     Lan = current.Lan,
                 });
             });

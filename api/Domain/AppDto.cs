@@ -29,6 +29,10 @@ namespace Api.Domain
         // Decided once (at first sight, or read from the settings) and never changes
         // afterwards; the API resolves a random hue before any app reaches the wire.
         int Color,
+        // Whether the docker app is still tagged 'new': detected after the dashboard's
+        // first observation and not yet interacted with (persisted in the settings).
+        // Always false for shortcuts and lan apps.
+        bool IsNew = false,
         // The human-readable problem the app is in (crashed, crash-looping, unhealthy, ...),
         // or null when healthy. Always null for shortcuts and lan apps.
         string? Problem = null,

@@ -28,7 +28,7 @@ through its socket.
   Each scenario under `e2e/scenarios` is its own DockerUI instance (own port,
   own `appsettings.json`) plus demo stacks; `Environments/` orchestrates the
   compose environments, `Playwright/` holds the browser fixture and the
-  `AppsPage` locators.
+  `AppsPage` locators (partials split by feature, one file per area).
 
 ## Conventions
 

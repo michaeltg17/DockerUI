@@ -90,12 +90,14 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
 - CI audits the dashboard with Lighthouse CI (`lighthouserc.cjs` at the repo
-  root; pinned `@lhci/cli` in `ci.sh`): after the e2e scenarios it brings up a
-  fresh basic scenario on :5010, asserts the category score thresholds
-  (throttled mobile profile; keep the thresholds just below the measured
-  baseline), and tears it down. A local run is
+  root; pinned `@lhci/cli` in `ci.sh`): after the e2e scenarios it brings up
+  the dedicated `lighthouse/` scenario on :5015 (its own compose project with
+  its own demo stacks), asserts the category score thresholds (throttled
+  mobile profile; keep the thresholds just below the measured baseline), and
+  tears it down. A local run is
   `npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs` with the
-  basic scenario up.
+  lighthouse scenario up (its `stacks/` plus
+  `docker compose -f lighthouse/docker-compose.yml up -d`).
 - The published image runs as a non-root `dockerui` user (uid/gid 1000,
   created explicitly in the Dockerfile's runtime stage). `/app` and the
   packaged `appsettings.json` are the only paths owned by uid 1000, because

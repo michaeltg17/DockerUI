@@ -37,7 +37,7 @@ echo "E2E: preparing scenario settings files for the non-root dashboard."
 # The dashboard container runs as uid 1000 and rewrites the rw-mounted scenario
 # appsettings.json in place; on the CI runner the checkout is owned by the
 # runner user, so hand the files to the runtime user.
-find e2e/scenarios -name appsettings.json -exec chown 1000:1000 {} +
+find e2e/scenarios lighthouse -name appsettings.json -exec chown 1000:1000 {} +
 
 echo
 echo "E2E: detecting the daemon socket's group."
@@ -54,27 +54,28 @@ echo "E2E: running scenarios (docker daemon required)."
 dotnet e2e/bin/Release/net10.0/E2E.dll
 
 echo
-echo "Lighthouse: bringing up the basic scenario."
+echo "Lighthouse: bringing up the lighthouse scenario."
 # The e2e suite tore down its scenarios, so the audit gets a fresh instance of
-# the basic scenario (dashboard + demo stacks) with real content on the page.
-for stack in e2e/scenarios/basic/stacks/*/; do
+# the lighthouse/ scenario (dashboard + demo stacks) with real content on the
+# page.
+for stack in lighthouse/stacks/*/; do
   docker compose -f "${stack}docker-compose.yml" up -d
 done
-docker compose -f e2e/scenarios/basic/docker-compose.yml up -d
+docker compose -f lighthouse/docker-compose.yml up -d
 
 echo
 echo "Lighthouse: waiting for the dashboard to become ready."
 ready=
 for _ in $(seq 1 60); do
-  if curl -fs http://127.0.0.1:5010/health/live > /dev/null 2>&1; then
+  if curl -fs http://127.0.0.1:5015/health/live > /dev/null 2>&1; then
     ready=1
     break
   fi
   sleep 2
 done
 if [ -z "${ready}" ]; then
-  docker compose -f e2e/scenarios/basic/docker-compose.yml logs
-  echo "Lighthouse: the basic scenario dashboard did not become ready" >&2
+  docker compose -f lighthouse/docker-compose.yml logs
+  echo "Lighthouse: the lighthouse scenario dashboard did not become ready" >&2
   exit 1
 fi
 
@@ -82,9 +83,9 @@ lighthouse_exit=0
 npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs || lighthouse_exit=$?
 
 echo
-echo "Lighthouse: tearing down the basic scenario."
-docker compose -f e2e/scenarios/basic/docker-compose.yml down --remove-orphans
-for stack in e2e/scenarios/basic/stacks/*/; do
+echo "Lighthouse: tearing down the lighthouse scenario."
+docker compose -f lighthouse/docker-compose.yml down --remove-orphans
+for stack in lighthouse/stacks/*/; do
   docker compose -f "${stack}docker-compose.yml" down --remove-orphans
 done
 

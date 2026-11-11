@@ -34,6 +34,22 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
     /// <summary>A wrong password.</summary>
     const string WrongPassword = "wrong-password-4321";
 
+    /// <summary>The reset dialog's intro: where the password is stored in the settings file.</summary>
+    const string ResetInstructionsIntro =
+        "The password is stored in the dashboard’s appsettings.json — in the AdminPasswordHash key of the DockerUI:Auth section.";
+
+    /// <summary>The reset dialog's first step: remove the password key from the settings section.</summary>
+    const string ResetInstructionsRemoveStep =
+        "Remove the AdminPasswordHash key from that section — or the whole section if it holds nothing else.";
+
+    /// <summary>The reset dialog's second step: save the file; the dashboard reloads it automatically.</summary>
+    const string ResetInstructionsSaveStep =
+        "Save the file. The dashboard watches it and reloads automatically, so no restart is needed.";
+
+    /// <summary>The reset dialog's closing note: the dashboard is open until a new password is set.</summary>
+    const string ResetInstructionsAftermath =
+        "The dashboard is then open to everyone who can reach it — set a new password from the dashboard menu any time.";
+
     [Fact]
     public async Task Setting_a_password_locks_the_dashboard_until_signing_in()
     {
@@ -253,11 +269,8 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
             var dialog = loginPage.PasswordResetDialog;
             await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-            // The instructions point at the settings file and name the key to remove.
-            var instructions = await dialog.InnerTextAsync();
-            instructions.Should().Contain("appsettings.json", "because the reset happens in the settings file");
-            instructions.Should().Contain("AdminPasswordHash", "because the instructions name the key to remove");
-            instructions.Should().Contain("DockerUI:Auth", "because the instructions name the section holding the key");
+            // A locked-out user recovers through the manual reset instructions.
+            await AssertResetDialogInstructionsAsync(dialog);
         }
         finally
         {
@@ -289,9 +302,7 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
             await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
             // The remove action explains the manual reset instead of acting in the UI.
-            var instructions = await dialog.InnerTextAsync();
-            instructions.Should().Contain("appsettings.json", "because the reset happens in the settings file");
-            instructions.Should().Contain("AdminPasswordHash", "because the instructions name the key to remove");
+            await AssertResetDialogInstructionsAsync(dialog);
         }
         finally
         {
@@ -375,6 +386,35 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
         {
             await EnsurePasswordRemovedAsync();
         }
+    }
+
+    /// <summary>
+    /// Asserts the reset dialog's exact instructions: the intro that names the settings file,
+    /// section and key holding the password, the two removal steps, and the closing note that
+    /// the dashboard is open to everyone again.
+    /// </summary>
+    static async Task AssertResetDialogInstructionsAsync(ILocator dialog)
+    {
+        var paragraphs = dialog.Locator("p");
+        (await paragraphs.Nth(0).InnerTextAsync())
+            .Should().Be(
+                ResetInstructionsIntro,
+                "because the dialog names the settings file, section and key holding the password");
+
+        var steps = dialog.GetByRole(AriaRole.Listitem);
+        (await steps.Nth(0).InnerTextAsync())
+            .Should().Be(
+                ResetInstructionsRemoveStep,
+                "because the first step removes the password key from the settings section");
+        (await steps.Nth(1).InnerTextAsync())
+            .Should().Be(
+                ResetInstructionsSaveStep,
+                "because the second step saves the file and relies on the dashboard's automatic reload");
+
+        (await paragraphs.Nth(1).InnerTextAsync())
+            .Should().Be(
+                ResetInstructionsAftermath,
+                "because the dialog ends with the dashboard being open to everyone again");
     }
 
     /// <summary>

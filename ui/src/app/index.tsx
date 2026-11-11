@@ -1,5 +1,7 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
+import { APPS_QUERY_KEY, getApps } from '@/features/apps';
 import { LoginPage, useAuth } from '@/features/auth';
 
 import { AppProvider } from './provider';
@@ -14,10 +16,23 @@ import { AppRouter } from './router';
 const AuthGate = () => {
   const state = useAuth((auth) => auth.state);
   const check = useAuth((auth) => auth.check);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     void check();
-  }, [check]);
+
+    // Overlaps the boot's two requests: the session check is one trivial
+    // round-trip, while the apps fetch is the real boot cost (a live daemon
+    // query) and does not depend on the check's outcome, so boot drops from
+    // check + fetch to the slower of the two. When signed out the prefetch
+    // 401s, which is expected and harmless: the error leaves no data behind,
+    // so the query is stale and the dashboard's own useApps refetches on
+    // mount once signed in.
+    void queryClient.prefetchQuery({
+      queryKey: APPS_QUERY_KEY,
+      queryFn: getApps,
+    });
+  }, [check, queryClient]);
 
   if (state === 'checking') {
     return null;

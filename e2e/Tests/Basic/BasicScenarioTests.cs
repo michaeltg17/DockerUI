@@ -797,6 +797,13 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await picker
             .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true })
             .ClickAsync();
+
+        // The url field starts from the app's displayed url (auto-resolved while no override
+        // is set) and a save pins whatever it holds, so clear it: this test must not leave a
+        // url override behind for the tests that run after it.
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("");
         await AppsPage.SaveEditAsync(dialog);
 
         // The card drops the image (falling back to its initials tile) and the API reports no icon.
@@ -816,6 +823,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await restorePicker
             .Locator($"img[src=\"{resolvedIcon}\"]")
             .ClickAsync();
+        await restore
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("");
         await AppsPage.SaveEditAsync(restore);
         await apps.CardIconImage("web-stack").WaitForAsync(
             new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = AppsPage.StateChangeTimeoutMs });

@@ -51,7 +51,7 @@ namespace Api.Features.Apps
 
         const string UnhealthySuffix = "(unhealthy)";
 
-        static readonly ushort[] PreferredWebPorts =
+        internal static readonly ushort[] PreferredWebPorts =
         [
             80, 8080, 3000, 8000, 5000, 8888, 9000, 9090, 5173, 4200, 443, 8443,
         ];
@@ -66,7 +66,6 @@ namespace Api.Features.Apps
             string? selfProject = null)
         {
             var apps = new List<AppDto>();
-            var liveIconCatalog = settings?.Icons is { Count: > 0 } icons ? new AppIconCatalog(icons, logger) : null;
 
             var groups = containers
                 .GroupBy(GetProject)
@@ -92,7 +91,6 @@ namespace Api.Features.Apps
                         PartName(projectName, service),
                         part,
                         iconCatalog,
-                        liveIconCatalog,
                         baseUrl,
                         settings,
                         logger,
@@ -106,7 +104,7 @@ namespace Api.Features.Apps
                     .ToList();
 
                 if (remaining.Count > 0)
-                    apps.Add(BuildApp(projectName, remaining, iconCatalog, liveIconCatalog, baseUrl, settings, logger, missingColorHue, splitServices: [.. splitServices]));
+                    apps.Add(BuildApp(projectName, remaining, iconCatalog, baseUrl, settings, logger, missingColorHue, splitServices: [.. splitServices]));
             }
 
             var standalone = groups.SingleOrDefault(group => group.Key is null);
@@ -114,13 +112,13 @@ namespace Api.Features.Apps
             {
                 foreach (var container in standalone)
                 {
-                    apps.Add(BuildApp(container.Name, [container], iconCatalog, liveIconCatalog, baseUrl, settings, logger, missingColorHue));
+                    apps.Add(BuildApp(container.Name, [container], iconCatalog, baseUrl, settings, logger, missingColorHue));
                 }
             }
 
-            var hidden = RemoveHidden(apps, settings, selfProject);
+            var (visible, hidden) = RemoveHidden(apps, settings, selfProject);
 
-            return (OrderApps(apps, settings), hidden);
+            return (OrderApps(visible, settings), hidden);
         }
 
         /// <summary>
@@ -260,16 +258,33 @@ namespace Api.Features.Apps
                 : null;
 
         /// <summary>
-        /// Builds the app card for one project (or one standalone container): its services,
-        /// aggregated state and problem, and its resolved icon, display name, and url.
+        /// One unit of an app card as the active runtime computes it: its display name (a
+        /// compose service name or a pod name), its stable identity, its image (icon lookup
+        /// and display), its running state, and its problem (null when healthy).
         /// </summary>
-        /// <param name="name">The app's identity: the project name, a part's 'project-service' name, or the container name.</param>
-        /// <param name="containers">The containers that make up the card.</param>
+        internal sealed record RuntimeAppUnit(
+            string Service,
+            string UnitId,
+            string? Image,
+            bool IsRunning,
+            string? Problem);
+
+        /// <summary>
+        /// The shared card assembly both runtimes build on: the per-app display name, icon,
+        /// and url overrides (a valid url override wins over the backend-resolved url), the
+        /// icon fallback chain, the aggregated state, the joined problems, and the 'new'
+        /// tag. The backend supplies the units, the resolved url, and (docker only) the
+        /// 'dockerui.icon' label icon.
+        /// </summary>
+        /// <param name="name">The app's identity: the project name, a part's 'project-service' name, the container name, the workload name, or the pod name.</param>
+        /// <param name="source">The backend the app card comes from ('docker' or 'kubernetes').</param>
+        /// <param name="units">The units that make up the card.</param>
+        /// <param name="resolvedUrl">The url the backend resolved for the app, or null.</param>
+        /// <param name="labelIcon">The icon the user pinned on the app (the 'dockerui.icon' label); null in kubernetes.</param>
+        /// <param name="images">The unit images, for the icon catalog's image lookup.</param>
         /// <param name="iconCatalog">The built-in icon catalog.</param>
-        /// <param name="liveIconCatalog">The icon catalog from 'DockerUI:Icons' settings, when any are set.</param>
-        /// <param name="baseUrl">The dashboard's base url, used to resolve app urls.</param>
-        /// <param name="settings">The current settings (per-app overrides and splits), when available.</param>
-        /// <param name="logger">Logs invalid url overrides.</param>
+        /// <param name="settings">The current settings (per-app overrides and the 'DockerUI:Icons' catalog), when available.</param>
+        /// <param name="logger">Logs invalid url overrides and builds the live icon catalog.</param>
         /// <param name="missingColorHue">
         /// Resolves the hue for an app whose settings carry no color yet (the in-memory,
         /// process-stable decision), so the card always leaves the catalog with a color.
@@ -280,12 +295,14 @@ namespace Api.Features.Apps
         /// </param>
         /// <param name="splitFrom">The project a split part was split out of; null otherwise.</param>
         /// <param name="splitServices">The services split out of the stack; null when none.</param>
-        static AppDto BuildApp(
+        internal static AppDto AssembleApp(
             string name,
-            List<ContainerSnapshot> containers,
+            AppSource source,
+            IReadOnlyList<RuntimeAppUnit> units,
+            Uri? resolvedUrl,
+            string? labelIcon,
+            IReadOnlyList<string?> images,
             IAppIconCatalog? iconCatalog,
-            IAppIconCatalog? liveIconCatalog,
-            Uri? baseUrl,
             DockerUISettings? settings,
             ILogger logger,
             Func<string, int> missingColorHue,
@@ -293,16 +310,14 @@ namespace Api.Features.Apps
             string? splitFrom = null,
             string[]? splitServices = null)
         {
-            var services = containers
-                .Select(container => new AppServiceDto(
-                    GetServiceName(container),
-                    container.Id,
-                    container.Image,
-                    IsRunningState(container.State)))
+            var liveIconCatalog = settings?.Icons is { Count: > 0 } icons ? new AppIconCatalog(icons, logger) : null;
+
+            var services = units
+                .Select(unit => new AppServiceDto(unit.Service, unit.UnitId, unit.Image, unit.IsRunning))
                 .OrderBy(service => service.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var state = services.Any(service => service.IsRunning)
+            var state = units.Any(unit => unit.IsRunning)
                 ? AppState.Running
                 : AppState.Stopped;
 
@@ -319,48 +334,33 @@ namespace Api.Features.Apps
             // override lets the label and catalogs decide.
             var icon = perApp?.Icon is { } iconOverride
                 ? string.IsNullOrEmpty(iconOverride) ? null : iconOverride
-                : containers
-                    .Select(GetIcon)
-                    .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
-                    ?? GetCatalogIcon(containers, liveIconCatalog)
+                : labelIcon
+                    ?? GetCatalogIcon(images, liveIconCatalog)
                     ?? TryNameIcon(liveIconCatalog, lookupName)
                     ?? TryNameIcon(iconCatalog, lookupName)
-                    ?? GetCatalogIcon(containers, iconCatalog);
+                    ?? GetCatalogIcon(images, iconCatalog);
 
             var displayName = !string.IsNullOrWhiteSpace(perApp?.Name) ? perApp.Name : lookupName;
 
-            // The 'new' tag: an app outside the observed-apps baseline was detected after
-            // the dashboard's first observation; one inside it stays tagged only while its
-            // settings carry the flag (set on detection, cleared on the first interaction).
-            // An absent baseline is the dashboard's first observation, which tags nothing.
-            var isNew = (perApp?.New ?? false) ||
-                (settings?.KnownApps is { } knownApps && !knownApps.Contains(name));
+            var isNew = IsNewApp(name, perApp, settings);
 
-            // In a multi-container app the service name prefixes each problem so it is
-            // clear which service is failing.
-            var problems = containers
-                .Select(container => (Service: GetServiceName(container), Problem: GetContainerProblem(container)))
+            // In a multi-unit app the unit name prefixes each problem so it is clear
+            // which unit is failing.
+            var problems = units
+                .Select(unit => (Service: unit.Service, Problem: unit.Problem))
                 .Where(pair => pair.Problem is not null)
                 .ToList();
 
-            var problem = problems.Count == 0
-                ? null
-                : containers.Count == 1
-                    ? problems[0].Problem
-                    : string.Join(
-                        "; ",
-                        problems
-                            .OrderBy(pair => pair.Service, StringComparer.OrdinalIgnoreCase)
-                            .Select(pair => $"{pair.Service}: {pair.Problem}"));
+            var problem = JoinProblems(problems, units.Count);
 
             return new AppDto(
                 name,
                 displayName,
                 icon,
                 state,
-                ResolveAppUrl(name, containers, baseUrl, perApp, logger),
+                ResolveUrlOverride(name, perApp, logger) ?? resolvedUrl,
                 services,
-                AppSource.Docker,
+                source,
                 perApp?.Color ?? missingColorHue(name),
                 IsNew: isNew,
                 Problem: problem,
@@ -370,8 +370,68 @@ namespace Api.Features.Apps
             };
         }
 
-        static Uri? ResolveAppUrl(
-            string appName, IReadOnlyList<ContainerSnapshot> containers, Uri? baseUrl, AppUserSettings? perApp, ILogger logger)
+        /// <summary>
+        /// Builds the docker app card for one project (or one standalone container): its
+        /// containers as units, its published-port url, and its label icon, assembled by
+        /// the shared <see cref="AssembleApp"/>.
+        /// </summary>
+        /// <param name="name">The app's identity: the project name, a part's 'project-service' name, or the container name.</param>
+        /// <param name="containers">The containers that make up the card.</param>
+        /// <param name="iconCatalog">The built-in icon catalog.</param>
+        /// <param name="baseUrl">The dashboard's base url, used to resolve the app url.</param>
+        /// <param name="settings">The current settings (per-app overrides and splits), when available.</param>
+        /// <param name="logger">Logs invalid url overrides.</param>
+        /// <param name="missingColorHue">Resolves the hue for an app whose settings carry no color yet.</param>
+        /// <param name="cardName">The card title for a split part: the plain service name.</param>
+        /// <param name="splitFrom">The project a split part was split out of; null otherwise.</param>
+        /// <param name="splitServices">The services split out of the stack; null when none.</param>
+        static AppDto BuildApp(
+            string name,
+            List<ContainerSnapshot> containers,
+            IAppIconCatalog? iconCatalog,
+            Uri? baseUrl,
+            DockerUISettings? settings,
+            ILogger logger,
+            Func<string, int> missingColorHue,
+            string? cardName = null,
+            string? splitFrom = null,
+            string[]? splitServices = null)
+        {
+            var units = containers
+                .Select(container => new RuntimeAppUnit(
+                    GetServiceName(container),
+                    container.Id,
+                    container.Image,
+                    IsRunningState(container.State),
+                    GetContainerProblem(container)))
+                .ToList();
+
+            var labelIcon = containers
+                .Select(GetIcon)
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+            return AssembleApp(
+                name,
+                AppSource.Docker,
+                units,
+                ResolveUrl(containers, baseUrl),
+                labelIcon,
+                containers.Select(container => container.Image).ToList(),
+                iconCatalog,
+                settings,
+                logger,
+                missingColorHue,
+                cardName: cardName,
+                splitFrom: splitFrom,
+                splitServices: splitServices);
+        }
+
+        /// <summary>
+        /// The per-app url override, when set and a valid absolute URL; otherwise null, so
+        /// the caller falls back to its own resolution. An invalid override is logged.
+        /// Shared by the runtimes, which resolve the fallback differently.
+        /// </summary>
+        internal static Uri? ResolveUrlOverride(string appName, AppUserSettings? perApp, ILogger logger)
         {
             if (perApp?.Url is { Length: > 0 } && Uri.TryCreate(perApp.Url, UriKind.Absolute, out var url))
             {
@@ -381,7 +441,7 @@ namespace Api.Features.Apps
             if (perApp?.Url is { Length: > 0 })
                 LogInvalidUrlOverride(logger, perApp.Url, appName);
 
-            return ResolveUrl(containers, baseUrl);
+            return null;
         }
 
         [LoggerMessage(
@@ -419,24 +479,29 @@ namespace Api.Features.Apps
             };
         }
 
-        static List<AppDto> RemoveHidden(List<AppDto> apps, DockerUISettings? settings, string? selfProject)
+        /// <summary>
+        /// Splits the built apps into visible and hidden, hiding the backend's own app (the
+        /// dashboard, which cannot manage itself from its own grid) and the apps the
+        /// settings mark hidden. Shared by the runtimes; <paramref name="selfApp"/> is the
+        /// backend's own app name (the docker project or the kubernetes workload).
+        /// </summary>
+        internal static (IReadOnlyList<AppDto> Visible, IReadOnlyList<AppDto> Hidden) RemoveHidden(
+            IReadOnlyList<AppDto> apps, DockerUISettings? settings, string? selfApp)
         {
             var appSettings = settings?.Apps;
+            var visible = new List<AppDto>();
             var hidden = new List<AppDto>();
 
-            apps.RemoveAll(app =>
+            foreach (var app in apps)
             {
-                var isSelf = selfProject is not null && string.Equals(app.Name, selfProject, StringComparison.Ordinal);
+                var isSelf = selfApp is not null && string.Equals(app.Name, selfApp, StringComparison.Ordinal);
                 var isHidden = isSelf
                     || (appSettings is not null && appSettings.TryGetValue(app.Name, out var perApp) && perApp.Hidden);
 
-                if (isHidden)
-                    hidden.Add(app);
+                (isHidden ? hidden : visible).Add(app);
+            }
 
-                return isHidden;
-            });
-
-            return hidden;
+            return (visible, hidden);
         }
 
         internal static List<AppDto> OrderApps(List<AppDto> apps, DockerUISettings? settings)
@@ -482,12 +547,39 @@ namespace Api.Features.Apps
                 ? icon
                 : null;
 
-        /// <summary>Falls back to the first container image that the icon catalog recognizes.</summary>
-        static string? GetCatalogIcon(IReadOnlyList<ContainerSnapshot> containers, IAppIconCatalog? iconCatalog) =>
+        /// <summary>Falls back to the first image that the icon catalog recognizes.</summary>
+        internal static string? GetCatalogIcon(IReadOnlyList<string?> images, IAppIconCatalog? iconCatalog) =>
             iconCatalog is null
                 ? null
-                : containers
-                    .Select(container => iconCatalog.TryGetIcon(container.Image, out var icon) ? icon : null)
+                : images
+                    .Select(image => iconCatalog.TryGetIcon(image, out var icon) ? icon : null)
                     .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+        /// <summary>
+        /// The 'new' tag: an app outside the observed-apps baseline was detected after the
+        /// dashboard's first observation; one inside it stays tagged only while its settings
+        /// carry the flag (set on detection, cleared on the first interaction). An absent
+        /// baseline is the dashboard's first observation, which tags nothing. Shared by the
+        /// runtimes.
+        /// </summary>
+        internal static bool IsNewApp(string name, AppUserSettings? perApp, DockerUISettings? settings) =>
+            (perApp?.New ?? false) ||
+            (settings?.KnownApps is { } knownApps && !knownApps.Contains(name));
+
+        /// <summary>
+        /// Joins the problems of a multi-unit app, prefixing each with its unit's name so it
+        /// is clear which unit is failing; a single unit's problem stands alone. Shared by
+        /// the runtimes.
+        /// </summary>
+        internal static string? JoinProblems(IReadOnlyList<(string Service, string Problem)> problems, int unitCount) =>
+            problems.Count == 0
+                ? null
+                : unitCount == 1
+                    ? problems[0].Problem
+                    : string.Join(
+                        "; ",
+                        problems
+                            .OrderBy(pair => pair.Service, StringComparer.OrdinalIgnoreCase)
+                            .Select(pair => $"{pair.Service}: {pair.Problem}"));
     }
 }

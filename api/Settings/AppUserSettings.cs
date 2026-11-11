@@ -29,6 +29,14 @@ namespace Api.Settings
         /// the first interaction; defaults to false.
         /// </summary>
         public bool New { get; set; }
+
+        /// <summary>
+        /// The replica count a kubernetes workload had before it was last stopped, so
+        /// 'Start' can bring it back at the same size (Kubernetes forgets the count when a
+        /// workload is scaled to zero). Managed by the kubernetes backend, not by the user;
+        /// always null for docker apps.
+        /// </summary>
+        public int? LastReplicas { get; set; }
     }
 #pragma warning restore CA1056
 }

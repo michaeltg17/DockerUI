@@ -28,6 +28,7 @@ namespace Api.Setup
                     NotFoundException => (int)HttpStatusCode.NotFound,
                     ConflictException => (int)HttpStatusCode.Conflict,
                     DaemonUnavailableException => (int)HttpStatusCode.ServiceUnavailable,
+                    KubernetesUnavailableException => (int)HttpStatusCode.ServiceUnavailable,
                     DockerUIException => (int)HttpStatusCode.InternalServerError,
                     _ => (int)HttpStatusCode.InternalServerError,
                 };

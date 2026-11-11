@@ -6,17 +6,18 @@ namespace Api.Domain
         Stopped
     }
 
-    /// <summary>Where an app comes from: a docker stack/container, a manual shortcut, or a LAN-scanned service.</summary>
+    /// <summary>Where an app comes from: a docker stack/container, a kubernetes workload/pod, a manual shortcut, or a LAN-scanned service.</summary>
     internal enum AppSource
     {
         Docker,
+        Kubernetes,
         Shortcut,
         Lan
     }
 
     /// <summary>
-    /// A docker compose stack (or standalone container), a manual shortcut, or a LAN-scanned
-    /// service, as shown in the UI.
+    /// A docker compose stack (or standalone container), a kubernetes workload (or
+    /// standalone pod), a manual shortcut, or a LAN-scanned service, as shown in the UI.
     /// </summary>
     internal sealed record AppDto(
         string Name,

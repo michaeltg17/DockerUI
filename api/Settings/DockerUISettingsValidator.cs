@@ -11,6 +11,10 @@ namespace Api.Settings
         /// <summary>The highest valid icon hue: hues are whole degrees of the 360-degree color wheel.</summary>
         const int MaxIconHue = 359;
 
+        /// <summary>A valid namespace name (DNS-1123 label), e.g. 'default' or 'kube-system'.</summary>
+        [GeneratedRegex("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", RegexOptions.CultureInvariant)]
+        private static partial Regex NamespaceNameRegex();
+
         /// <summary>Whether the value is a valid icon hue: absent, or within [0, MaxIconHue].</summary>
         static bool IsValidIconHue(int? color) => color is null or (>= 0 and <= MaxIconHue);
 
@@ -18,8 +22,27 @@ namespace Api.Settings
         {
             var validationErrors = new List<string>();
 
-            if (string.IsNullOrWhiteSpace(settings.DockerSocketPath))
+            var backend = string.IsNullOrWhiteSpace(settings.Backend)
+                ? DockerUISettings.BackendDocker
+                : settings.Backend;
+
+            if (backend is not (DockerUISettings.BackendDocker or DockerUISettings.BackendKubernetes))
+                validationErrors.Add($"The '{nameof(DockerUISettings.Backend)}' setting must be '{DockerUISettings.BackendDocker}' or '{DockerUISettings.BackendKubernetes}'");
+
+            if (backend == DockerUISettings.BackendDocker &&
+                string.IsNullOrWhiteSpace(settings.DockerSocketPath))
+            {
                 validationErrors.Add($"The '{nameof(DockerUISettings.DockerSocketPath)}' setting is required");
+            }
+
+            if (settings.Kubernetes is { } kubernetes)
+            {
+                if (!string.IsNullOrWhiteSpace(kubernetes.Namespace) &&
+                    !NamespaceNameRegex().IsMatch(kubernetes.Namespace))
+                {
+                    validationErrors.Add($"The '{nameof(DockerUISettings.Kubernetes)}:{nameof(KubernetesSettings.Namespace)}' setting must be a namespace name, e.g. 'default'");
+                }
+            }
 
             if (settings.PollIntervalSeconds < 1)
                 validationErrors.Add($"The '{nameof(DockerUISettings.PollIntervalSeconds)}' setting must be at least 1");

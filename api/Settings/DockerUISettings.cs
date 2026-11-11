@@ -12,8 +12,27 @@ namespace Api.Settings
         public const string Section = "DockerUI";
         public const string DefaultName = "Docker UI";
 
-        public required string DockerSocketPath { get; set; }
+        /// <summary>The container runtime backends the dashboard can be bound to.</summary>
+        public const string BackendDocker = "docker";
+        public const string BackendKubernetes = "kubernetes";
+
+        /// <summary>
+        /// The Docker daemon's socket ('docker' backend): a unix socket path or a Windows
+        /// pipe. Required in docker mode; ignored in kubernetes mode.
+        /// </summary>
+        public string DockerSocketPath { get; set; } = string.Empty;
+
         public required int PollIntervalSeconds { get; set; }
+
+        /// <summary>
+        /// The container runtime backend: 'docker' (the default, through the daemon socket)
+        /// or 'kubernetes' (a Kubernetes API server, for daemonless setups such as Talos
+        /// OS). Changing it requires a restart.
+        /// </summary>
+        public string Backend { get; set; } = BackendDocker;
+
+        /// <summary>Kubernetes backend settings; ignored in docker mode.</summary>
+        public KubernetesSettings? Kubernetes { get; set; }
 
         /// <summary>
         /// Custom dashboard name shown as the page title, e.g. 'Home Server'.

@@ -289,12 +289,13 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var dialog = apps.LogsDialog("web-stack logs");
         await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-        // web-stack runs two containers; each container's section is headed by its container name.
+        // web-stack runs two units (the nginx and redis services); each unit's section is
+        // headed by the unit's name (the compose service name).
         await dialog
-            .GetByText("web-stack-nginx-1")
+            .GetByText("=== nginx ===")
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         await dialog
-            .GetByText("web-stack-redis-1")
+            .GetByText("=== redis ===")
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
     }
 
@@ -1114,6 +1115,15 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForAppAsync("web-stack");
 
         var cancellationToken = TestContext.Current.CancellationToken;
+
+        using var client = new HttpClient();
+
+        // The order is persisted under the real app names, while the grid shows the display
+        // names; map between them so the assertion holds even when a card's display name
+        // differs from its name (a LAN finding with a discovered title).
+        var realNameOf = (await GetApiAppsAsync(client, environment.BaseUrl, cancellationToken))
+            .ToDictionary(app => app.DisplayName, app => app.Name, StringComparer.Ordinal);
+
         var names = await apps.CardNamesAsync();
         names.Count.Should().BeGreaterThan(1, "because the scenario runs several demo stacks");
 
@@ -1129,6 +1139,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // The new order is persisted in the scenario's appsettings, which the dashboard bind-mounts.
         var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+        var expectedRealNames = expected
+            .Select(displayName => realNameOf[displayName])
+            .ToList();
         var deadline = DateTime.UtcNow.AddSeconds(10);
 
         while (true)
@@ -1150,7 +1163,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
                         .Select(element => element.GetString() ?? string.Empty)
                         .ToList();
 
-                    persisted = storedNames.SequenceEqual(expected, StringComparer.Ordinal);
+                    persisted = storedNames.SequenceEqual(expectedRealNames, StringComparer.Ordinal);
                 }
             }
             catch (JsonException)
@@ -1177,7 +1190,6 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForCardOrderAsync(names);
 
         // Clear the persisted order so the scenario's settings file is left as found.
-        using var client = new HttpClient();
         using var content = new StringContent("{\"order\":[]}", Encoding.UTF8, "application/json");
         var response = await client.PutAsync(
             new Uri(environment.BaseUrl, "api/apps/order"),
@@ -1481,6 +1493,19 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
 
+        // The LAN scan test may have left discovered shortcut cards behind; drop them so
+        // this test starts from a known, shortcut-free state (its end assertion is that
+        // removing the last shortcut prunes the section from the file).
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        using var client = new HttpClient();
+
+        foreach (var (appName, _, source) in await GetApiAppsAsync(client, environment.BaseUrl, cancellationToken))
+        {
+            if (source is "shortcut" or "lan")
+                await DeleteShortcutViaApiAsync(client, environment.BaseUrl, appName, cancellationToken);
+        }
+
         const string name = "E2E Zeta";
         await apps.CreateShortcutAsync(name, "https://example.com/zeta");
         await apps.WaitForAppAsync(name);
@@ -1769,12 +1794,17 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.CreateShortcutAsync(shortcut, "https://example.com/order");
         await apps.WaitForAppAsync(shortcut);
 
-        // Pin the shortcut to the front with an explicit order so its position is user-defined.
-        var names = await apps.CardNamesAsync();
-        var pinned = new List<string> { shortcut };
-        pinned.AddRange(names.Where(name => name != shortcut));
-
         using var client = new HttpClient();
+
+        // Pin the shortcut to the front with an explicit order so its position is user-defined.
+        // The order is sent as real app names (the API's identity) while the grid shows the
+        // display names, so an app with a display name different from its name (a LAN finding
+        // with a discovered title) cannot break the assertion.
+        var apiApps = await GetApiAppsAsync(client, environment.BaseUrl, cancellationToken);
+        List<(string Name, string DisplayName, string Source)> orderedApps =
+            [apiApps.First(app => app.Name == shortcut), .. apiApps.Where(app => app.Name != shortcut)];
+        var pinned = orderedApps.Select(app => app.Name).ToList();
+
         using var content = new StringContent(
             JsonSerializer.Serialize(new { order = pinned }),
             Encoding.UTF8,
@@ -1784,7 +1814,8 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             content,
             cancellationToken);
         response.IsSuccessStatusCode.Should().BeTrue("because the order endpoint accepts the pinned order");
-        await apps.WaitForCardOrderAsync(pinned);
+        var expected = orderedApps.Select(app => app.DisplayName).ToList();
+        await apps.WaitForCardOrderAsync(expected);
 
         // Rename the shortcut from its card; the pinned position must be preserved.
         const string renamed = "E2E Renamed";
@@ -1801,9 +1832,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .ClickAsync();
         await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
 
-        var expected = new List<string> { renamed };
-        expected.AddRange(pinned.Skip(1));
-        await apps.WaitForCardOrderAsync(expected);
+        var expectedAfterRename = new List<string> { renamed };
+        expectedAfterRename.AddRange(expected.Skip(1));
+        await apps.WaitForCardOrderAsync(expectedAfterRename);
 
         // Restore the scenario's defaults: delete the shortcut and clear the pinned order.
         await apps.DeleteShortcutAsync(renamed);
@@ -2364,6 +2395,35 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var box = await dialog.BoundingBoxAsync()
             ?? throw new InvalidOperationException("The dialog has no bounding box.");
         return box.Height;
+    }
+
+    /// <summary>
+    /// The apps the dashboard currently lists, straight from the API: each app's real name
+    /// (what the order endpoint and the settings file use) next to the display name the grid
+    /// shows, so an order assertion stays correct when a card's display name differs from
+    /// its name (a LAN finding with a discovered title).
+    /// </summary>
+    static async Task<IReadOnlyList<(string Name, string DisplayName, string Source)>> GetApiAppsAsync(
+        HttpClient client, Uri baseUrl, CancellationToken cancellationToken)
+    {
+        var response = await client.GetAsync(new Uri(baseUrl, "api/apps"), cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.EnumerateArray()
+            .Select(element => (
+                element.GetProperty("name").GetString() ?? string.Empty,
+                element.GetProperty("displayName").GetString() ?? string.Empty,
+                element.GetProperty("source").GetString() ?? string.Empty))
+            .ToList();
+    }
+
+    /// <summary>Deletes a shortcut through the API (the same endpoint the card's menu uses).</summary>
+    static async Task DeleteShortcutViaApiAsync(HttpClient client, Uri baseUrl, string name, CancellationToken cancellationToken)
+    {
+        var response = await client.DeleteAsync(
+            new Uri(baseUrl, $"api/shortcuts/{Uri.EscapeDataString(name)}"), cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 }
 

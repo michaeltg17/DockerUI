@@ -1,6 +1,7 @@
 ﻿using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
+using Api.Features.Apps.Runtime;
 using Api.Features.Auth;
 using Api.Features.Health;
 using Api.Features.Lan;
@@ -55,7 +56,7 @@ internal static class Program
         AppSettingsStore.EnsureWritable(builder.Environment.ContentRootPath);
 
         builder.Services
-            .AddDockerClient(builder.Configuration.GetSection(DockerUISettings.Section))
+            .AddRuntimeDependencies(builder.Configuration.GetSection(DockerUISettings.Section))
             .AddAppsDependencies()
             .AddLanDependencies()
             .AddAuthDependencies();
@@ -74,6 +75,39 @@ internal static class Program
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 
         return builder;
+    }
+
+    /// <summary>
+    /// Registers the container runtime backend the dashboard is bound to, chosen once at
+    /// boot from 'DockerUI:Backend' (a change requires a restart): the Docker daemon
+    /// client plus the docker runtime, or the Kubernetes client plus the kubernetes
+    /// runtime. The clients are created eagerly: a missing or invalid connection is a
+    /// deployment error that must fail the boot, not the first app list.
+    /// </summary>
+    public static IServiceCollection AddRuntimeDependencies(this IServiceCollection services, IConfigurationSection section)
+    {
+        ArgumentNullException.ThrowIfNull(section);
+
+        var backend = section[nameof(DockerUISettings.Backend)];
+
+        if (string.Equals(backend, DockerUISettings.BackendKubernetes, StringComparison.Ordinal))
+        {
+            //The client is a registered singleton, so the container owns its lifetime
+            //and disposes it at shutdown (CA2000 not applicable).
+#pragma warning disable CA2000
+            var kubernetes = KubeClientProvider.Create(section.GetSection(nameof(DockerUISettings.Kubernetes)).Get<KubernetesSettings>());
+            services.AddSingleton(kubernetes);
+#pragma warning restore CA2000
+
+            services.AddSingleton<IAppRuntime, KubernetesAppRuntime>();
+        }
+        else
+        {
+            AddDockerClient(services, section);
+            services.AddSingleton<IAppRuntime, DockerAppRuntime>();
+        }
+
+        return services;
     }
 
     public static IServiceCollection AddDockerClient(this IServiceCollection services, IConfigurationSection section)
@@ -204,7 +238,7 @@ internal static class Program
     {
         services
             .AddHealthChecks()
-            .AddCheck<DockerHealthCheck>("docker");
+            .AddCheck<RuntimeHealthCheck>("runtime");
 
         return services;
     }

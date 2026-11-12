@@ -89,6 +89,30 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   with `unix:///path/to.sock` or `npipe://./pipe/docker_engine` URIs.
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
+- k8s (client) package: `V1Patch` is a record —
+  `new V1Patch(body, V1Patch.PatchType.MergePatch)` — and template changes
+  (the `restartedAt` rollout annotation, the DaemonSet stop marker) go out
+  as merge patches, which apply atomically server-side and remove keys when
+  set to `null` (RFC 7386); a read-modify-write `Replace` loses races with
+  the controller's status updates. The scale subresource's PUT/replace
+  requires the object name in the body
+  (`new V1Scale { Metadata = new V1ObjectMeta { Name = name } }`) or the
+  API 400s with "name must be provided". `DeleteNamespacedPod...` returns
+  the deleted pod, and `HttpOperationResponse<T>` exposes `Response` /
+  `Body` (there is no `StatusCode` property — use
+  `ex.Response.StatusCode` on `HttpOperationException`).
+- Recreating a standalone pod (start after stop, restart): delete the pod,
+  then **wait until it is gone** before creating the replacement — a
+  deleting pod lingers (terminating) until the kubelet finishes, and a
+  create with the same name in that window 409s ("object is being deleted:
+  already exists").
+- A pod that is still draining from a stop keeps `phase: Running` while it
+  terminates, so "is running" for a unit must mean
+  `DeletionTimestamp is null && phase is Running`, or a start issued during
+  the drain is skipped as a no-op.
+- `kubectl config view` redacts certificate data; use `--raw`
+  (`kubectl config view --raw --minify --context <ctx> > kubeconfig.yaml`)
+  when a kubeconfig must work as-is, and `kind export kubeconfig` for kind.
 - CI audits the dashboard with Lighthouse CI (`lighthouserc.cjs` at the repo
   root; pinned `@lhci/cli` in `ci.sh`): after the e2e scenarios it brings up
   the dedicated `lighthouse/` scenario on :5015 (its own compose project with

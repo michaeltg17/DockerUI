@@ -1,6 +1,6 @@
 export type AppState = 'running' | 'stopped';
 
-export type AppSource = 'docker' | 'shortcut' | 'lan';
+export type AppSource = 'docker' | 'kubernetes' | 'shortcut' | 'lan';
 
 export interface AppService {
   name: string;

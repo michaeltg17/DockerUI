@@ -11,7 +11,8 @@ namespace Api.Features.Apps.Endpoints
     /// <summary>
     /// Splits the given services out of a compose stack into their own cards named
     /// 'project-service'. The split is persisted in 'DockerUI:AppSplits' and broadcast
-    /// to the UI.
+    /// to the UI. Splitting is a docker concept: kubernetes apps have no project and
+    /// 409 here (the UI hides the Split action for them).
     /// </summary>
     internal static class SplitAppEndpoint
     {
@@ -29,10 +30,10 @@ namespace Api.Features.Apps.Endpoints
                 AppNameValidator.Validate(name);
 
                 var settings = settingsStore.Current;
-                var targets = await appService.ResolveAppContainersAsync(name, cancellationToken).ConfigureAwait(false);
+                var targets = await appService.ResolveAppUnitsAsync(name, cancellationToken).ConfigureAwait(false);
 
-                if (AppCatalog.GetProject(targets[0]) is not { } project)
-                    throw new ConflictException($"The app '{name}' is not a compose stack and cannot be split.");
+                var project = await appService.GetAppProjectAsync(name, cancellationToken).ConfigureAwait(false)
+                    ?? throw new ConflictException($"The app '{name}' is not a compose stack and cannot be split.");
 
                 var services = input?.Services;
 
@@ -40,7 +41,7 @@ namespace Api.Features.Apps.Endpoints
                     throw new BadHttpRequestException("The 'services' list must not be empty.");
 
                 var remainingServices = targets
-                    .Select(AppCatalog.GetServiceName)
+                    .Select(unit => unit.Name)
                     .ToHashSet(StringComparer.Ordinal);
 
                 var alreadySplit = AppCatalog.GetConfiguredSplitServices(settings, project);

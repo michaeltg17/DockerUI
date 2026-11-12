@@ -1,24 +1,26 @@
 using System.Globalization;
+using System.Net;
+using System.Text.Json;
 using Api.Domain;
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
 using Api.Features.Settings;
 using Api.Settings;
+using k8s;
 using k8s.Autorest;
 using k8s.Models;
-using KubernetesClient;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Newtonsoft.Json;
 
 namespace Api.Features.Apps.Runtime
 {
     /// <summary>
     /// The Kubernetes backend: an app is a workload (Deployment, StatefulSet, DaemonSet) or
     /// a standalone pod, its services are its pods, and its url comes from a NodePort or a
-    /// LoadBalancer ingress of a matching service. Start/stop scale the workload to and from
-    /// its remembered replica count, restart rolls it out via the 'restartedAt' annotation,
-    /// and standalone pods are deleted and recreated from a spec snapshot the dashboard
-    /// keeps in the settings.
+    /// LoadBalancer ingress of a matching service. Start and stop scale a workload to and
+    /// from its remembered replica count; a DaemonSet has no scale, so it is stopped by
+    /// marking its pod template with a node selector no node matches. Restart rolls a
+    /// workload out via the 'restartedAt' pod template annotation, and standalone pods are
+    /// deleted and recreated from a spec snapshot the dashboard keeps in the settings.
     /// </summary>
     internal sealed partial class KubernetesAppRuntime(
         IKubernetes kubernetes,
@@ -48,19 +50,31 @@ namespace Api.Features.Apps.Runtime
         const string OperatorExists = "Exists";
         const string OperatorDoesNotExist = "DoesNotExist";
 
-        /// <summary>The annotation that triggers a rollout restart of a workload's pods.</summary>
+        /// <summary>The pod template annotation that triggers a rollout restart of a workload's pods.</summary>
         const string RestartedAtAnnotation = "kubectl.kubernetes.io/restartedAt";
+
+        /// <summary>
+        /// The node selector key the dashboard sets on a stopped DaemonSet's pod template:
+        /// a DaemonSet has no scale subresource, so the marker (which no node carries)
+        /// evicts all of its pods; removing it brings them back.
+        /// </summary>
+        const string DaemonSetStoppedNodeSelectorKey = "dockerui.io/stopped";
+        const string DaemonSetStoppedNodeSelectorValue = "true";
 
         /// <summary>The replica count a workload starts at when it has no remembered count.</summary>
         const int DefaultReplicas = 1;
 
         /// <summary>The pod log tail length, in lines (the same tail the docker runtime reads).</summary>
-        const long PodLogTailLines = 500;
+        const int PodLogTailLines = 500;
+
+        /// <summary>How long to poll for a deleted pod to be gone before giving up (a delete
+        /// returns once accepted, but the object lingers until the kubelet finishes).</summary>
+        const int PodGonePollAttempts = 120;
+        const int PodGonePollIntervalMilliseconds = 500;
 
         /// <summary>The port that switches the LoadBalancer url's scheme to https.</summary>
         const int HttpsPort = 443;
 
-        const int HttpStatusNotFound = 404;
         const string InstantTimestampFormat = "O";
 
         /// <summary>The system namespaces skipped in all-namespaces mode.</summary>
@@ -70,6 +84,21 @@ namespace Api.Features.Apps.Runtime
             "kube-public",
             "kube-local",
         ];
+
+        /// <summary>
+        /// The serializer for the pod spec snapshots the dashboard keeps of standalone
+        /// pods: the kubernetes wire format, with the client package's converters for its
+        /// scalar resource types (so 'resources' round-trip as quantities, not objects).
+        /// </summary>
+        static readonly JsonSerializerOptions SpecJsonOptions = CreateSpecJsonOptions();
+
+        static JsonSerializerOptions CreateSpecJsonOptions()
+        {
+            var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+            options.Converters.Add(new IntOrStringJsonConverter());
+            options.Converters.Add(new ResourceQuantityJsonConverter());
+            return options;
+        }
 
         public AppSource Source => AppSource.Kubernetes;
 
@@ -99,7 +128,7 @@ namespace Api.Features.Apps.Runtime
                 }
 
                 var pods = view.Pods
-                    .Where(pod => string.Equals(pod.Metadata?.Namespace, workload.Namespace, StringComparison.Ordinal))
+                    .Where(pod => string.Equals(pod.Metadata?.NamespaceProperty, workload.Namespace, StringComparison.Ordinal))
                     .Where(pod => !claimedPods.Contains(pod))
                     .Where(pod => MatchesSelector(workload.Selector, pod.Metadata?.Labels))
                     .ToList();
@@ -119,12 +148,12 @@ namespace Api.Features.Apps.Runtime
                     continue;
                 }
 
-                await EnsurePodSpecSavedAsync(pod, settings, cancellationToken).ConfigureAwait(false);
+                EnsurePodSpecSnapshotSaved(pod, settings);
                 apps.Add(BuildPodApp(pod, view, baseUrl, settings, builtInCatalog, missingColorHue, logger));
             }
 
             var (visible, hidden) = AppCatalog.RemoveHidden(apps, settings, selfApp);
-            return (AppCatalog.OrderApps(visible.ToList(), settings), hidden);
+            return (AppCatalog.OrderApps(visible, settings), hidden);
         }
 
         public async Task<IReadOnlyList<RuntimeUnit>> ResolveAppAsync(string appName, DockerUISettings? settings, CancellationToken cancellationToken)
@@ -132,100 +161,102 @@ namespace Api.Features.Apps.Runtime
             var view = await GetClusterViewAsync(settings, cancellationToken).ConfigureAwait(false);
 
             // A workload's single unit is the workload itself (actions apply to it as a
-            // whole); it counts as running while any of its pods is running.
+            // whole); it counts as running while any of its pods is up (a pod that is still
+            // draining from a stop does not count, so a start issued while it drains applies).
             var workload = GetWorkloads(view).SingleOrDefault(workload => string.Equals(workload.Name, appName, StringComparison.Ordinal));
 
             if (workload is not null)
             {
                 var pods = view.Pods
-                    .Where(pod => string.Equals(pod.Metadata?.Namespace, workload.Namespace, StringComparison.Ordinal))
+                    .Where(pod => string.Equals(pod.Metadata?.NamespaceProperty, workload.Namespace, StringComparison.Ordinal))
                     .Where(pod => MatchesSelector(workload.Selector, pod.Metadata?.Labels))
                     .ToList();
 
-                return [new RuntimeUnit(appName, UnitId(workload.Kind, workload.Namespace, appName), pods.Any(IsPodRunning))];
+                return [new RuntimeUnit(appName, UnitId(workload.Kind, workload.Namespace, appName), pods.Any(IsPodUp))];
             }
 
             var pod = view.Pods.SingleOrDefault(pod => string.Equals(pod.Metadata?.Name, appName, StringComparison.Ordinal));
 
-            return pod is null
+            if (pod is not null)
+                return [new RuntimeUnit(appName, UnitId(PodKind, pod.Metadata?.NamespaceProperty, appName), IsPodUp(pod))];
+
+            // A standalone pod that is not in the cluster stays resolvable while its spec
+            // snapshot is persisted (it was stopped): start recreates it from the snapshot.
+            var storedNamespace = GetStoredPodNamespace(settings, appName);
+
+            return storedNamespace is null
                 ? []
-                : [new RuntimeUnit(appName, UnitId(PodKind, pod.Metadata?.Namespace, appName), IsPodRunning(pod))];
+                : [new RuntimeUnit(appName, UnitId(PodKind, storedNamespace, appName), false)];
         }
 
-        public Task StartAsync(IReadOnlyList<RuntimeUnit> targets, CancellationToken cancellationToken)
+        public async Task StartAsync(IReadOnlyList<RuntimeUnit> targets, CancellationToken cancellationToken)
         {
             foreach (var unit in targets.Where(unit => !unit.IsRunning))
-                StartUnit(unit, cancellationToken);
-
-            return Task.CompletedTask;
+                await StartUnitAsync(unit, cancellationToken).ConfigureAwait(false);
         }
 
-        public Task StopAsync(IReadOnlyList<RuntimeUnit> targets, CancellationToken cancellationToken)
+        public async Task StopAsync(IReadOnlyList<RuntimeUnit> targets, CancellationToken cancellationToken)
         {
             foreach (var unit in targets.Where(unit => unit.IsRunning))
-                StopUnit(unit, cancellationToken);
-
-            return Task.CompletedTask;
+                await StopUnitAsync(unit, cancellationToken).ConfigureAwait(false);
         }
 
-        public Task RestartAsync(IReadOnlyList<RuntimeUnit> targets, CancellationToken cancellationToken)
+        public async Task RestartAsync(IReadOnlyList<RuntimeUnit> targets, CancellationToken cancellationToken)
         {
             foreach (var unit in targets.Where(unit => unit.IsRunning))
-                RestartUnit(unit, cancellationToken);
-
-            return Task.CompletedTask;
+                await RestartUnitAsync(unit, cancellationToken).ConfigureAwait(false);
         }
 
-        public Task<IReadOnlyList<(RuntimeUnit Unit, string Output)>> ReadLogsAsync(IReadOnlyList<RuntimeUnit> targets, CancellationToken cancellationToken)
+        public async Task<IReadOnlyList<(RuntimeUnit Unit, string Output)>> ReadLogsAsync(IReadOnlyList<RuntimeUnit> targets, CancellationToken cancellationToken)
         {
             var outputs = new List<(RuntimeUnit Unit, string Output)>(targets.Count);
 
             foreach (var unit in targets)
-                outputs.Add((unit, ReadUnitLogs(unit, cancellationToken)));
+                outputs.Add((unit, await ReadUnitLogsAsync(unit, cancellationToken).ConfigureAwait(false)));
 
-            return Task.FromResult<IReadOnlyList<(RuntimeUnit Unit, string Output)>>(outputs);
+            return outputs;
         }
 
-        public Task<string?> GetSelfAppAsync(CancellationToken cancellationToken)
+        public async Task<string?> GetSelfAppAsync(CancellationToken cancellationToken)
         {
             // In Kubernetes the pod's hostname is the pod's name, so the dashboard finds
             // its own pod by matching the hostname against the pod names.
             var hostname = Environment.MachineName;
 
             if (string.IsNullOrWhiteSpace(hostname))
-                return Task.FromResult<string?>(null);
+                return null;
 
             try
             {
-                var view = GetClusterView(settingsStore.Current, cancellationToken);
+                var view = await GetClusterViewAsync(settingsStore.Current, cancellationToken).ConfigureAwait(false);
                 var selfPod = view.Pods.SingleOrDefault(pod => string.Equals(pod.Metadata?.Name, hostname, StringComparison.Ordinal));
 
                 if (selfPod is null)
-                    return Task.FromResult<string?>(null);
+                    return null;
 
                 var owner = selfPod.Metadata?.OwnerReferences?.FirstOrDefault();
 
                 if (owner is null)
-                    return Task.FromResult(selfPod.Metadata?.Name);
+                    return selfPod.Metadata?.Name;
 
                 // A workload's pods are owned by the workload (StatefulSet, DaemonSet) or
                 // by its ReplicaSet (Deployment); the dashboard's card is the workload's,
                 // so resolve through the owner chain to the workload's name.
                 if (string.Equals(owner.Kind, ReplicaSetKind, StringComparison.Ordinal))
                 {
-                    var replicaSet = kubernetes
-                        .AppsV1()
-                        .ReadNamespacedReplicaSet(owner.Name, selfPod.Metadata?.Namespace, cancellationToken: cancellationToken);
+                    var replicaSet = await kubernetes.AppsV1
+                        .ReadNamespacedReplicaSetWithHttpMessagesAsync(owner.Name, selfPod.Metadata?.NamespaceProperty, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
 
-                    var parent = replicaSet.Metadata?.OwnerReferences?.FirstOrDefault(parent =>
+                    var parent = replicaSet.Body.Metadata?.OwnerReferences?.FirstOrDefault(parent =>
                         parent.Kind is DeploymentKind or StatefulSetKind or DaemonSetKind);
 
-                    return Task.FromResult(parent?.Name ?? selfPod.Metadata?.Name);
+                    return parent?.Name ?? selfPod.Metadata?.Name;
                 }
 
-                return Task.FromResult(owner.Kind is DeploymentKind or StatefulSetKind or DaemonSetKind
+                return owner.Kind is DeploymentKind or StatefulSetKind or DaemonSetKind
                     ? owner.Name
-                    : selfPod.Metadata?.Name);
+                    : selfPod.Metadata?.Name;
             }
             // Self-detection is best-effort: a failure only means the dashboard's own card
             // shows up in the list.
@@ -233,36 +264,69 @@ namespace Api.Features.Apps.Runtime
             catch (Exception ex)
             {
                 LogSelfAppDetectionFailed(logger, ex);
-                return Task.FromResult<string?>(null);
+                return null;
             }
 #pragma warning restore CA1031
         }
 
-        public Task<HealthCheckResult> PingAsync(CancellationToken cancellationToken)
+        public Task<string?> GetAppProjectAsync(string appName, DockerUISettings? settings, CancellationToken cancellationToken) =>
+            // Kubernetes apps do not group by compose project; split/join stay docker-only.
+            Task.FromResult<string?>(null);
+
+        public async Task<string?> ReadSelfLogsAsync(CancellationToken cancellationToken)
+        {
+            // The dashboard's own logs come from its own pod (found by hostname, like the
+            // self-detection); outside a cluster the pod is not listed and the endpoint
+            // reports the logs as unavailable.
+            var hostname = Environment.MachineName;
+
+            if (string.IsNullOrWhiteSpace(hostname))
+                return null;
+
+            try
+            {
+                var view = await GetClusterViewAsync(settingsStore.Current, cancellationToken).ConfigureAwait(false);
+                var selfPod = view.Pods.SingleOrDefault(pod => string.Equals(pod.Metadata?.Name, hostname, StringComparison.Ordinal));
+
+                return selfPod is null ? null : (await ReadPodLogsAsync(selfPod, cancellationToken).ConfigureAwait(false)).TrimEnd();
+            }
+            // A log read failure must not take the endpoint down: it reports the logs as unavailable.
+#pragma warning disable CA1031
+            catch (Exception ex)
+            {
+                LogSelfLogsFailed(logger, ex);
+                return null;
+            }
+#pragma warning restore CA1031
+        }
+
+        public async Task<HealthCheckResult> PingAsync(CancellationToken cancellationToken)
         {
             try
             {
-                kubernetes.GetApiVersions(cancellationToken: cancellationToken);
-                return Task.FromResult(HealthCheckResult.Healthy("Kubernetes API server reachable"));
+                await kubernetes.Version
+                    .GetCodeWithHttpMessagesAsync(null, cancellationToken)
+                    .ConfigureAwait(false);
+                return HealthCheckResult.Healthy("Kubernetes API server reachable");
             }
             // Any failure to reach the API server must surface as unhealthy, so the catch
             // is intentionally broad.
 #pragma warning disable CA1031
             catch (Exception ex)
             {
-                return Task.FromResult(HealthCheckResult.Unhealthy("Kubernetes API server unreachable", ex));
+                return HealthCheckResult.Unhealthy("Kubernetes API server unreachable", ex);
             }
 #pragma warning restore CA1031
         }
 
-        public Task<HashSet<(string Host, int Port)>> GetReachableAddressesAsync(Uri? baseUrl, CancellationToken cancellationToken)
+        public async Task<HashSet<(string Host, int Port)>> GetReachableAddressesAsync(Uri? baseUrl, CancellationToken cancellationToken)
         {
             var host = baseUrl?.Host;
 
             if (string.IsNullOrEmpty(host))
-                return Task.FromResult(new HashSet<(string Host, int Port)>());
+                return [];
 
-            var view = GetClusterView(settingsStore.Current, cancellationToken);
+            var view = await GetClusterViewAsync(settingsStore.Current, cancellationToken).ConfigureAwait(false);
             var addresses = new HashSet<(string Host, int Port)>();
 
             // A service's NodePort is reachable on the node (the dashboard's base host)
@@ -272,7 +336,7 @@ namespace Api.Features.Apps.Runtime
                 if (service.Spec?.Selector is not { } selector ||
                     !view.Pods.Any(pod =>
                         IsPodRunning(pod) &&
-                        string.Equals(pod.Metadata?.Namespace, service.Metadata?.Namespace, StringComparison.Ordinal) &&
+                        string.Equals(pod.Metadata?.NamespaceProperty, service.Metadata?.NamespaceProperty, StringComparison.Ordinal) &&
                         MatchesSelector(selector, pod.Metadata?.Labels)))
                 {
                     continue;
@@ -280,41 +344,26 @@ namespace Api.Features.Apps.Runtime
 
                 foreach (var port in service.Spec.Ports ?? [])
                     if (port.NodePort is > 0)
-                        addresses.Add((host, port.NodePort!.Value));
+                        addresses.Add((host, port.NodePort.Value));
             }
 
-            return Task.FromResult(addresses);
+            return addresses;
         }
 
-        /// <summary>The cluster state in the configured scope: a single namespace, or all of them (minus the system ones).</summary>
-        Task<ClusterView> GetClusterViewAsync(DockerUISettings? settings, CancellationToken cancellationToken)
+        /// <summary>
+        /// The cluster state in the configured scope: a single namespace, or all of them
+        /// (minus the system ones). Every operation works on a fresh view, so the cards
+        /// always reflect the cluster's current state.
+        /// </summary>
+        async Task<ClusterView> GetClusterViewAsync(DockerUISettings? settings, CancellationToken cancellationToken)
         {
             try
             {
-                var namespaceName = settings?.Kubernetes is { } kube && !string.IsNullOrWhiteSpace(kube.Namespace) ? kube.Namespace : null;
+                var view = settings?.Kubernetes is { } kube && !string.IsNullOrWhiteSpace(kube.Namespace)
+                    ? await GetNamespacedClusterViewAsync(kube.Namespace, cancellationToken).ConfigureAwait(false)
+                    : await GetAllNamespacesClusterViewAsync(cancellationToken).ConfigureAwait(false);
 
-                ClusterView view;
-
-                if (namespaceName is not null)
-                {
-                    view = new ClusterView(
-                        kubernetes.CoreV1().ListNamespacedPod(namespaceName, cancellationToken: cancellationToken).Items ?? [],
-                        kubernetes.AppsV1().ListNamespacedDeployment(namespaceName, cancellationToken: cancellationToken).Items ?? [],
-                        kubernetes.AppsV1().ListNamespacedStatefulSet(namespaceName, cancellationToken: cancellationToken).Items ?? [],
-                        kubernetes.AppsV1().ListNamespacedDaemonSet(namespaceName, cancellationToken: cancellationToken).Items ?? [],
-                        kubernetes.CoreV1().ListNamespacedService(namespaceName, cancellationToken: cancellationToken).Items ?? []);
-                }
-                else
-                {
-                    view = new ClusterView(
-                        FilterInScope(kubernetes.CoreV1().ListPodForAllNamespaces(cancellationToken: cancellationToken).Items, pod => pod.Metadata?.Namespace),
-                        FilterInScope(kubernetes.AppsV1().ListDeploymentForAllNamespaces(cancellationToken: cancellationToken).Items, deployment => deployment.Metadata?.Namespace),
-                        FilterInScope(kubernetes.AppsV1().ListStatefulSetForAllNamespaces(cancellationToken: cancellationToken).Items, statefulSet => statefulSet.Metadata?.Namespace),
-                        FilterInScope(kubernetes.AppsV1().ListDaemonSetForAllNamespaces(cancellationToken: cancellationToken).Items, daemonSet => daemonSet.Metadata?.Namespace),
-                        FilterInScope(kubernetes.CoreV1().ListServiceForAllNamespaces(cancellationToken: cancellationToken).Items, service => service.Metadata?.Namespace));
-                }
-
-                return Task.FromResult(view);
+                return view;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -323,9 +372,25 @@ namespace Api.Features.Apps.Runtime
             }
         }
 
-        static IReadOnlyList<T> FilterInScope<T>(IList<T>? items, Func<T, string?> namespaceOf) where T : class
+        /// <summary>The cluster state of the configured single namespace.</summary>
+        async Task<ClusterView> GetNamespacedClusterViewAsync(string namespaceName, CancellationToken cancellationToken) => new(
+            (await kubernetes.CoreV1.ListNamespacedPodWithHttpMessagesAsync(namespaceName, cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items ?? [],
+            (await kubernetes.AppsV1.ListNamespacedDeploymentWithHttpMessagesAsync(namespaceName, cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items ?? [],
+            (await kubernetes.AppsV1.ListNamespacedStatefulSetWithHttpMessagesAsync(namespaceName, cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items ?? [],
+            (await kubernetes.AppsV1.ListNamespacedDaemonSetWithHttpMessagesAsync(namespaceName, cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items ?? [],
+            (await kubernetes.CoreV1.ListNamespacedServiceWithHttpMessagesAsync(namespaceName, cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items ?? []);
+
+        /// <summary>The cluster state of all namespaces (the default scope), minus the system ones.</summary>
+        async Task<ClusterView> GetAllNamespacesClusterViewAsync(CancellationToken cancellationToken) => new(
+            FilterInScope((await kubernetes.CoreV1.ListPodForAllNamespacesWithHttpMessagesAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items, pod => pod.Metadata?.NamespaceProperty),
+            FilterInScope((await kubernetes.AppsV1.ListDeploymentForAllNamespacesWithHttpMessagesAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items, deployment => deployment.Metadata?.NamespaceProperty),
+            FilterInScope((await kubernetes.AppsV1.ListStatefulSetForAllNamespacesWithHttpMessagesAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items, statefulSet => statefulSet.Metadata?.NamespaceProperty),
+            FilterInScope((await kubernetes.AppsV1.ListDaemonSetForAllNamespacesWithHttpMessagesAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items, daemonSet => daemonSet.Metadata?.NamespaceProperty),
+            FilterInScope((await kubernetes.CoreV1.ListServiceForAllNamespacesWithHttpMessagesAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).Body?.Items, service => service.Metadata?.NamespaceProperty));
+
+        static IList<T> FilterInScope<T>(IList<T>? items, Func<T, string?> namespaceOf) where T : class
         {
-            var list = items ?? (IList<T>)[];
+            var list = items ?? [];
             return [.. list.Where(item => item is not null && IsInScope(namespaceOf(item)))];
         }
 
@@ -338,7 +403,7 @@ namespace Api.Features.Apps.Runtime
             string Namespace,
             string Name,
             V1LabelSelector? Selector,
-            IReadOnlyDictionary<string, string> TemplateLabels,
+            IDictionary<string, string> TemplateLabels,
             IReadOnlyList<string> TemplateImages);
 
         /// <summary>The workloads in the view, in the stable name order the cards use.</summary>
@@ -347,21 +412,20 @@ namespace Api.Features.Apps.Runtime
             var workloads = new List<WorkloadRef>();
 
             foreach (var deployment in view.Deployments)
-                AddWorkload(workloads, DeploymentKind, deployment.Metadata?.Namespace, deployment.Metadata?.Name,
+                AddWorkload(workloads, DeploymentKind, deployment.Metadata?.NamespaceProperty, deployment.Metadata?.Name,
                     deployment.Spec?.Selector, deployment.Spec?.Template?.Metadata?.Labels, deployment.Spec?.Template?.Spec);
 
             foreach (var statefulSet in view.StatefulSets)
-                AddWorkload(workloads, StatefulSetKind, statefulSet.Metadata?.Namespace, statefulSet.Metadata?.Name,
+                AddWorkload(workloads, StatefulSetKind, statefulSet.Metadata?.NamespaceProperty, statefulSet.Metadata?.Name,
                     statefulSet.Spec?.Selector, statefulSet.Spec?.Template?.Metadata?.Labels, statefulSet.Spec?.Template?.Spec);
 
             foreach (var daemonSet in view.DaemonSets)
-                AddWorkload(workloads, DaemonSetKind, daemonSet.Metadata?.Namespace, daemonSet.Metadata?.Name,
+                AddWorkload(workloads, DaemonSetKind, daemonSet.Metadata?.NamespaceProperty, daemonSet.Metadata?.Name,
                     daemonSet.Spec?.Selector, daemonSet.Spec?.Template?.Metadata?.Labels, daemonSet.Spec?.Template?.Spec);
 
-            return workloads
+            return [.. workloads
                 .OrderBy(workload => workload.Name, StringComparer.Ordinal)
-                .ThenBy(workload => workload.Namespace, StringComparer.Ordinal)
-                .ToList();
+                .ThenBy(workload => workload.Namespace, StringComparer.Ordinal)];
         }
 
         static void AddWorkload(
@@ -370,7 +434,7 @@ namespace Api.Features.Apps.Runtime
             string? namespaceName,
             string? name,
             V1LabelSelector? selector,
-            IReadOnlyDictionary<string, string>? templateLabels,
+            IDictionary<string, string>? templateLabels,
             V1PodSpec? templateSpec)
         {
             if (string.IsNullOrWhiteSpace(namespaceName) || string.IsNullOrWhiteSpace(name))
@@ -381,13 +445,13 @@ namespace Api.Features.Apps.Runtime
                 namespaceName,
                 name,
                 selector,
-                templateLabels is { Count: > 0 } labels ? labels : [],
+                templateLabels is { Count: > 0 } labels ? labels : new Dictionary<string, string>(),
                 templateSpec?.Containers is { Count: > 0 } containers
                     ? [.. containers.Select(container => container.Image)]
                     : []));
         }
 
-        AppDto BuildWorkloadApp(
+        static AppDto BuildWorkloadApp(
             WorkloadRef workload,
             List<V1Pod> pods,
             ClusterView view,
@@ -395,27 +459,34 @@ namespace Api.Features.Apps.Runtime
             DockerUISettings? settings,
             IAppIconCatalog builtInCatalog,
             Func<string, int> missingColorHue,
-            ILogger logger) =>
-            AppCatalog.AssembleApp(
+            ILogger logger)
+        {
+            // The url is only reachable while the workload has a running pod; a scaled-to-zero
+            // workload keeps its service, but the address would just 503 (as a stopped docker
+            // app no longer publishes its ports).
+            var url = pods.Any(IsPodRunning)
+                ? ResolveKubeUrl(GetMatchingServices(workload.Namespace, workload.TemplateLabels, view), baseUrl)
+                : null;
+
+            return AppCatalog.AssembleApp(
                 workload.Name,
                 AppSource.Kubernetes,
-                pods
-                    .Select(pod => new AppCatalog.RuntimeAppUnit(
-                        pod.Metadata?.Name ?? workload.Name,
-                        UnitId(workload.Kind, workload.Namespace, pod.Metadata?.Name ?? workload.Name),
-                        GetPodImage(pod),
-                        IsPodRunning(pod),
-                        GetPodProblem(pod)))
-                    .ToList(),
-                ResolveKubeUrl(GetMatchingServices(workload.Namespace, workload.TemplateLabels, view), baseUrl),
+                [.. pods.Select(pod => new AppCatalog.RuntimeAppUnit(
+                    pod.Metadata?.Name ?? workload.Name,
+                    UnitId(workload.Kind, workload.Namespace, pod.Metadata?.Name ?? workload.Name),
+                    GetPodImage(pod),
+                    IsPodRunning(pod),
+                    GetPodProblem(pod)))],
+                url,
                 null,
                 workload.TemplateImages,
                 builtInCatalog,
                 settings,
                 logger,
                 missingColorHue);
+        }
 
-        AppDto BuildPodApp(
+        static AppDto BuildPodApp(
             V1Pod pod,
             ClusterView view,
             Uri? baseUrl,
@@ -426,11 +497,16 @@ namespace Api.Features.Apps.Runtime
         {
             var name = pod.Metadata?.Name ?? string.Empty;
 
+            // Same as a workload: only a running pod makes the url reachable.
+            var url = IsPodRunning(pod)
+                ? ResolveKubeUrl(GetMatchingServices(pod.Metadata?.NamespaceProperty, pod.Metadata?.Labels, view), baseUrl)
+                : null;
+
             return AppCatalog.AssembleApp(
                 name,
                 AppSource.Kubernetes,
-                [new AppCatalog.RuntimeAppUnit(name, UnitId(PodKind, pod.Metadata?.Namespace, name), GetPodImage(pod), IsPodRunning(pod), GetPodProblem(pod))],
-                ResolveKubeUrl(GetMatchingServices(pod.Metadata?.Namespace, pod.Metadata?.Labels, view), baseUrl),
+                [new AppCatalog.RuntimeAppUnit(name, UnitId(PodKind, pod.Metadata?.NamespaceProperty, name), GetPodImage(pod), IsPodRunning(pod), GetPodProblem(pod))],
+                url,
                 null,
                 pod.Spec?.Containers is { Count: > 0 } containers
                     ? [.. containers.Select(container => container.Image)]
@@ -444,9 +520,9 @@ namespace Api.Features.Apps.Runtime
         /// <summary>
         /// Keeps a spec snapshot of each standalone pod in the per-app settings (taken when
         /// the pod is first seen): a pod has no controller to recreate it, so the snapshot
-        /// is what start/restart restore it from.
+        /// is what start and restart restore it from.
         /// </summary>
-        async Task EnsurePodSpecSavedAsync(V1Pod pod, DockerUISettings? settings, CancellationToken cancellationToken)
+        void EnsurePodSpecSnapshotSaved(V1Pod pod, DockerUISettings? settings)
         {
             var name = pod.Metadata?.Name;
 
@@ -462,33 +538,61 @@ namespace Api.Features.Apps.Runtime
 
             try
             {
-                settingsStore.SaveAppPodSpec(name, ToSpecJson(pod));
+                settingsStore.SaveAppPodSpec(name, ToPodSpecJson(pod));
             }
             catch (IOException)
             {
                 LogPodSpecNotSaved(logger, name);
             }
-
-            await Task.CompletedTask;
         }
 
-        static string ToSpecJson(V1Pod pod)
+        static string ToPodSpecJson(V1Pod pod)
         {
-            var snapshot = pod.DeepClone();
+            var snapshot = CloneFromJson(pod);
             snapshot.Status = null;
             ClearServerFields(snapshot.Metadata);
-            return JsonConvert.SerializeObject(snapshot);
+            return SerializeSpec(snapshot);
         }
 
-        static V1Pod FromSpecJson(string json)
+        static V1Pod FromPodSpecJson(string json)
         {
-            var pod = JsonConvert.DeserializeObject<V1Pod>(json)
+            var pod = JsonSerializer.Deserialize<V1Pod>(json, SpecJsonOptions)
                 ?? throw new DockerUIException("The stored pod spec is not a valid pod definition.");
 
             pod.Status = null;
             ClearServerFields(pod.Metadata);
             return pod;
         }
+
+        /// <summary>
+        /// The namespace stored in the spec snapshot of a standalone pod that is not in the
+        /// cluster (it was stopped), or null when no snapshot is persisted or is readable:
+        /// only pods the dashboard saw before (and snapshotted) stay resolvable after a stop.
+        /// </summary>
+        static string? GetStoredPodNamespace(DockerUISettings? settings, string name)
+        {
+            var spec = settings?.Apps is { } apps && apps.TryGetValue(name, out var perApp)
+                ? perApp.PodSpec
+                : null;
+
+            if (string.IsNullOrWhiteSpace(spec))
+                return null;
+
+            try
+            {
+                return FromPodSpecJson(spec).Metadata?.NamespaceProperty;
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>A deep copy of a resource through its wire-format json (the models have no clone).</summary>
+        static T CloneFromJson<T>(T resource) where T : class =>
+            JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(resource, SpecJsonOptions), SpecJsonOptions) ?? resource;
+
+        static string SerializeSpec<T>(T resource) => JsonSerializer.Serialize(resource, SpecJsonOptions);
 
         static void ClearServerFields(V1ObjectMeta? metadata)
         {
@@ -501,28 +605,34 @@ namespace Api.Features.Apps.Runtime
             metadata.ManagedFields = null;
         }
 
-        void StartUnit(RuntimeUnit unit, CancellationToken cancellationToken)
+        async Task StartUnitAsync(RuntimeUnit unit, CancellationToken cancellationToken)
         {
             var (kind, namespaceName, name) = ParseUnitId(unit.Id);
 
             if (kind == PodKind)
             {
-                StartPod(namespaceName, name, unit.Name, cancellationToken);
+                await StartPodAsync(namespaceName, name, unit.Name, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (kind == DaemonSetKind)
+            {
+                // A DaemonSet has no scale subresource: start removes the stop marker from
+                // its pod template, so its pods are scheduled on every node again.
+                await PatchDaemonSetStoppedAsync(namespaceName, name, stopped: false, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
             // A workload starts at the replica count it had before its last stop
             // (Kubernetes forgets the count when a workload is scaled to zero), defaulting
-            // to one. A DaemonSet with no remembered count starts with replicas unset, so
-            // it runs on every schedulable node again.
+            // to one.
             var remembered = settingsStore.Current?.Apps is { } apps && apps.TryGetValue(unit.Name, out var perApp)
                 ? perApp.LastReplicas
                 : null;
-            var replicas = remembered ?? (kind == DaemonSetKind ? null : DefaultReplicas);
-            ScaleWorkload(kind, namespaceName, name, replicas, cancellationToken);
+            await ScaleWorkloadAsync(kind, namespaceName, name, remembered ?? DefaultReplicas, cancellationToken).ConfigureAwait(false);
         }
 
-        void StopUnit(RuntimeUnit unit, CancellationToken cancellationToken)
+        async Task StopUnitAsync(RuntimeUnit unit, CancellationToken cancellationToken)
         {
             var (kind, namespaceName, name) = ParseUnitId(unit.Id);
 
@@ -530,80 +640,143 @@ namespace Api.Features.Apps.Runtime
             {
                 // A standalone pod has no controller to scale; stopping it deletes it (the
                 // card goes away, like a deleted docker container).
-                DeletePod(namespaceName, name, cancellationToken);
+                await DeletePodAsync(namespaceName, name, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
-            var current = ReadWorkloadScale(kind, namespaceName, name, cancellationToken);
-            ScaleWorkload(kind, namespaceName, name, 0, cancellationToken);
+            if (kind == DaemonSetKind)
+            {
+                // A DaemonSet has no scale subresource: stopping it marks its pod template
+                // with a node selector no node matches, so the controller evicts all of
+                // its pods. The card stays (stopped) while it is marked.
+                await PatchDaemonSetStoppedAsync(namespaceName, name, stopped: true, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            var current = await ReadWorkloadScaleAsync(kind, namespaceName, name, cancellationToken).ConfigureAwait(false);
+            await ScaleWorkloadAsync(kind, namespaceName, name, 0, cancellationToken).ConfigureAwait(false);
 
             // Remember the replica count the dashboard restores on start.
             settingsStore.SaveAppLastReplicas(unit.Name, current?.Spec?.Replicas);
         }
 
-        void RestartUnit(RuntimeUnit unit, CancellationToken cancellationToken)
+        async Task RestartUnitAsync(RuntimeUnit unit, CancellationToken cancellationToken)
         {
             var (kind, namespaceName, name) = ParseUnitId(unit.Id);
 
             if (kind == PodKind)
             {
-                // A standalone pod restarts by being replaced: delete it and recreate it
-                // from the spec the dashboard snapshotted when it first saw the pod.
-                DeletePod(namespaceName, name, cancellationToken);
-                StartPod(namespaceName, name, unit.Name, cancellationToken);
+                // A standalone pod restarts by being replaced: StartPodAsync deletes the
+                // current pod, waits for it to be gone, and recreates it from the spec
+                // snapshot the dashboard took when it first saw the pod.
+                await StartPodAsync(namespaceName, name, unit.Name, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
             // A workload restarts with the standard rollout restart: the restartedAt
-            // annotation changes the pod template, so the controller rolls out fresh
-            // pods. On a workload scaled to zero the annotation is simply applied to the
-            // next rollout.
-            var timestamp = DateTime.UtcNow.ToString(InstantTimestampFormat, CultureInfo.InvariantCulture);
+            // annotation on the pod template changes it, so the controller rolls out
+            // fresh pods.
+            await RestartWorkloadAsync(kind, namespaceName, name, TimestampNow(), cancellationToken).ConfigureAwait(false);
+        }
+
+        static string TimestampNow() => DateTime.UtcNow.ToString(InstantTimestampFormat, CultureInfo.InvariantCulture);
+
+        async Task RestartWorkloadAsync(string kind, string namespaceName, string name, string timestamp, CancellationToken cancellationToken)
+        {
+            // A merge patch of the 'restartedAt' annotation changes the pod template, so the
+            // controller rolls out fresh pods (the standard 'rollout restart'). A patch
+            // applies atomically on the server and cannot lose a race with the controller's
+            // status updates, the way a read-modify-write replace can.
+            var patch = new V1Patch(RestartedAtPatchJson(timestamp), V1Patch.PatchType.MergePatch);
 
             switch (kind)
             {
                 case DeploymentKind:
-                    var deployment = kubernetes.AppsV1().ReadNamespacedDeployment(name, namespaceName, cancellationToken: cancellationToken);
-                    SetRestartedAt(deployment.Metadata, timestamp);
-                    kubernetes.AppsV1().ReplaceNamespacedDeploymentWithRequest(deployment, name, namespaceName, cancellationToken: cancellationToken);
-                    break;
+                    await kubernetes.AppsV1
+                        .PatchNamespacedDeploymentWithHttpMessagesAsync(patch, name, namespaceName, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    return;
 
                 case StatefulSetKind:
-                    var statefulSet = kubernetes.AppsV1().ReadNamespacedStatefulSet(name, namespaceName, cancellationToken: cancellationToken);
-                    SetRestartedAt(statefulSet.Metadata, timestamp);
-                    kubernetes.AppsV1().ReplaceNamespacedStatefulSetWithRequest(statefulSet, name, namespaceName, cancellationToken: cancellationToken);
-                    break;
+                    await kubernetes.AppsV1
+                        .PatchNamespacedStatefulSetWithHttpMessagesAsync(patch, name, namespaceName, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    return;
 
                 case DaemonSetKind:
-                    var daemonSet = kubernetes.AppsV1().ReadNamespacedDaemonSet(name, namespaceName, cancellationToken: cancellationToken);
-                    SetRestartedAt(daemonSet.Metadata, timestamp);
-                    kubernetes.AppsV1().ReplaceNamespacedDaemonSetWithRequest(daemonSet, name, namespaceName, cancellationToken: cancellationToken);
-                    break;
+                    await kubernetes.AppsV1
+                        .PatchNamespacedDaemonSetWithHttpMessagesAsync(patch, name, namespaceName, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    return;
 
                 default:
                     throw new DockerUIException($"Unknown workload kind '{kind}'.");
             }
         }
 
-        static void SetRestartedAt(V1ObjectMeta? metadata, string timestamp)
+        /// <summary>
+        /// Marks (or unmarks) a DaemonSet's pod template as stopped by merge-patching its node
+        /// selector: a DaemonSet has no scale subresource, so a node selector no node carries
+        /// evicts all of its pods, and removing the key brings them back. The patch touches only
+        /// the dashboard's own key (preserving any the user set) and applies atomically on the
+        /// server, so it cannot lose a race with the controller's status updates.
+        /// </summary>
+        async Task PatchDaemonSetStoppedAsync(string namespaceName, string name, bool stopped, CancellationToken cancellationToken)
         {
-            if (metadata is null)
-                return;
-
-            metadata.Annotations ??= [];
-            metadata.Annotations[RestartedAtAnnotation] = timestamp;
+            var patch = new V1Patch(DaemonSetStoppedPatchJson(stopped), V1Patch.PatchType.MergePatch);
+            await kubernetes.AppsV1
+                .PatchNamespacedDaemonSetWithHttpMessagesAsync(patch, name, namespaceName, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
         }
 
-        void StartPod(string namespaceName, string name, string appName, CancellationToken cancellationToken)
+        static string DaemonSetStoppedPatchJson(bool stopped) => SerializeSpec(new
         {
-            if (TryReadPod(namespaceName, name, cancellationToken) is { } existing)
+            Spec = new
             {
-                // The pod exists but is not running (pending, failed, ...): replace it for
-                // a fresh start.
-                DeletePod(namespaceName, name, cancellationToken);
+                Template = new
+                {
+                    Spec = new
+                    {
+                        NodeSelector = new Dictionary<string, string?>
+                        {
+                            [DaemonSetStoppedNodeSelectorKey] = stopped ? DaemonSetStoppedNodeSelectorValue : null,
+                        },
+                    },
+                },
+            },
+        });
+
+        static string RestartedAtPatchJson(string timestamp) => SerializeSpec(new
+        {
+            Spec = new
+            {
+                Template = new
+                {
+                    Metadata = new
+                    {
+                        Annotations = new Dictionary<string, string>
+                        {
+                            [RestartedAtAnnotation] = timestamp,
+                        },
+                    },
+                },
+            },
+        });
+
+        async Task StartPodAsync(string namespaceName, string name, string appName, CancellationToken cancellationToken)
+        {
+            if (await TryReadPodAsync(namespaceName, name, cancellationToken).ConfigureAwait(false) is not null)
+            {
+                // The pod exists (running, pending, or already terminating): delete it and
+                // wait for it to be gone, so the create below does not conflict with the
+                // terminating pod's name.
+                await DeletePodAsync(namespaceName, name, cancellationToken).ConfigureAwait(false);
+                await WaitForPodGoneAsync(namespaceName, name, cancellationToken).ConfigureAwait(false);
             }
 
-            var spec = settingsStore.Current?.Apps is { } apps && apps.TryGetValue(appName, out var perApp) ? perApp.PodSpec : null;
+            var spec = settingsStore.Current?.Apps is { } apps && apps.TryGetValue(appName, out var perApp)
+                ? perApp.PodSpec
+                : null;
 
             if (string.IsNullOrWhiteSpace(spec))
             {
@@ -611,69 +784,101 @@ namespace Api.Features.Apps.Runtime
                 return;
             }
 
-            var pod = FromSpecJson(spec);
-            kubernetes.CoreV1().CreateNamespacedPod(pod.Metadata?.Namespace ?? namespaceName, pod, cancellationToken: cancellationToken);
-            _ = existing;
+            var pod = FromPodSpecJson(spec);
+            await kubernetes.CoreV1
+                .CreateNamespacedPodWithHttpMessagesAsync(pod, pod.Metadata?.NamespaceProperty ?? namespaceName, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
         }
 
-        void DeletePod(string namespaceName, string name, CancellationToken cancellationToken) =>
-            kubernetes.CoreV1().DeleteNamespacedPod(name, namespaceName, cancellationToken: cancellationToken);
+        Task<HttpOperationResponse<V1Pod>> DeletePodAsync(string namespaceName, string name, CancellationToken cancellationToken) =>
+            kubernetes.CoreV1.DeleteNamespacedPodWithHttpMessagesAsync(name, namespaceName, cancellationToken: cancellationToken);
 
-        V1Pod? TryReadPod(string namespaceName, string name, CancellationToken cancellationToken)
+        /// <summary>
+        /// Polls until the pod no longer exists. A delete returns as soon as it is accepted,
+        /// but the pod object stays (terminating) until the kubelet finishes, and creating a
+        /// pod with the same name in that window fails with a conflict.
+        /// </summary>
+        async Task WaitForPodGoneAsync(string namespaceName, string name, CancellationToken cancellationToken)
+        {
+            for (var attempt = 0; attempt < PodGonePollAttempts; attempt++)
+            {
+                if (await TryReadPodAsync(namespaceName, name, cancellationToken).ConfigureAwait(false) is null)
+                    return;
+
+                await Task.Delay(PodGonePollIntervalMilliseconds, cancellationToken).ConfigureAwait(false);
+            }
+
+            throw new DockerUIException($"The pod '{name}' could not be deleted in time to recreate it.");
+        }
+
+        async Task<V1Pod?> TryReadPodAsync(string namespaceName, string name, CancellationToken cancellationToken)
         {
             try
             {
-                return kubernetes.CoreV1().ReadNamespacedPod(name, namespaceName, cancellationToken: cancellationToken);
+                var response = await kubernetes.CoreV1
+                    .ReadNamespacedPodWithHttpMessagesAsync(name, namespaceName, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                return response.Body;
             }
-            catch (ApiException ex) when (ex.StatusCode == HttpStatusNotFound)
+            catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
                 return null;
             }
         }
 
-        V1scale ReadWorkloadScale(string kind, string namespaceName, string name, CancellationToken cancellationToken) => kind switch
-        {
-            DeploymentKind => kubernetes.AppsV1().ReadNamespacedDeploymentScale(name, namespaceName, cancellationToken: cancellationToken),
-            StatefulSetKind => kubernetes.AppsV1().ReadNamespacedStatefulSetScale(name, namespaceName, cancellationToken: cancellationToken),
-            DaemonSetKind => kubernetes.AppsV1().ReadNamespacedDaemonSetScale(name, namespaceName, cancellationToken: cancellationToken),
-            _ => throw new DockerUIException($"Unknown workload kind '{kind}'."),
-        };
+        async Task<V1Scale?> ReadWorkloadScaleAsync(string kind, string namespaceName, string name, CancellationToken cancellationToken) =>
+            kind switch
+            {
+                DeploymentKind => (await kubernetes.AppsV1
+                    .ReadNamespacedDeploymentScaleWithHttpMessagesAsync(name, namespaceName, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false)).Body,
+                StatefulSetKind => (await kubernetes.AppsV1
+                    .ReadNamespacedStatefulSetScaleWithHttpMessagesAsync(name, namespaceName, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false)).Body,
+                _ => throw new DockerUIException($"Unknown workload kind '{kind}'."),
+            };
 
-        void ScaleWorkload(string kind, string namespaceName, string name, int? replicas, CancellationToken cancellationToken)
+        async Task ScaleWorkloadAsync(string kind, string namespaceName, string name, int replicas, CancellationToken cancellationToken)
         {
-            var scale = new V1scale { Spec = new V1ScaleSpec { Replicas = replicas } };
+            // The scale subresource's update requires the object's name in the body to
+            // match the one in the url.
+            var scale = new V1Scale
+            {
+                Metadata = new V1ObjectMeta { Name = name },
+                Spec = new V1ScaleSpec { Replicas = replicas },
+            };
 
             switch (kind)
             {
                 case DeploymentKind:
-                    kubernetes.AppsV1().UpdateNamespacedDeploymentScaleWithRequest(scale, name, namespaceName, cancellationToken: cancellationToken);
-                    break;
+                    await kubernetes.AppsV1
+                        .ReplaceNamespacedDeploymentScaleWithHttpMessagesAsync(scale, name, namespaceName, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    return;
 
                 case StatefulSetKind:
-                    kubernetes.AppsV1().UpdateNamespacedStatefulSetScaleWithRequest(scale, name, namespaceName, cancellationToken: cancellationToken);
-                    break;
-
-                case DaemonSetKind:
-                    kubernetes.AppsV1().UpdateNamespacedDaemonSetScaleWithRequest(scale, name, namespaceName, cancellationToken: cancellationToken);
-                    break;
+                    await kubernetes.AppsV1
+                        .ReplaceNamespacedStatefulSetScaleWithHttpMessagesAsync(scale, name, namespaceName, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    return;
 
                 default:
                     throw new DockerUIException($"Unknown workload kind '{kind}'.");
             }
         }
 
-        string ReadUnitLogs(RuntimeUnit unit, CancellationToken cancellationToken)
+        async Task<string> ReadUnitLogsAsync(RuntimeUnit unit, CancellationToken cancellationToken)
         {
             var (kind, namespaceName, name) = ParseUnitId(unit.Id);
 
             if (kind == PodKind)
-                return TryReadPod(namespaceName, name, cancellationToken) is { } pod
-                    ? ReadPodLogs(pod, cancellationToken)
+                return await TryReadPodAsync(namespaceName, name, cancellationToken).ConfigureAwait(false) is { } pod
+                    ? await ReadPodLogsAsync(pod, cancellationToken).ConfigureAwait(false)
                     : string.Empty;
 
             // A workload's logs come from its newest running pod (the one most likely to
             // be serving traffic); a stopped workload has no pod and no logs.
-            var view = GetClusterView(settingsStore.Current, cancellationToken);
+            var view = await GetClusterViewAsync(settingsStore.Current, cancellationToken).ConfigureAwait(false);
             var workload = GetWorkloads(view).SingleOrDefault(workload =>
                 string.Equals(workload.Kind, kind, StringComparison.Ordinal) &&
                 string.Equals(workload.Namespace, namespaceName, StringComparison.Ordinal) &&
@@ -682,22 +887,20 @@ namespace Api.Features.Apps.Runtime
             if (workload is null)
                 return string.Empty;
 
-            var pod = view.Pods
-                .Where(item => string.Equals(item.Metadata?.Namespace, namespaceName, StringComparison.Ordinal))
+            var workloadPod = view.Pods
+                .Where(item => string.Equals(item.Metadata?.NamespaceProperty, namespaceName, StringComparison.Ordinal))
                 .Where(IsPodRunning)
                 .Where(item => MatchesSelector(workload.Selector, item.Metadata?.Labels))
                 .OrderByDescending(item => item.Metadata?.CreationTimestamp ?? DateTime.MinValue)
                 .ThenByDescending(item => item.Metadata?.Name ?? string.Empty, StringComparer.Ordinal)
                 .FirstOrDefault();
 
-            return pod is null ? string.Empty : ReadPodLogs(pod, cancellationToken);
+            return workloadPod is null ? string.Empty : await ReadPodLogsAsync(workloadPod, cancellationToken).ConfigureAwait(false);
         }
 
-        static string ReadPodLogs(V1Pod pod, CancellationToken cancellationToken)
+        async Task<string> ReadPodLogsAsync(V1Pod pod, CancellationToken cancellationToken)
         {
-            var containers = pod.Spec?.Containers is { Count: > 0 } list
-                ? list
-                : (IReadOnlyList<V1Container>)[];
+            var containers = pod.Spec?.Containers ?? [];
 
             if (containers.Count == 0)
                 return string.Empty;
@@ -706,7 +909,7 @@ namespace Api.Features.Apps.Runtime
 
             foreach (var container in containers)
             {
-                var output = ReadPodContainerLog(pod, container.Name, cancellationToken).Trim();
+                var output = (await ReadPodContainerLogAsync(pod, container.Name, cancellationToken).ConfigureAwait(false)).Trim();
                 if (output.Length > 0)
                     sections.Add((container.Name, output));
             }
@@ -721,21 +924,28 @@ namespace Api.Features.Apps.Runtime
                 : sections[0].Output;
         }
 
-        static string ReadPodContainerLog(V1Pod pod, string containerName, CancellationToken cancellationToken)
+        async Task<string> ReadPodContainerLogAsync(V1Pod pod, string containerName, CancellationToken cancellationToken)
         {
             var name = pod.Metadata?.Name ?? string.Empty;
-            var namespaceName = pod.Metadata?.Namespace ?? string.Empty;
+            var namespaceName = pod.Metadata?.NamespaceProperty ?? string.Empty;
 
             try
             {
-                using var stream = kubernetes.CoreV1().GetNamespacedPodLog(
-                    name,
-                    namespaceName,
-                    container: containerName,
-                    tailLines: PodLogTailLines,
-                    cancellationToken: cancellationToken);
+                var response = await kubernetes.CoreV1
+                    .ReadNamespacedPodLogWithHttpMessagesAsync(
+                        name,
+                        namespaceName,
+                        container: containerName,
+                        tailLines: PodLogTailLines,
+                        cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                using var stream = response.Body;
+
+                if (stream is null)
+                    return string.Empty;
+
                 using var reader = new StreamReader(stream);
-                return reader.ReadToEnd();
+                return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
             }
             // A log read failure (the pod is gone, the container restarted) must not take
             // the whole app logs endpoint down: the section simply stays empty.
@@ -753,16 +963,12 @@ namespace Api.Features.Apps.Runtime
         /// (the pod template's labels for a workload, the pod's labels for a standalone
         /// pod) — the services the app's url can come from.
         /// </summary>
-        static List<V1Service> GetMatchingServices(string? namespaceName, IReadOnlyDictionary<string, string> labels, ClusterView view)
-        {
-            if (namespaceName is null || labels.Count == 0)
-                return [];
-
-            return view.Services
-                .Where(service => string.Equals(service.Metadata?.Namespace, namespaceName, StringComparison.Ordinal))
-                .Where(service => MatchesSelector(service.Spec?.Selector, labels))
-                .ToList();
-        }
+        static List<V1Service> GetMatchingServices(string? namespaceName, IDictionary<string, string>? labels, ClusterView view) =>
+            namespaceName is null || labels is not { Count: > 0 }
+                ? []
+                : [.. view.Services
+                    .Where(service => string.Equals(service.Metadata?.NamespaceProperty, namespaceName, StringComparison.Ordinal))
+                    .Where(service => MatchesSelector(service.Spec?.Selector, labels))];
 
         /// <summary>
         /// The app's url: a NodePort of a matching service (reachable on the dashboard's
@@ -822,38 +1028,38 @@ namespace Api.Features.Apps.Runtime
                         : $"Failed ({status.Reason})";
 
                 case PhaseRunning:
-                {
-                    var containerStatuses = status.ContainerStatuses ?? (IReadOnlyList<V1ContainerStatus>)[];
-
-                    foreach (var container in containerStatuses)
                     {
-                        if (container.State?.Waiting is not { } waiting)
-                            continue;
+                        var containerStatuses = status.ContainerStatuses ?? [];
 
-                        if (string.Equals(waiting.Reason, CrashLoopBackOffReason, StringComparison.Ordinal))
-                            return container.LastTerminationState?.Terminated?.ExitCode is { } exitCode
-                                ? $"Crash-looping (last exit code {exitCode})"
-                                : "Crash-looping";
+                        foreach (var container in containerStatuses)
+                        {
+                            if (container.State?.Waiting is not { } waiting)
+                                continue;
 
-                        if (waiting.Reason is ErrImagePullReason or ImagePullBackOffReason)
-                            return "Failed to pull image";
+                            if (string.Equals(waiting.Reason, CrashLoopBackOffReason, StringComparison.Ordinal))
+                                return container.LastState?.Terminated?.ExitCode is { } exitCode
+                                    ? $"Crash-looping (last exit code {exitCode})"
+                                    : "Crash-looping";
 
-                        var reason = waiting.Reason ?? "Waiting";
-                        return string.IsNullOrWhiteSpace(waiting.Message) ? reason : $"{reason}: {waiting.Message}";
+                            if (waiting.Reason is ErrImagePullReason or ImagePullBackOffReason)
+                                return "Failed to pull image";
+
+                            var reason = waiting.Reason ?? "Waiting";
+                            return string.IsNullOrWhiteSpace(waiting.Message) ? reason : $"{reason}: {waiting.Message}";
+                        }
+
+                        foreach (var container in containerStatuses)
+                        {
+                            if (container.State?.Terminated is not { ExitCode: not 0 } terminated)
+                                continue;
+
+                            return string.Equals(terminated.Reason, OomKilledReason, StringComparison.Ordinal)
+                                ? "Crashed (out of memory)"
+                                : $"Crashed (exit code {terminated.ExitCode})";
+                        }
+
+                        return null;
                     }
-
-                    foreach (var container in containerStatuses)
-                    {
-                        if (container.State?.Terminated is not { ExitCode: not 0 } terminated)
-                            continue;
-
-                        return string.Equals(terminated.Reason, OomKilledReason, StringComparison.Ordinal)
-                            ? "Crashed (out of memory)"
-                            : $"Crashed (exit code {terminated.ExitCode})";
-                    }
-
-                    return null;
-                }
 
                 default:
                     // Succeeded (and unknown phases): not a problem.
@@ -863,29 +1069,37 @@ namespace Api.Features.Apps.Runtime
 
         /// <summary>
         /// Whether the pod's labels match the selector: every matchLabels pair must be
-        // present with the same value, and every match expression must hold.
+        /// present with the same value, and every match expression must hold.
         /// </summary>
-        static bool MatchesSelector(V1LabelSelector? selector, IReadOnlyDictionary<string, string>? labels)
+        /// <summary>
+        /// Whether every pair of the service selector is present in the labels with the same
+        /// value (an empty or missing selector matches nothing).
+        /// </summary>
+        static bool MatchesSelector(IDictionary<string, string>? selector, IDictionary<string, string>? labels) =>
+            selector is { Count: > 0 } && labels is not null &&
+                selector.All(pair => labels.TryGetValue(pair.Key, out var value) && string.Equals(value, pair.Value, StringComparison.Ordinal));
+
+        static bool MatchesSelector(V1LabelSelector? selector, IDictionary<string, string>? labels)
         {
             if (selector is null || labels is null)
                 return false;
 
-            if (selector.MatchLabels is { Count: > 0 } matchLabels &&
-                !matchLabels.All(pair => labels.TryGetValue(pair.Key, out var value) && string.Equals(value, pair.Value, StringComparison.Ordinal)))
-            {
-                return false;
-            }
+            var matchLabels = selector.MatchLabels;
+            var matchExpressions = selector.MatchExpressions;
+            var matchLabelsMatch = matchLabels is not { Count: > 0 } ||
+                matchLabels.All(pair => labels.TryGetValue(pair.Key, out var value) && string.Equals(value, pair.Value, StringComparison.Ordinal));
+            var matchExpressionsMatch = matchExpressions is not { Count: > 0 } ||
+                matchExpressions.All(expression => MatchesExpression(expression, labels));
 
-            return selector.MatchExpressions is not { Count: > 0 } expressions ||
-                expressions.All(expression => MatchesExpression(expression, labels));
+            return matchLabelsMatch && matchExpressionsMatch;
         }
 
-        static bool MatchesExpression(V1LabelSelectorRequirement expression, IReadOnlyDictionary<string, string> labels)
+        static bool MatchesExpression(V1LabelSelectorRequirement expression, IDictionary<string, string> labels)
         {
             labels.TryGetValue(expression.Key, out var value);
-            var values = expression.Values ?? (IReadOnlyList<string>)[];
+            var values = expression.Values ?? [];
 
-            return expression.Operator switch
+            return expression.OperatorProperty switch
             {
                 OperatorIn => value is not null && values.Contains(value, StringComparer.Ordinal),
                 OperatorNotIn => value is null || !values.Contains(value, StringComparer.Ordinal),
@@ -898,6 +1112,15 @@ namespace Api.Features.Apps.Runtime
         static bool IsPodRunning(V1Pod pod) =>
             string.Equals(pod.Status?.Phase, PhaseRunning, StringComparison.Ordinal);
 
+        /// <summary>
+        /// Whether a pod is up: in the Running phase and not being deleted. Used to decide
+        /// whether an app is 'on' for the start/stop/restart gating: a pod that is still
+        /// draining (deletion timestamp set) is being torn down, so it does not count as up —
+        /// otherwise a start issued while a stop's pods drain would be skipped as a no-op.
+        /// </summary>
+        static bool IsPodUp(V1Pod pod) =>
+            pod.Metadata?.DeletionTimestamp is null && IsPodRunning(pod);
+
         static string? GetPodImage(V1Pod pod) =>
             pod.Spec?.Containers is { Count: > 0 } containers ? containers[0].Image : null;
 
@@ -908,10 +1131,9 @@ namespace Api.Features.Apps.Runtime
         {
             var parts = unitId.Split('/', 3);
 
-            if (parts.Length != 3)
-                throw new DockerUIException($"Invalid runtime unit id '{unitId}'.");
-
-            return (parts[0], parts[1], parts[2]);
+            return parts.Length != 3
+                ? throw new DockerUIException($"Invalid runtime unit id '{unitId}'.")
+                : (parts[0], parts[1], parts[2]);
         }
 
         [LoggerMessage(
@@ -926,7 +1148,7 @@ namespace Api.Features.Apps.Runtime
 
         [LoggerMessage(
             Level = LogLevel.Warning,
-            Message = "The spec of pod '{Pod}' could not be persisted (unexpected now that boot verified the settings file is writable); start/restart of the pod may not restore it.")]
+            Message = "The spec snapshot of pod '{Pod}' could not be persisted (unexpected now that boot verified the settings file is writable); start and restart of the pod may not restore it.")]
         static partial void LogPodSpecNotSaved(ILogger logger, string pod);
 
         [LoggerMessage(
@@ -943,6 +1165,11 @@ namespace Api.Features.Apps.Runtime
             Level = LogLevel.Debug,
             Message = "Could not detect the dashboard's own pod; its card will be shown in the list.")]
         static partial void LogSelfAppDetectionFailed(ILogger logger, Exception exception);
+
+        [LoggerMessage(
+            Level = LogLevel.Debug,
+            Message = "Could not read the dashboard's own logs; the logs endpoint reports them as unavailable.")]
+        static partial void LogSelfLogsFailed(ILogger logger, Exception exception);
     }
 
     /// <summary>
@@ -951,9 +1178,9 @@ namespace Api.Features.Apps.Runtime
     /// the cluster's current state.
     /// </summary>
     internal sealed record ClusterView(
-        IReadOnlyList<V1Pod> Pods,
-        IReadOnlyList<V1Deployment> Deployments,
-        IReadOnlyList<V1StatefulSet> StatefulSets,
-        IReadOnlyList<V1DaemonSet> DaemonSets,
-        IReadOnlyList<V1Service> Services);
+        IList<V1Pod> Pods,
+        IList<V1Deployment> Deployments,
+        IList<V1StatefulSet> StatefulSets,
+        IList<V1DaemonSet> DaemonSets,
+        IList<V1Service> Services);
 }

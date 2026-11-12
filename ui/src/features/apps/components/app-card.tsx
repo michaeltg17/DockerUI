@@ -85,6 +85,9 @@ export const AppCard = ({
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const isRunning = app.state === 'running';
+  // A runtime app (a docker stack or container, or a kubernetes workload or pod) has
+  // live state and actions; shortcuts and lan findings do not.
+  const isRuntimeApp = app.source === 'docker' || app.source === 'kubernetes';
   const isStarting = startApp.isPending;
   const isStopping = stopApp.isPending;
   const isRestarting = restartApp.isPending;
@@ -111,13 +114,13 @@ export const AppCard = ({
   // card listens to both and opens the app in a new tab either way.
   const openUrl = (event: MouseEvent) => {
     if (event.button !== 0 && event.button !== 1) return;
-    if (app.source === 'docker') reportInteraction();
+    if (isRuntimeApp) reportInteraction();
     if (app.url) {
       window.open(app.url, '_blank', 'noopener,noreferrer');
     }
   };
 
-  if (app.source !== 'docker') {
+  if (!isRuntimeApp) {
     const isLan = app.source === 'lan';
 
     const shortcutActions: AppMenuItem[] = [
@@ -209,12 +212,15 @@ export const AppCard = ({
     );
   }
 
-  // A split part ('project-service') can be joined back into its stack. A stack
-  // offers Split when at least two services remain, or when one remains next to
-  // services already split out (splitting it moves the stack card to parts too).
+  // A split part ('project-service') can be joined back into its stack. A docker stack
+  // offers Split when at least two services remain, or when one remains next to services
+  // already split out (splitting it moves the stack card to parts too). Split/join are
+  // docker concepts (compose projects); kubernetes apps never offer them.
   const isPart = app.splitFrom !== null;
   const canSplit =
-    !isPart && (app.services.length >= 2 || app.splitServices.length > 0);
+    app.source === 'docker' &&
+    !isPart &&
+    (app.services.length >= 2 || app.splitServices.length > 0);
 
   const joinItem: AppMenuItem = {
     id: 'join',

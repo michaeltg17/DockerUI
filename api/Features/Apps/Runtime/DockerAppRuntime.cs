@@ -5,6 +5,7 @@ using Api.Features.Apps.Models;
 using Api.Settings;
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Api.Features.Apps.Runtime;
 
@@ -13,10 +14,9 @@ namespace Api.Features.Apps.Runtime;
 /// 'com.docker.compose.project' label), resolves the app url from published ports, and
 /// answers the actions with the daemon's per-container operations.
 /// </summary>
-internal sealed class DockerAppRuntime(
+internal sealed partial class DockerAppRuntime(
     IContainerOperations containers,
     ISystemOperations systemOperations,
-    IAppIconCatalog iconCatalog,
     ILogger<DockerAppRuntime> logger) : IAppRuntime
 {
     // The list response carries no exit code for created containers, so a failed start
@@ -94,6 +94,29 @@ internal sealed class DockerAppRuntime(
             : null;
     }
 
+    public async Task<string?> GetAppProjectAsync(string appName, DockerUISettings? settings, CancellationToken cancellationToken)
+    {
+        var snapshots = await GetSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+        var targets = AppCatalog.ResolveApp(snapshots, appName, settings);
+
+        // A split part resolves to its project's containers, so the first target carries
+        // the project label either way; a standalone container has none.
+        return targets.Count == 0 ? null : AppCatalog.GetProject(targets[0]);
+    }
+
+    public async Task<string?> ReadSelfLogsAsync(CancellationToken cancellationToken)
+    {
+        var snapshots = await GetSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+
+        var selfId = OwnContainer.FindId(snapshots.Select(snapshot => snapshot.Id));
+
+        if (selfId is null)
+            return null;
+
+        var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, selfId, cancellationToken).ConfigureAwait(false);
+        return string.Concat(stdout, stderr.Length > 0 ? "\n" : string.Empty, stderr).TrimEnd();
+    }
+
     public async Task<HealthCheckResult> PingAsync(CancellationToken cancellationToken)
     {
         try
@@ -133,7 +156,7 @@ internal sealed class DockerAppRuntime(
     /// endpoint loops did (start skips running containers, stop and restart skip the
     /// not-running ones).
     /// </summary>
-    async Task OperateAsync(
+    static async Task OperateAsync(
         IReadOnlyList<RuntimeUnit> targets,
         Func<RuntimeUnit, bool> needsOperation,
         Func<string, CancellationToken, Task> operation,

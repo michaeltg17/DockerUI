@@ -233,6 +233,49 @@ internal sealed class SettingsStore(AppSettingsStore store)
             return PruneAppEntry(section, appName);
         });
 
+    /// <summary>
+    /// Saves the replica count the kubernetes backend remembers for a stopped workload, so
+    /// 'Start' can bring the workload back at its previous size. Null removes the override
+    /// (the workload had no scale of its own, e.g. a DaemonSet).
+    /// </summary>
+    public void SaveAppLastReplicas(string appName, int? replicas)
+        => store.UpdateSection(section =>
+        {
+            var entry = GetAppEntry(section, appName);
+            var current = entry[nameof(AppUserSettings.LastReplicas)]?.GetValue<int?>();
+
+            if (current == replicas)
+                return false;
+
+            if (replicas is null)
+                entry.Remove(nameof(AppUserSettings.LastReplicas));
+            else
+                entry[nameof(AppUserSettings.LastReplicas)] = replicas.Value;
+
+            return PruneAppEntry(section, appName);
+        });
+
+    /// <summary>
+    /// Saves the pod spec snapshot the kubernetes backend takes of a standalone pod (json),
+    /// so the pod can be recreated after a stop. An empty spec removes the snapshot.
+    /// </summary>
+    public void SaveAppPodSpec(string appName, string? spec)
+        => store.UpdateSection(section =>
+        {
+            var entry = GetAppEntry(section, appName);
+            var current = entry[nameof(AppUserSettings.PodSpec)]?.GetValue<string>();
+
+            if (current == spec)
+                return false;
+
+            if (string.IsNullOrEmpty(spec))
+                entry.Remove(nameof(AppUserSettings.PodSpec));
+            else
+                entry[nameof(AppUserSettings.PodSpec)] = spec;
+
+            return PruneAppEntry(section, appName);
+        });
+
     /// <summary>Saves the subnet a LAN scan used in the 'DockerUI:Lan:Subnet' setting.</summary>
     public void SaveLanSubnet(string subnet)
         => store.UpdateSection(section =>

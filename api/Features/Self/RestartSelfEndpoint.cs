@@ -1,32 +1,22 @@
 using Api.Exceptions;
 using Api.Features.Apps;
-using Docker.DotNet;
-using Docker.DotNet.Models;
+using Api.Features.Apps.Runtime;
 
 namespace Api.Features.Self
 {
     internal static class RestartSelfEndpoint
     {
-        const uint StopGracePeriodSeconds = 10;
-
         public static void Map(IEndpointRouteBuilder group)
         {
             group.MapPost("/restart", async (
+                IAppRuntime runtime,
                 AppService appService,
-                IContainerOperations containers,
                 CancellationToken cancellationToken) =>
             {
-                var self = await appService.GetSelfProjectAsync(cancellationToken).ConfigureAwait(false)
+                var self = await appService.GetSelfAppAsync(cancellationToken).ConfigureAwait(false)
                     ?? throw new NotRunningInContainerException("The dashboard is not running in a container.");
-                var targets = await appService.ResolveAppContainersAsync(self, cancellationToken).ConfigureAwait(false);
-
-                foreach (var container in targets)
-                {
-                    await containers.RestartContainerAsync(
-                        container.Id,
-                        new ContainerRestartParameters { WaitBeforeKillSeconds = StopGracePeriodSeconds },
-                        cancellationToken).ConfigureAwait(false);
-                }
+                var targets = await appService.ResolveAppUnitsAsync(self, cancellationToken).ConfigureAwait(false);
+                await runtime.RestartAsync(targets, cancellationToken).ConfigureAwait(false);
 
                 return Results.NoContent();
             });

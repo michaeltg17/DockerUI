@@ -37,6 +37,14 @@ namespace Api.Settings
         /// always null for docker apps.
         /// </summary>
         public int? LastReplicas { get; set; }
+
+        /// <summary>
+        /// The spec (json) the kubernetes backend snapshotted when it first saw a standalone
+        /// pod: a pod has no controller to recreate it, so 'Start' and 'Restart' restore it
+        /// from this snapshot. Managed by the kubernetes backend, not by the user; always
+        /// null for docker apps and kubernetes workloads.
+        /// </summary>
+        public string? PodSpec { get; set; }
     }
 #pragma warning restore CA1056
 }

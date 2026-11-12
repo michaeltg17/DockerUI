@@ -347,7 +347,7 @@ namespace Api.Features.Apps
             // In a multi-unit app the unit name prefixes each problem so it is clear
             // which unit is failing.
             var problems = units
-                .Select(unit => (Service: unit.Service, Problem: unit.Problem))
+                .Select(unit => (unit.Service, unit.Problem))
                 .Where(pair => pair.Problem is not null)
                 .ToList();
 
@@ -416,7 +416,7 @@ namespace Api.Features.Apps
                 units,
                 ResolveUrl(containers, baseUrl),
                 labelIcon,
-                containers.Select(container => container.Image).ToList(),
+                [.. containers.Select(container => container.Image)],
                 iconCatalog,
                 settings,
                 logger,
@@ -504,7 +504,7 @@ namespace Api.Features.Apps
             return (visible, hidden);
         }
 
-        internal static List<AppDto> OrderApps(List<AppDto> apps, DockerUISettings? settings)
+        internal static List<AppDto> OrderApps(IReadOnlyList<AppDto> apps, DockerUISettings? settings)
         {
             var order = settings?.Order;
 
@@ -571,7 +571,7 @@ namespace Api.Features.Apps
         /// is clear which unit is failing; a single unit's problem stands alone. Shared by
         /// the runtimes.
         /// </summary>
-        internal static string? JoinProblems(IReadOnlyList<(string Service, string Problem)> problems, int unitCount) =>
+        internal static string? JoinProblems(IReadOnlyList<(string Service, string? Problem)> problems, int unitCount) =>
             problems.Count == 0
                 ? null
                 : unitCount == 1

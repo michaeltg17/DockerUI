@@ -1,7 +1,6 @@
 using System.Text;
-using Api.Exceptions;
 using Api.Features.Apps.Models;
-using Docker.DotNet;
+using Api.Features.Apps.Runtime;
 
 namespace Api.Features.Apps.Endpoints
 {
@@ -11,45 +10,37 @@ namespace Api.Features.Apps.Endpoints
         {
             group.MapGet("/{name}/logs", async (
                 string name,
-                IContainerOperations containers,
+                IAppRuntime runtime,
                 AppService appService,
                 CancellationToken cancellationToken) =>
             {
                 AppNameValidator.Validate(name);
-                var targets = await appService.ResolveAppContainersAsync(name, cancellationToken).ConfigureAwait(false);
+                var targets = await appService.ResolveAppUnitsAsync(name, cancellationToken).ConfigureAwait(false);
+                var outputs = await runtime.ReadLogsAsync(targets, cancellationToken).ConfigureAwait(false);
                 var logs = new StringBuilder();
                 var hasLogs = false;
 
-                try
+                foreach (var (unit, output) in outputs)
                 {
-                    foreach (var container in targets)
+                    if (string.IsNullOrWhiteSpace(output))
                     {
-                        var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, container.Id, cancellationToken).ConfigureAwait(false);
-                        if (string.IsNullOrWhiteSpace(stdout) && string.IsNullOrWhiteSpace(stderr))
-                        {
-                            continue;
-                        }
-
-                        hasLogs = true;
-
-                        // The dialog title already names a single-container app, so only
-                        // multi-container stacks need a section header per container.
-                        if (targets.Count > 1)
-                        {
-                            logs.AppendLine("=== " + container.Name + " ===");
-                        }
-
-                        logs.Append(stdout).AppendLine().Append(stderr);
+                        continue;
                     }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    throw new DaemonUnavailableException(
-                        "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
+
+                    hasLogs = true;
+
+                    // The dialog title already names a single-unit app, so only
+                    // multi-unit apps need a section header per unit.
+                    if (outputs.Count > 1)
+                    {
+                        logs.AppendLine("=== " + unit.Name + " ===");
+                    }
+
+                    logs.Append(output).AppendLine();
                 }
 
                 // With no log content at all the dialog shows its empty state instead of
-                // bare (multi-container) section headers.
+                // bare (multi-unit) section headers.
                 return Results.Ok(new AppLogsDto(hasLogs ? logs.ToString().TrimEnd() : string.Empty));
             });
         }

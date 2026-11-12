@@ -1,0 +1,131 @@
+# Runs the dashboard inside a Kubernetes cluster (see wiki/Kubernetes.md).
+# The ServiceAccount gets exactly what the kubernetes backend calls: read the
+# cluster's pods, workloads, services and replica sets; create/delete pods
+# (standalone pod start/restart); read pod logs; patch workloads and their
+# scale subresources. In-cluster, no kubeconfig is needed — the
+# ServiceAccount token is used automatically.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: docker-ui
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: docker-ui
+  namespace: docker-ui
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: docker-ui
+  namespace: docker-ui
+rules:
+  # The pods are the apps (standalone pods and workload members); the
+  # dashboard creates and deletes standalone pods to start/restart/stop them.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Services resolve the card urls (NodePort, LoadBalancer ingress).
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list"]
+  # Workloads are the apps; patches apply the restart annotation and the
+  # DaemonSet stop marker.
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "patch"]
+  # Start/stop scale workloads to and from their remembered replica count.
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale", "statefulsets/scale"]
+    verbs: ["get", "update"]
+  # The dashboard resolves its own pod's owner chain to find its own card.
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: docker-ui
+  namespace: docker-ui
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: docker-ui
+subjects:
+  - kind: ServiceAccount
+    name: docker-ui
+    namespace: docker-ui
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docker-ui
+  namespace: docker-ui
+  labels:
+    app: docker-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docker-ui
+  template:
+    metadata:
+      labels:
+        app: docker-ui
+    spec:
+      serviceAccountName: docker-ui
+      containers:
+        - name: docker-ui
+          image: ghcr.io/michaeltg17/docker-ui:latest
+          imagePullPolicy: IfNotPresent
+          # Switch the backend from the (default) docker daemon socket to the
+          # cluster; in-cluster the service account is the credential.
+          env:
+            - name: DockerUI__Backend
+              value: kubernetes
+            # Watch one namespace; unset to watch all (the system namespaces
+            # are skipped).
+            - name: DockerUI__Kubernetes__Namespace
+              value: docker-ui
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false # the dashboard persists settings to /app
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+# Note: app state the dashboard persists (standalone pod snapshots, remembered
+# replica counts, hidden apps, colors) is written to /app in the container's
+# writable layer and resets when the pod is replaced. Mount a PVC at /app
+# (pre-seeded with an appsettings.json) to make it durable.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-ui
+  namespace: docker-ui
+spec:
+  selector:
+    app: docker-ui
+  ports:
+    - port: 8080
+      targetPort: http
+      name: http

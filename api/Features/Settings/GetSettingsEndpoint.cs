@@ -13,12 +13,12 @@ namespace Api.Features.Settings
         {
             app.MapGet(Path, async (AppService appService, IOptionsMonitor<DockerUISettings> settings, CancellationToken cancellationToken) =>
             {
-                // The daemon may be unreachable; the rest of the settings must still be served.
+                // The runtime may be unreachable; the rest of the settings must still be served.
                 string? self = null;
 
                 try
                 {
-                    self = await appService.GetSelfProjectAsync(cancellationToken).ConfigureAwait(false);
+                    self = await appService.GetSelfAppAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (DockerUIException)
                 {

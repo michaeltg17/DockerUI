@@ -1,12 +1,13 @@
 using Api.Features.Auth;
 using Microsoft.Extensions.Options;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 
 namespace Api.Settings
 {
     /// <summary>Instantiated by DI as <see cref="IValidateOptions{TOptions}"/>; the analyzer cannot see that.</summary>
     [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "Registered in the dependency container.")]
-    internal sealed class DockerUISettingsValidator : IValidateOptions<DockerUISettings>
+    internal sealed partial class DockerUISettingsValidator : IValidateOptions<DockerUISettings>
     {
         /// <summary>The highest valid icon hue: hues are whole degrees of the 360-degree color wheel.</summary>
         const int MaxIconHue = 359;

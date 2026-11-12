@@ -13,12 +13,12 @@ namespace Api.Features.Apps.Runtime;
 /// identity in the form the runtime understands (a container id, or
 /// 'kind/namespace/name' for a workload or pod).
 /// </summary>
+/// <param name="Name">The unit's display name (used as the log section header).</param>
+/// <param name="Id">The unit's stable identity, in the runtime's own form.</param>
+/// <param name="IsRunning">Whether the unit is currently running; actions skip units they would not change.</param>
 internal sealed record RuntimeUnit(
-    /// <summary>The unit's display name (used as the log section header).</summary>
     string Name,
-    /// <summary>The unit's stable identity, in the runtime's own form.</summary>
     string Id,
-    /// <summary>Whether the unit is currently running; actions skip units they would not change.</summary>
     bool IsRunning);
 
 /// <summary>
@@ -43,6 +43,7 @@ internal interface IAppRuntime
     /// <param name="missingColorHue">Resolves the hue for an app whose settings carry no color yet.</param>
     /// <param name="iconCatalog">The built-in icon catalog.</param>
     /// <param name="selfApp">The app the dashboard runs in this backend, so it can be hidden by default.</param>
+    /// <param name="cancellationToken">Cancels the build.</param>
     Task<(IReadOnlyList<AppDto> Visible, IReadOnlyList<AppDto> Hidden)> BuildAppsAsync(
         Uri? baseUrl,
         DockerUISettings? settings,
@@ -69,6 +70,20 @@ internal interface IAppRuntime
 
     /// <summary>The app the dashboard runs in this backend (for self-hiding and the self endpoints), or null when it does not.</summary>
     Task<string?> GetSelfAppAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The compose project the given app belongs to (a stack, or a split part of one), or
+    /// null when the app has none: standalone docker containers have no project, and
+    /// kubernetes apps do not group by project at all (split/join stay docker-only).
+    /// </summary>
+    Task<string?> GetAppProjectAsync(string appName, DockerUISettings? settings, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The recent log tail of the app the dashboard runs in, for the 'api/logs' endpoint,
+    /// or null when the dashboard does not run in this backend (its own container or pod
+    /// is not listed).
+    /// </summary>
+    Task<string?> ReadSelfLogsAsync(CancellationToken cancellationToken);
 
     /// <summary>Checks the backend is reachable, for the health endpoint.</summary>
     Task<HealthCheckResult> PingAsync(CancellationToken cancellationToken);

@@ -13,8 +13,9 @@ namespace Api.Features.Lan
     /// <summary>
     /// Coordinates a LAN scan: discovers services, auto-adds any new ones as 'lan' shortcuts,
     /// and enriches them (page title, favicon) so the cards show a real name and icon.
-    /// Findings already exposed by a Docker app (the dashboard base host plus a published
-    /// port) are skipped, so the Docker flow stays the single source for them.
+    /// Findings already exposed by a runtime app (the dashboard base host plus a published
+    /// port in docker, or a NodePort in kubernetes) are skipped, so the runtime flow stays
+    /// the single source for them.
     /// </summary>
     internal sealed class LanService(
         LanScanner scanner,
@@ -44,7 +45,7 @@ namespace Api.Features.Lan
             // wait for it.
             var lanSettings = (settings.CurrentValue.Lan ?? new LanSettings()) with { Subnet = effectiveSubnet };
             var findings = await scanner.ScanAsync(lanSettings, cancellationToken);
-            var dockerAddresses = await appService.GetDockerReachableAddressesAsync(cancellationToken);
+            var runtimeAddresses = await appService.GetReachableAddressesAsync(cancellationToken);
 
             var existing = shortcuts.GetAll().ToList();
             var byName = existing.ToDictionary(shortcut => shortcut.Name, StringComparer.OrdinalIgnoreCase);
@@ -53,16 +54,16 @@ namespace Api.Features.Lan
 
             foreach (var finding in findings)
             {
-                var coveredByDocker = IsDockerReachable(finding, dockerAddresses);
+                var coveredByRuntime = IsRuntimeReachable(finding, runtimeAddresses);
 
                 if (byName.TryGetValue(finding.Name, out var match))
                 {
                     if (match.Source != ShortcutSource.Lan)
                         continue;
 
-                    if (coveredByDocker)
+                    if (coveredByRuntime)
                     {
-                        // The Docker flow exposes it now, so the lan card goes away.
+                        // The runtime flow exposes it now, so the lan card goes away.
                         existing.Remove(match);
                         continue;
                     }
@@ -71,7 +72,7 @@ namespace Api.Features.Lan
                     continue;
                 }
 
-                if (coveredByDocker)
+                if (coveredByRuntime)
                     continue;
 
                 var shortcut = new Shortcut(finding.Name, finding.Url, Source: ShortcutSource.Lan, Color: AppCatalog.RandomIconHue());
@@ -129,11 +130,11 @@ namespace Api.Features.Lan
         }
 
         /// <summary>
-        /// Whether the finding is served on the same host and port as a published Docker port,
-        /// so the Docker flow already surfaces it. Default ports are resolved, since findings
-        /// on 80/443 carry no explicit port in their url.
+        /// Whether the finding is served on the same host and port as an address a runtime
+        /// app already exposes, so the runtime flow already surfaces it. Default ports are
+        /// resolved, since findings on 80/443 carry no explicit port in their url.
         /// </summary>
-        static bool IsDockerReachable(LanFinding finding, HashSet<(string Host, int Port)> addresses)
+        static bool IsRuntimeReachable(LanFinding finding, HashSet<(string Host, int Port)> addresses)
         {
             if (!Uri.TryCreate(finding.Url, UriKind.Absolute, out var url))
                 return false;

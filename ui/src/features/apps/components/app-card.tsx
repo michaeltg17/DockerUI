@@ -85,11 +85,20 @@ export const AppCard = ({
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const isRunning = app.state === 'running';
+  // A runtime app (a docker stack or container, or a kubernetes workload or pod) has
+  // live state and actions; shortcuts and lan findings do not.
+  const isRuntimeApp = app.source === 'docker' || app.source === 'kubernetes';
   const isStarting = startApp.isPending;
   const isStopping = stopApp.isPending;
   const isRestarting = restartApp.isPending;
   const isBusy = isStarting || isStopping || isRestarting;
   const problem = app.problem;
+
+  // The first interaction clears the 'new' tag server-side; report it only while
+  // the flag is set, so the card stops posting once the fresh list has landed.
+  const reportInteraction = () => {
+    if (isNew) onInteract();
+  };
 
   // As soon as a stop (or restart) is initiated the app is already treated
   // as not running, so the icon darkens immediately — before the daemon
@@ -105,13 +114,13 @@ export const AppCard = ({
   // card listens to both and opens the app in a new tab either way.
   const openUrl = (event: MouseEvent) => {
     if (event.button !== 0 && event.button !== 1) return;
-    if (app.source === 'docker') onInteract();
+    if (isRuntimeApp) reportInteraction();
     if (app.url) {
       window.open(app.url, '_blank', 'noopener,noreferrer');
     }
   };
 
-  if (app.source !== 'docker') {
+  if (!isRuntimeApp) {
     const isLan = app.source === 'lan';
 
     const shortcutActions: AppMenuItem[] = [
@@ -203,12 +212,15 @@ export const AppCard = ({
     );
   }
 
-  // A split part ('project-service') can be joined back into its stack. A stack
-  // offers Split when at least two services remain, or when one remains next to
-  // services already split out (splitting it moves the stack card to parts too).
+  // A split part ('project-service') can be joined back into its stack. A docker stack
+  // offers Split when at least two services remain, or when one remains next to services
+  // already split out (splitting it moves the stack card to parts too). Split/join are
+  // docker concepts (compose projects); kubernetes apps never offer them.
   const isPart = app.splitFrom !== null;
   const canSplit =
-    !isPart && (app.services.length >= 2 || app.splitServices.length > 0);
+    app.source === 'docker' &&
+    !isPart &&
+    (app.services.length >= 2 || app.splitServices.length > 0);
 
   const joinItem: AppMenuItem = {
     id: 'join',
@@ -247,7 +259,7 @@ export const AppCard = ({
       ...item,
       onSelect: onSelect
         ? () => {
-            onInteract();
+            reportInteraction();
             onSelect();
           }
         : undefined,
@@ -330,6 +342,12 @@ export const AppCard = ({
                   isDimmed && 'brightness-50',
                 )}
               />
+              {isNew && (
+                // Centered on the icon's top edge: half the tag inside, half outside.
+                <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-primary-foreground">
+                  New
+                </span>
+              )}
               {(app.state === 'stopped' || problem !== null) && (
                 <span
                   role="button"
@@ -337,14 +355,14 @@ export const AppCard = ({
                   aria-label={`Start ${app.name}`}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onInteract();
+                    reportInteraction();
                     void startApp.mutate(app.name);
                   }}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return;
                     event.preventDefault();
                     event.stopPropagation();
-                    onInteract();
+                    reportInteraction();
                     void startApp.mutate(app.name);
                   }}
                   className="absolute inset-0 flex cursor-pointer items-center justify-center"
@@ -389,16 +407,9 @@ export const AppCard = ({
               )}
             </div>
 
-            <div className="flex max-w-full items-center gap-1.5">
-              <h3 className="min-w-0 truncate text-sm font-medium">
-                {app.displayName}
-              </h3>
-              {isNew && (
-                <span className="shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-primary-foreground">
-                  New
-                </span>
-              )}
-            </div>
+            <h3 className="min-w-0 max-w-full truncate text-sm font-medium">
+              {app.displayName}
+            </h3>
           </button>
         </AppMenu>
         {isDragging && <DropIndicator />}

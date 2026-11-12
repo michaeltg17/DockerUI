@@ -10,7 +10,11 @@ namespace Api.Settings
         /// <summary>Full URL the app should open with (wins over port-based resolution).</summary>
         public string? Url { get; set; }
 
-        /// <summary>Icon path or URL (wins over the 'dockerui.icon' label and the built-in catalog).</summary>
+        /// <summary>
+        /// Icon path or URL (wins over the 'dockerui.icon' label and the built-in catalog).
+        /// An explicit empty string means the user chose no icon; an absent value lets the
+        /// app fall back to its resolved icon.
+        /// </summary>
         public string? Icon { get; set; }
 
         /// <summary>Hide the app from the dashboard.</summary>
@@ -18,6 +22,29 @@ namespace Api.Settings
 
         /// <summary>Random icon hue decided when the app was first seen; never changes afterwards.</summary>
         public int? Color { get; set; }
+
+        /// <summary>
+        /// Whether the app is still tagged 'new': detected after the dashboard's first
+        /// observation and not yet interacted with. Managed by the app list and cleared by
+        /// the first interaction; defaults to false.
+        /// </summary>
+        public bool New { get; set; }
+
+        /// <summary>
+        /// The replica count a kubernetes workload had before it was last stopped, so
+        /// 'Start' can bring it back at the same size (Kubernetes forgets the count when a
+        /// workload is scaled to zero). Managed by the kubernetes backend, not by the user;
+        /// always null for docker apps.
+        /// </summary>
+        public int? LastReplicas { get; set; }
+
+        /// <summary>
+        /// The spec (json) the kubernetes backend snapshotted when it first saw a standalone
+        /// pod: a pod has no controller to recreate it, so 'Start' and 'Restart' restore it
+        /// from this snapshot. Managed by the kubernetes backend, not by the user; always
+        /// null for docker apps and kubernetes workloads.
+        /// </summary>
+        public string? PodSpec { get; set; }
     }
 #pragma warning restore CA1056
 }

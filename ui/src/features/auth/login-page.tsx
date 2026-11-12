@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { ErrorSlot } from '@/components/ui/error-slot';
+import { FieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { Logo } from '@/components/ui/logo';
 import { getErrorMessage } from '@/lib/api-client';
@@ -54,7 +54,7 @@ export const LoginPage = () => {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3">
+        <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-2">
           <label className="sr-only" htmlFor="login-password">
             Password
           </label>
@@ -70,20 +70,20 @@ export const LoginPage = () => {
               setPassword(event.target.value);
               setError(null);
             }}
-            className="w-full"
+            className="w-full border-muted-foreground"
           />
 
-          <div className="flex flex-col gap-2 pt-1">
-            <ErrorSlot error={error} />
+          {/* The dialog input error style: one reserved line, so the sign-in
+              button stays close and an error appearing cannot shift the form. */}
+          <FieldError error={error} />
 
-            <Button
-              type="submit"
-              isLoading={isSubmitting}
-              disabled={password.length === 0}
-            >
-              Sign in
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            isLoading={isSubmitting}
+            disabled={password.length === 0}
+          >
+            Sign in
+          </Button>
 
           <div className="mt-2 flex justify-center">
             <button

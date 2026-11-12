@@ -12,19 +12,19 @@ import { getLogs } from './api/get-logs';
 import { AppsGrid } from './components/apps-grid';
 import { DashboardMenu } from './components/dashboard-menu';
 import { HiddenAppsDialog } from './components/hidden-apps-dialog';
+import { LanScanDialog } from './components/lan-scan-dialog';
 import { LogsDialog } from './components/logs-dialog';
 import { RenameDialog } from './components/rename-dialog';
 import { ShortcutDialog } from './components/shortcut-dialog';
 import { filterApps } from './filter-apps';
-import { useApps, useSetAppOrder } from './hooks/use-apps';
+import { useApps, useMarkAppSeen, useSetAppOrder } from './hooks/use-apps';
 import { useAppsHub } from './hooks/use-apps-hub';
 import { useScanLan } from './hooks/use-lan';
-import { useNewApps } from './hooks/use-new-apps';
 import { useSettings } from './hooks/use-settings';
 
 export const AppsPage = () => {
   const { data, isPending, isError, refetch } = useApps();
-  const { newAppNames, markInteracted } = useNewApps(data ?? []);
+  const markAppSeen = useMarkAppSeen();
   const setOrder = useSetAppOrder();
   const { data: settings } = useSettings();
   const [query, setQuery] = useState('');
@@ -32,6 +32,7 @@ export const AppsPage = () => {
   const [shortcutOpen, setShortcutOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [hiddenAppsOpen, setHiddenAppsOpen] = useState(false);
+  const [lanScanOpen, setLanScanOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [removePasswordOpen, setRemovePasswordOpen] = useState(false);
 
@@ -39,7 +40,7 @@ export const AppsPage = () => {
 
   const scanLan = useScanLan();
 
-  const runScanLan = () => {
+  const runScanLan = (subnet: string) => {
     // A LAN scan can take a while, so show a persistent notification with a
     // spinner while it runs and update it in place once the result arrives.
     const pendingId = useNotifications.getState().addNotification({
@@ -50,7 +51,7 @@ export const AppsPage = () => {
     });
 
     void scanLan
-      .mutateAsync()
+      .mutateAsync(subnet)
       .then((result) => {
         useNotifications.getState().updateNotification(pendingId, {
           type: 'success',
@@ -72,7 +73,9 @@ export const AppsPage = () => {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    // The shell is exactly viewport-height: the header stays pinned and the
+    // apps panel below it scrolls, so the page itself never gets a scrollbar.
+    <div className="flex h-screen flex-col bg-background">
       <Helmet>
         <title>{settings?.name}</title>
         <meta
@@ -121,6 +124,12 @@ export const AppsPage = () => {
         onClose={() => setHiddenAppsOpen(false)}
       />
 
+      <LanScanDialog
+        open={lanScanOpen}
+        onScan={runScanLan}
+        onClose={() => setLanScanOpen(false)}
+      />
+
       <PasswordDialog
         open={passwordOpen}
         onClose={() => setPasswordOpen(false)}
@@ -133,10 +142,11 @@ export const AppsPage = () => {
 
       <DashboardMenu
         // The whole area below the header (cards, gaps, and empty space)
-        // is the dashboard menu's trigger zone.
-        className="flex-1"
+        // is the dashboard menu's trigger zone. min-h-0 lets it shrink to the
+        // remaining viewport height so the panel inside can scroll on its own.
+        className="min-h-0 flex-1"
         onAddShortcut={() => setShortcutOpen(true)}
-        onScanLan={runScanLan}
+        onScanLan={() => setLanScanOpen(true)}
         isScanningLan={scanLan.isPending}
         onViewLogs={() => setLogsOpen(true)}
         onRename={() => setRenameOpen(true)}
@@ -145,8 +155,11 @@ export const AppsPage = () => {
         onRemovePassword={() => setRemovePasswordOpen(true)}
       >
         <main
+          // The panel is the apps area's scroll container: its scrollbar sits
+          // at the panel's own right edge (inside the centered max-width) and
+          // only appears when a row of apps doesn't fit the screen.
           className={cn(
-            'mx-auto max-w-7xl px-6 py-8',
+            'mx-auto h-full max-w-7xl overflow-y-auto px-6 py-8',
             // The content fades in once the apps finish loading, so the page
             // settles gently instead of popping in.
             !isPending && 'animate-fade-in',
@@ -186,8 +199,7 @@ export const AppsPage = () => {
           ) : (
             <AppsGrid
               apps={apps}
-              newAppNames={newAppNames}
-              onInteractApp={markInteracted}
+              onInteractApp={(name) => void markAppSeen.mutate(name)}
               // Reordering a filtered subset would only pin that subset, so dragging
               // is enabled while the whole list is visible.
               onReorder={

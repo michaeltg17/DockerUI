@@ -1,21 +1,22 @@
 using Api.Domain;
 using Api.Exceptions;
 using Api.Features.Apps.Icons;
-using Api.Features.Apps.Models;
+using Api.Features.Apps.Runtime;
 using Api.Features.Settings;
 using Api.Features.Shortcuts;
 using Api.Settings;
-using Docker.DotNet;
-using Docker.DotNet.Models;
 
 namespace Api.Features.Apps
 {
     /// <summary>
-    /// Shared app operations: the full app list (docker stacks plus user shortcuts)
-    /// and the container resolution the app endpoints build on.
+    /// Shared app operations: the full app list (apps of the active runtime plus user
+    /// shortcuts) and the app resolution the app endpoints build on. The runtime-specific
+    /// mechanics (snapshots, actions, logs, self-detection) live in the active
+    /// <see cref="IAppRuntime"/>; this service adds the dashboard-level concerns: shortcuts,
+    /// the base url, and the per-app settings (colors, the 'new' observation).
     /// </summary>
     internal sealed partial class AppService(
-        IContainerOperations containers,
+        IAppRuntime runtime,
         IAppIconCatalog iconCatalog,
         SettingsStore settingsStore,
         AppBaseUrlTracker baseUrlTracker,
@@ -23,15 +24,6 @@ namespace Api.Features.Apps
         ShortcutStore shortcutStore,
         ILogger<AppService> logger)
     {
-        // The list response carries no exit code for created containers, so a failed start
-        // attempt (the container is left 'created' with the failure code) is probed via
-        // inspect and cached briefly; stale entries are pruned on access.
-        const int ExitCodeProbeTimeoutMilliseconds = 2_000;
-        const int ExitCodeCacheTtlSeconds = 60;
-
-        readonly Dictionary<string, (long ExitCode, DateTime FetchedAtUtc)> exitCodeCache = [];
-        readonly Lock exitCodeCacheGate = new();
-
         // Icon hues decided in memory but not yet persisted (a save failed transiently);
         // kept for the lifetime of the process so the colors stay stable across polls.
         readonly Dictionary<(string Scope, string Name), int> unpersistedHues = [];
@@ -40,11 +32,21 @@ namespace Api.Features.Apps
         public async Task<IReadOnlyList<AppDto>> GetAppsAsync(CancellationToken cancellationToken = default)
         {
             var settings = settingsStore.Current;
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            var (visible, _) = AppCatalog
-                .BuildApps(logger, snapshots, name => DecideIconHue(nameof(AppSource.Docker), name), iconCatalog, ResolveBaseUrl(settings), settings, ResolveSelfProject(snapshots));
+            var selfApp = await runtime.GetSelfAppAsync(cancellationToken).ConfigureAwait(false);
+            var (visible, hidden) = await runtime.BuildAppsAsync(
+                ResolveBaseUrl(settings),
+                settings,
+                logger,
+                name => DecideIconHue(runtime.Source.ToString(), name),
+                iconCatalog,
+                selfApp,
+                cancellationToken).ConfigureAwait(false);
             var apps = visible.ToList();
+
+            // The baseline and the 'new' flags cover hidden apps too: the dashboard
+            // observes them even though the dashboard card list does not show them.
             PersistAppColors(apps);
+            PersistAppNewness(apps.Concat(hidden));
 
             var (shortcutApps, _) = BuildShortcutApps();
             apps.AddRange(shortcutApps);
@@ -56,14 +58,19 @@ namespace Api.Features.Apps
         public async Task<IReadOnlyList<AppDto>> GetHiddenAppsAsync(CancellationToken cancellationToken = default)
         {
             var settings = settingsStore.Current;
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            var selfProject = ResolveSelfProject(snapshots);
-            var (_, hidden) = AppCatalog
-                .BuildApps(logger, snapshots, name => DecideIconHue(nameof(AppSource.Docker), name), iconCatalog, ResolveBaseUrl(settings), settings, selfProject);
+            var selfApp = await runtime.GetSelfAppAsync(cancellationToken).ConfigureAwait(false);
+            var (_, hidden) = await runtime.BuildAppsAsync(
+                ResolveBaseUrl(settings),
+                settings,
+                logger,
+                name => DecideIconHue(runtime.Source.ToString(), name),
+                iconCatalog,
+                selfApp,
+                cancellationToken).ConfigureAwait(false);
 
-            // The dashboard's own project is always hidden with no way to show it, so it is not listed.
+            // The runtime's own app is always hidden with no way to show it, so it is not listed.
             var hiddenApps = hidden
-                .Where(app => !string.Equals(app.Name, selfProject, StringComparison.Ordinal))
+                .Where(app => !string.Equals(app.Name, selfApp, StringComparison.Ordinal))
                 .ToList();
             PersistAppColors(hiddenApps);
 
@@ -79,54 +86,51 @@ namespace Api.Features.Apps
                 ?? throw new AppNotFoundException(appName);
         }
 
-        public async Task<IReadOnlyList<ContainerSnapshot>> ResolveAppContainersAsync(string appName, CancellationToken cancellationToken)
+        /// <summary>
+        /// The runtime units that make up the given app (hidden or not): the units the
+        /// start/stop/restart and logs endpoints act on. 404s when the app does not exist.
+        /// </summary>
+        public async Task<IReadOnlyList<RuntimeUnit>> ResolveAppUnitsAsync(string appName, CancellationToken cancellationToken)
         {
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            var targets = AppCatalog.ResolveApp(snapshots, appName, settingsStore.Current);
+            var targets = await runtime.ResolveAppAsync(appName, settingsStore.Current, cancellationToken).ConfigureAwait(false);
 
-            return targets.Count is 0
+            return targets.Count == 0
                 ? throw new AppNotFoundException(appName)
                 : targets;
         }
 
-        /// <summary>Whether a docker app (stack or standalone container) exists under the given name, hidden or not.</summary>
+        /// <summary>Whether a runtime app (hidden or not) exists under the given name.</summary>
         public async Task<bool> TryResolveAppAsync(string appName, CancellationToken cancellationToken)
         {
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            return AppCatalog.ResolveApp(snapshots, appName, settingsStore.Current).Count > 0;
+            var targets = await runtime.ResolveAppAsync(appName, settingsStore.Current, cancellationToken).ConfigureAwait(false);
+            return targets.Count > 0;
         }
 
-        /// <summary>The compose project this dashboard runs in, or null when not running in a container.</summary>
-        public async Task<string?> GetSelfProjectAsync(CancellationToken cancellationToken)
-        {
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            return ResolveSelfProject(snapshots);
-        }
+        /// <summary>The app the dashboard runs in the active runtime, or null when it does not.</summary>
+        public Task<string?> GetSelfAppAsync(CancellationToken cancellationToken) =>
+            runtime.GetSelfAppAsync(cancellationToken);
 
         /// <summary>
-        /// The (host, port) addresses a running Docker app is reachable on: the dashboard base
-        /// host crossed with every published TCP port. Lets the LAN scan skip what the Docker
-        /// flow already shows.
+        /// The compose project the given app belongs to (a stack, or a split part of one),
+        /// or null when it has none: standalone containers, and every kubernetes app.
         /// </summary>
-        public async Task<HashSet<(string Host, int Port)>> GetDockerReachableAddressesAsync(
-            CancellationToken cancellationToken = default)
-        {
-            var host = ResolveBaseUrl(settingsStore.Current)?.Host;
+        public Task<string?> GetAppProjectAsync(string appName, CancellationToken cancellationToken) =>
+            runtime.GetAppProjectAsync(appName, settingsStore.Current, cancellationToken);
 
-            if (string.IsNullOrEmpty(host))
-                return [];
+        /// <summary>
+        /// The (host, port) addresses running runtime apps are reachable on: the dashboard
+        /// base host crossed with the apps' published ports (docker) or NodePorts
+        /// (kubernetes). Lets the LAN scan skip what the runtime flow already shows.
+        /// </summary>
+        public Task<HashSet<(string Host, int Port)>> GetReachableAddressesAsync(
+            CancellationToken cancellationToken = default) =>
+            runtime.GetReachableAddressesAsync(ResolveBaseUrl(settingsStore.Current), cancellationToken);
 
-            var snapshots = await GetContainerSnapshotsAsync(cancellationToken).ConfigureAwait(false);
-            var addresses = new HashSet<(string Host, int Port)>();
+        /// <summary>The recent logs of the dashboard's own app, or null when it does not run in the active runtime.</summary>
+        public Task<string?> ReadSelfLogsAsync(CancellationToken cancellationToken) =>
+            runtime.ReadSelfLogsAsync(cancellationToken);
 
-            foreach (var snapshot in snapshots.Where(snapshot => AppCatalog.IsRunningState(snapshot.State)))
-                foreach (var mapping in snapshot.Ports.Where(mapping => mapping.Protocol == "tcp" && mapping.PublicPort is > 0))
-                    addresses.Add((host, mapping.PublicPort!.Value));
-
-            return addresses;
-        }
-
-        /// <summary>User-defined shortcuts, surfaced as always-available apps in the same grid as the docker stacks.</summary>
+        /// <summary>User-defined shortcuts, surfaced as always-available apps in the same grid as the runtime apps.</summary>
         (IReadOnlyList<AppDto> Visible, IReadOnlyList<AppDto> Hidden) BuildShortcutApps()
         {
             const string shortcutScope = nameof(AppSource.Shortcut);
@@ -155,9 +159,8 @@ namespace Api.Features.Apps
                 if (!Uri.TryCreate(shortcut.Url, UriKind.Absolute, out var url))
                     continue;
 
-                // The backfill above already decided a hue for every entry, so the fallback
-                // is dead code — it keeps the non-nullable type honest (and the hue
-                // process-stable) if a null ever raced in.
+                // The backfill above already decided a hue for every entry, so the color is
+                // guaranteed non-null here.
                 var app = new AppDto(
                     shortcut.Name,
                     shortcut.DisplayName ?? shortcut.Name,
@@ -166,7 +169,7 @@ namespace Api.Features.Apps
                     url,
                     [],
                     shortcut.Source == ShortcutSource.Lan ? AppSource.Lan : AppSource.Shortcut,
-                    shortcut.Color ?? DecideIconHue(shortcutScope, shortcut.Name));
+                    shortcut.Color!.Value);
 
                 (shortcut.Hidden ? hidden : visible).Add(app);
             }
@@ -175,9 +178,9 @@ namespace Api.Features.Apps
         }
 
         /// <summary>
-        /// Makes the icon hues durable: BuildApps already decided a hue in memory for every
-        /// docker app whose settings carry no color yet (a cache hit here, so the very first
-        /// response carries the same hue), and this persists those decisions. An app's
+        /// Makes the icon hues durable: the app list build already decided a hue in memory
+        /// for every app whose settings carry no color yet (a cache hit here, so the very
+        /// first response carries the same hue), and this persists those decisions. An app's
         /// in-memory fallback hue is dropped only once the settings carry the stored color,
         /// so a decided hue is never re-rolled, even if a poll reads the settings before the
         /// save's configuration reload has landed. A transient save failure must not break
@@ -185,14 +188,14 @@ namespace Api.Features.Apps
         /// </summary>
         void PersistAppColors(IEnumerable<AppDto> apps)
         {
-            const string dockerScope = nameof(AppSource.Docker);
+            var scope = runtime.Source.ToString();
 
             var storedApps = settingsStore.Current?.Apps;
 
             var missing = new List<AppDto>();
             var stored = new List<AppDto>();
 
-            foreach (var app in apps.Where(app => app.Source == AppSource.Docker))
+            foreach (var app in apps.Where(app => app.Source == runtime.Source))
             {
                 if (HasStoredColor(storedApps, app.Name))
                     stored.Add(app);
@@ -201,7 +204,7 @@ namespace Api.Features.Apps
             }
 
             var missingHues = missing
-                .Select(app => (app.Name, Color: DecideIconHue(dockerScope, app.Name)))
+                .Select(app => (app.Name, Color: DecideIconHue(scope, app.Name)))
                 .ToList();
 
             if (missingHues.Count > 0)
@@ -210,13 +213,41 @@ namespace Api.Features.Apps
             // The in-memory fallback is only needed until the settings carry the hue, so
             // apps with a stored color lose it here: the stored hue becomes authoritative
             // and the cache can't outlive the settings it backs up.
-            ForgetIconHues(stored.Select(app => (dockerScope, app.Name)));
+            ForgetIconHues(stored.Select(app => (scope, app.Name)));
         }
 
         static bool HasStoredColor(IReadOnlyDictionary<string, AppUserSettings>? storedApps, string name) =>
             storedApps is not null &&
             storedApps.TryGetValue(name, out var stored) &&
             stored.Color is not null;
+
+        /// <summary>
+        /// Makes the 'new' observation durable: the first app list build writes the baseline
+        /// of every app it sees (so none of them is tagged), and every later build appends
+        /// the names it has not seen before, tagging them 'new' until the first interaction
+        /// clears the flag. Runs on every build (the monitor polls constantly), so a steady
+        /// state must be a no-op, and a transient save failure must not break the app list:
+        /// an unpersisted observation is simply persisted again on the next build.
+        /// </summary>
+        void PersistAppNewness(IEnumerable<AppDto> apps)
+        {
+            var names = apps
+                .Where(app => app.Source == runtime.Source)
+                .Select(app => app.Name)
+                .ToList();
+
+            if (names.Count == 0)
+                return;
+
+            try
+            {
+                settingsStore.SaveAppNewness(names);
+            }
+            catch (IOException)
+            {
+                LogAppNewnessNotPersisted(logger);
+            }
+        }
 
         /// <summary>
         /// The hue for an app without a stored hue yet: one decided earlier in this process
@@ -266,26 +297,6 @@ namespace Api.Features.Apps
         }
 
         /// <summary>
-        /// The compose project this dashboard itself runs in, so it can be hidden by
-        /// default. A container's hostname is its short container ID, so the dashboard
-        /// matches its own hostname against the listed container IDs and reads that
-        /// container's compose project label. Returns null when not running in a container.
-        /// </summary>
-        static string? ResolveSelfProject(IReadOnlyList<ContainerSnapshot> snapshots)
-        {
-            var selfId = OwnContainer.FindId(snapshots.Select(snapshot => snapshot.Id));
-
-            if (selfId is null)
-                return null;
-
-            var self = snapshots.SingleOrDefault(snapshot => snapshot.Id == selfId);
-
-            return self is { } && self.Labels.TryGetValue(AppCatalog.ComposeProjectLabel, out var project)
-                ? project
-                : null;
-        }
-
-        /// <summary>
         /// Resolves the base URL used to build app links: 'DockerUI:BaseUrl' wins;
         /// otherwise the current client request is used (and remembered); otherwise
         /// the last client seen (used by background broadcasts). With none of those,
@@ -313,126 +324,14 @@ namespace Api.Features.Apps
             return baseUrlTracker.Current;
         }
 
-        async Task<IReadOnlyList<ContainerSnapshot>> GetContainerSnapshotsAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                var list = await containers.ListContainersAsync(
-                    new ContainersListParameters { All = true },
-                    cancellationToken).ConfigureAwait(false);
-
-                var snapshots = list
-                    .Select(container => new ContainerSnapshot(
-                        container.ID,
-                        container.Names?.FirstOrDefault(name => !string.IsNullOrWhiteSpace(name))?.TrimStart('/') ?? container.ID,
-                        container.State,
-                        container.Status,
-                        container.Image,
-                        container.Labels is { Count: > 0 } labels
-                            ? new Dictionary<string, string>(labels)
-                            : [],
-                        container.Ports is { Count: > 0 } ports
-                            ? ports
-                                .Select(binding => new PortMapping(binding.PrivatePort, binding.PublicPort, binding.Type))
-                                .ToList()
-                            : []))
-                    .ToList();
-
-                await ProbeCreatedContainerExitCodesAsync(snapshots, cancellationToken).ConfigureAwait(false);
-
-                return snapshots;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                throw new DaemonUnavailableException(
-                    "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
-            }
-        }
-
-        /// <summary>
-        /// Fills the probed exit codes of created containers, in parallel: the list response
-        /// carries no exit code for them, but a failed start attempt leaves the container
-        /// 'created' with the failure code in its inspect state.
-        /// </summary>
-        async Task ProbeCreatedContainerExitCodesAsync(List<ContainerSnapshot> snapshots, CancellationToken cancellationToken)
-        {
-            var created = snapshots
-                .Select((snapshot, index) => (Snapshot: snapshot, Index: index))
-                .Where(pair => string.Equals(pair.Snapshot.State, AppCatalog.StateCreated, StringComparison.Ordinal))
-                .ToList();
-
-            if (created.Count == 0)
-                return;
-
-            var results = await Task.WhenAll(
-                created.Select(pair => GetCreatedContainerExitCodeAsync(pair.Snapshot.Id, cancellationToken)))
-                .ConfigureAwait(false);
-
-            for (var i = 0; i < created.Count; i++)
-            {
-                if (results[i] is { } exitCode)
-                    snapshots[created[i].Index] = created[i].Snapshot with { ExitCode = exitCode };
-            }
-        }
-
-        async Task<int?> GetCreatedContainerExitCodeAsync(string containerId, CancellationToken cancellationToken)
-        {
-            var nowUtc = DateTime.UtcNow;
-
-            lock (exitCodeCacheGate)
-            {
-                PruneStaleExitCodes(nowUtc);
-
-                if (exitCodeCache.TryGetValue(containerId, out var cached) &&
-                    nowUtc - cached.FetchedAtUtc < TimeSpan.FromSeconds(ExitCodeCacheTtlSeconds))
-                {
-                    return (int)cached.ExitCode;
-                }
-            }
-
-            try
-            {
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeout.CancelAfter(TimeSpan.FromMilliseconds(ExitCodeProbeTimeoutMilliseconds));
-
-                var inspect = await containers.InspectContainerAsync(containerId, timeout.Token).ConfigureAwait(false);
-
-                if (inspect.State is not { } state)
-                    return null;
-
-                lock (exitCodeCacheGate)
-                    exitCodeCache[containerId] = (state.ExitCode, DateTime.UtcNow);
-
-                return (int)state.ExitCode;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-            {
-                // A failed probe (or its timeout) must not take the app list down with it.
-                LogCreatedContainerProbeFailed(logger, ex, containerId);
-                return null;
-            }
-        }
-
-        // The caller holds exitCodeCacheGate.
-        void PruneStaleExitCodes(DateTime nowUtc)
-        {
-            foreach (var staleId in exitCodeCache
-                .Where(entry => nowUtc - entry.Value.FetchedAtUtc >= TimeSpan.FromSeconds(ExitCodeCacheTtlSeconds))
-                .Select(entry => entry.Key)
-                .ToList())
-            {
-                exitCodeCache.Remove(staleId);
-            }
-        }
-
-        [LoggerMessage(
-            Level = LogLevel.Debug,
-            Message = "Could not probe the exit code of created container '{ContainerId}'; the problem badge stays empty.")]
-        static partial void LogCreatedContainerProbeFailed(ILogger logger, Exception exception, string containerId);
-
         [LoggerMessage(
             Level = LogLevel.Warning,
             Message = "The icon hues could not be persisted (unexpected now that boot verified the settings file is writable); they stay stable for this process only.")]
         static partial void LogIconHuesNotPersisted(ILogger logger);
+
+        [LoggerMessage(
+            Level = LogLevel.Warning,
+            Message = "The observed apps could not be persisted (unexpected now that boot verified the settings file is writable); the 'new' observation is persisted again on the next build.")]
+        static partial void LogAppNewnessNotPersisted(ILogger logger);
     }
 }

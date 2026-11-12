@@ -12,6 +12,10 @@ namespace Api.Settings
         /// <summary>The longest session lifetime the dashboard allows.</summary>
         public const int MaximumSessionLifetimeDays = 365;
 
+        public const int DefaultMaxLoginAttemptsPerWindow = 20;
+
+        public const int DefaultLoginRateLimitWindowMinutes = 5;
+
         /// <summary>
         /// The dashboard's admin password as a self-describing hash, e.g.
         /// 'PBKDF2-SHA256$600000$&lt;saltB64&gt;$&lt;hashB64&gt;'. Absent means no password is set.
@@ -23,5 +27,11 @@ namespace Api.Settings
         /// half the lifetime extends the expiry by the same span.
         /// </summary>
         public int SessionLifetimeDays { get; set; } = DefaultSessionLifetimeDays;
+
+        /// <summary>Sign-in attempts a client may make per window before the login route answers 429.</summary>
+        public int MaxLoginAttemptsPerWindow { get; set; } = DefaultMaxLoginAttemptsPerWindow;
+
+        /// <summary>The window <see cref="MaxLoginAttemptsPerWindow"/> applies to.</summary>
+        public int LoginRateLimitWindowMinutes { get; set; } = DefaultLoginRateLimitWindowMinutes;
     }
 }

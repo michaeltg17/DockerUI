@@ -1,6 +1,6 @@
 export type AppState = 'running' | 'stopped';
 
-export type AppSource = 'docker' | 'shortcut' | 'lan';
+export type AppSource = 'docker' | 'kubernetes' | 'shortcut' | 'lan';
 
 export interface AppService {
   name: string;
@@ -28,6 +28,13 @@ export interface App {
    * the wire, so this is never null.
    */
   color: number;
+  /**
+   * Whether the docker app is still tagged 'new': detected after the dashboard's
+   * first observation and not yet interacted with. Persisted server-side and
+   * cleared by the first interaction with the card; always false for shortcuts
+   * and lan apps.
+   */
+  isNew: boolean;
   /**
    * The human-readable problem the app is in (crashed, crash-looping, unhealthy,
    * ...), shown as a badge on the card. Null when healthy; always null for

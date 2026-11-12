@@ -6,8 +6,11 @@ namespace E2E.Environments;
 /// </summary>
 public static class Paths
 {
-    /// <summary>Tag of the DockerUI image the scenarios run against (built from the repo root).</summary>
-    public const string DashboardImageTag = "docker-ui-e2e:latest";
+    /// <summary>
+    /// Tag of the DockerUI image the scenarios run against (built from the repo root;
+    /// 'local' = built from this checkout, never pushed).
+    /// </summary>
+    public const string DashboardImageTag = "docker-ui-local:latest";
 
     public static string E2eDirectory { get; } = FindDirectoryContaining("scenarios")
         ?? throw new InvalidOperationException("Could not locate the e2e directory (no 'scenarios' folder found).");

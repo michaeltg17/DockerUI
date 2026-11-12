@@ -1,8 +1,8 @@
 ﻿using Api.Features.Apps;
 using Api.Features.Apps.Background;
 using Api.Features.Apps.Icons;
+using Api.Features.Apps.Runtime;
 using Api.Features.Auth;
-using Api.Features.Auth.Endpoints;
 using Api.Features.Health;
 using Api.Features.Lan;
 using Api.Features.Settings;
@@ -11,13 +11,14 @@ using Api.Settings;
 using Api.Setup;
 using Docker.DotNet;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using Serilog;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.RateLimiting;
 
 namespace Api;
 
@@ -25,12 +26,6 @@ internal static class Program
 {
     /// <summary>The dashboard's authentication cookie name.</summary>
     const string AuthCookieName = "dockerui.auth";
-
-    /// <summary>Sign-in attempts a client may make per window before the login route answers 429.</summary>
-    const int MaxLoginAttemptsPerWindow = 20;
-
-    /// <summary>The window <see cref="MaxLoginAttemptsPerWindow"/> applies to.</summary>
-    const int LoginRateLimitWindowMinutes = 5;
 
     public static void Main(string[] args)
     {
@@ -62,7 +57,7 @@ internal static class Program
         AppSettingsStore.EnsureWritable(builder.Environment.ContentRootPath);
 
         builder.Services
-            .AddDockerClient(builder.Configuration.GetSection(DockerUISettings.Section))
+            .AddRuntimeDependencies(builder.Configuration.GetSection(DockerUISettings.Section))
             .AddAppsDependencies()
             .AddLanDependencies()
             .AddAuthDependencies();
@@ -77,10 +72,54 @@ internal static class Program
         builder.Services.AddHealthCheckDependencies();
         builder.Services.AddProblemDetails();
 
+        //Compress the responses (the built app's few hundred kilobytes of javascript
+        //mostly): a self-hosted dashboard is often reached over a slow link, and the
+        //first load pays the full transfer otherwise.
+        builder.Services.AddResponseCompression(options =>
+        {
+            //Brotli wins on ratio and gzip on compatibility; every modern browser takes
+            //either, so list the better one first.
+            options.Providers.Add<BrotliCompressionProvider>();
+            options.Providers.Add<GzipCompressionProvider>();
+        });
+
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 
         return builder;
+    }
+
+    /// <summary>
+    /// Registers the container runtime backend the dashboard is bound to, chosen once at
+    /// boot from 'DockerUI:Backend' (a change requires a restart): the Docker daemon
+    /// client plus the docker runtime, or the Kubernetes client plus the kubernetes
+    /// runtime. The clients are created eagerly: a missing or invalid connection is a
+    /// deployment error that must fail the boot, not the first app list.
+    /// </summary>
+    public static IServiceCollection AddRuntimeDependencies(this IServiceCollection services, IConfigurationSection section)
+    {
+        ArgumentNullException.ThrowIfNull(section);
+
+        var backend = section[nameof(DockerUISettings.Backend)];
+
+        if (string.Equals(backend, DockerUISettings.BackendKubernetes, StringComparison.Ordinal))
+        {
+            //The client is a registered singleton, so the container owns its lifetime
+            //and disposes it at shutdown (CA2000 not applicable).
+#pragma warning disable CA2000
+            var kubernetes = KubeClientProvider.Create(section.GetSection(nameof(DockerUISettings.Kubernetes)).Get<KubernetesSettings>());
+            services.AddSingleton(kubernetes);
+#pragma warning restore CA2000
+
+            services.AddSingleton<IAppRuntime, KubernetesAppRuntime>();
+        }
+        else
+        {
+            AddDockerClient(services, section);
+            services.AddSingleton<IAppRuntime, DockerAppRuntime>();
+        }
+
+        return services;
     }
 
     public static IServiceCollection AddDockerClient(this IServiceCollection services, IConfigurationSection section)
@@ -199,28 +238,10 @@ internal static class Program
         services.AddSingleton<AuthService>();
 
         // A password-only login is a brute-force target, so the sign-in route caps
-        // attempts per client; every other endpoint stays unlimited.
-        services.AddRateLimiter(options =>
-        {
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.OnRejected = async (context, _) =>
-            {
-                await Results.Problem(
-                        title: "Too many requests",
-                        detail: "Too many sign-in attempts; try again later.",
-                        statusCode: StatusCodes.Status429TooManyRequests)
-                    .ExecuteAsync(context.HttpContext);
-            };
-
-            options.AddPolicy(LoginEndpoint.RateLimitPolicy, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = MaxLoginAttemptsPerWindow,
-                        Window = TimeSpan.FromMinutes(LoginRateLimitWindowMinutes),
-                    }));
-        });
+        // attempts per client; every other endpoint stays unlimited. The policy reads
+        // its limits from the hot-reloaded auth settings at request time.
+        services.AddRateLimiter();
+        services.AddSingleton<IConfigureOptions<RateLimiterOptions>, LoginRateLimiterPolicy>();
 
         return services;
     }
@@ -229,7 +250,7 @@ internal static class Program
     {
         services
             .AddHealthChecks()
-            .AddCheck<DockerHealthCheck>("docker");
+            .AddCheck<RuntimeHealthCheck>("runtime");
 
         return services;
     }
@@ -249,17 +270,34 @@ internal static class Program
         return builder;
     }
 
+    /// <summary>
+    /// The built assets' path (the Vite output, content-hashed file names) and the
+    /// cache directive for it: a hashed name never changes under itself, so the
+    /// browser can keep it for a year without revalidation.
+    /// </summary>
+    const string AssetsPath = "/assets";
+    const string ImmutableCacheControl = "public, max-age=31536000, immutable";
+
     public static WebApplication Configure(this WebApplication app)
     {
         //Exception handler middleware first to catch exceptions. Authentication runs on
         //every request; rate limiting sits in front of the endpoints so the sign-in route
-        //caps attempts per client; static files are served before authorization so the
-        //app's assets load without a session; the FallbackPolicy then guards the
-        //endpoints, and its bare 401s become problem documents afterwards.
+        //caps attempts per client; response compression wraps every body (the app's
+        //assets above all); static files are served before authorization so the app's
+        //assets load without a session; the FallbackPolicy then guards the endpoints,
+        //and its bare 401s become problem documents afterwards.
         app.AddExceptionHandlerMiddleware()
             .UseAuthentication()
             .UseRateLimiter()
-            .UseStaticFiles()
+            .UseResponseCompression()
+            .UseStaticFiles(new StaticFileOptions
+            {
+                OnPrepareResponse = context =>
+                {
+                    if (context.Context.Request.Path.StartsWithSegments(AssetsPath, StringComparison.OrdinalIgnoreCase))
+                        context.Context.Response.Headers.CacheControl = ImmutableCacheControl;
+                },
+            })
             .UseAuthorization()
             .UseUnauthorizedProblem();
 

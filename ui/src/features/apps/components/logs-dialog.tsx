@@ -1,7 +1,9 @@
+import { RefreshCw } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 import { Dialog } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
+import { cn } from '@/utils/cn';
 
 import type { Logs } from '../api/get-logs';
 import { useLogs } from '../hooks/use-logs';
@@ -31,7 +33,7 @@ export const LogsDialog = ({
   fetchLogs,
   onClose,
 }: LogsDialogProps) => {
-  const { data, isPending, isError, error, refetch } = useLogs(
+  const { data, isPending, isError, error, isFetching, refetch } = useLogs(
     open,
     scope,
     fetchLogs,
@@ -88,6 +90,21 @@ export const LogsDialog = ({
       title={title}
       onClose={onClose}
       className="flex max-h-[80vh] max-w-3xl flex-col"
+      headerActions={
+        // The logs are a point-in-time read of the daemon, not a stream, so a
+        // manual refresh re-reads them while the dialog stays open.
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          aria-label="Refresh"
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <RefreshCw
+            className={cn('size-4', isFetching && 'animate-spin')}
+            aria-hidden="true"
+          />
+        </button>
+      }
     >
       <div
         ref={scrollRef}

@@ -1,6 +1,6 @@
 services:
   docker-ui:
-    image: docker-ui-e2e:latest
+    image: docker-ui-local:latest
     container_name: docker-ui-e2e-settings
     ports:
       - "5011:8080"

@@ -12,8 +12,27 @@ namespace Api.Settings
         public const string Section = "DockerUI";
         public const string DefaultName = "Docker UI";
 
-        public required string DockerSocketPath { get; set; }
+        /// <summary>The container runtime backends the dashboard can be bound to.</summary>
+        public const string BackendDocker = "docker";
+        public const string BackendKubernetes = "kubernetes";
+
+        /// <summary>
+        /// The Docker daemon's socket ('docker' backend): a unix socket path or a Windows
+        /// pipe. Required in docker mode; ignored in kubernetes mode.
+        /// </summary>
+        public string DockerSocketPath { get; set; } = string.Empty;
+
         public required int PollIntervalSeconds { get; set; }
+
+        /// <summary>
+        /// The container runtime backend: 'docker' (the default, through the daemon socket)
+        /// or 'kubernetes' (a Kubernetes API server, for daemonless setups such as Talos
+        /// OS). Changing it requires a restart.
+        /// </summary>
+        public string Backend { get; set; } = BackendDocker;
+
+        /// <summary>Kubernetes backend settings; ignored in docker mode.</summary>
+        public KubernetesSettings? Kubernetes { get; set; }
 
         /// <summary>
         /// Custom dashboard name shown as the page title, e.g. 'Home Server'.
@@ -28,6 +47,13 @@ namespace Api.Settings
         /// request is used (falling back to 'localhost').
         /// </summary>
         public string? BaseUrl { get; set; }
+
+        /// <summary>
+        /// Whether 500 responses include the exception's details (its message and type)
+        /// instead of a generic message. Defaults to true; set it to false to keep
+        /// internal details out of non-development responses.
+        /// </summary>
+        public bool ShowInternalServerErrorDetails { get; set; } = true;
 
         /// <summary>Image-to-icon mappings that extend or override the built-in catalog.</summary>
         public IReadOnlyCollection<AppIconMapping>? Icons { get; set; }
@@ -46,6 +72,14 @@ namespace Api.Settings
         /// everything else follows alphabetically.
         /// </summary>
         public IReadOnlyCollection<string>? Order { get; set; }
+
+        /// <summary>
+        /// The docker app names the dashboard has observed so far: the baseline that
+        /// separates apps that were already there from ones detected later, which the
+        /// dashboard tags 'new' until the first interaction with them. Managed by the
+        /// app list, not by the user; its absence is the dashboard's first observation.
+        /// </summary>
+        public IReadOnlyCollection<string>? KnownApps { get; set; }
 
         /// <summary>
         /// Services split out of a compose stack, keyed by project name. Each listed

@@ -16,8 +16,9 @@ module.exports = {
       },
     },
     assert: {
-      // A little below the current baseline (performance 85, everything else 100):
-      // catch regressions without flapping on run-to-run jitter.
+      // A little below the current baseline (performance ~95 with the compressed
+      // static assets, everything else 100): catch regressions without flapping on
+      // run-to-run jitter.
       assertions: {
         'categories:performance': ['error', { minScore: 0.8 }],
         'categories:accessibility': ['error', { minScore: 0.95 }],

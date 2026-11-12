@@ -12,6 +12,7 @@ using Api.Setup;
 using Docker.DotNet;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -70,6 +71,17 @@ internal static class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddHealthCheckDependencies();
         builder.Services.AddProblemDetails();
+
+        //Compress the responses (the built app's few hundred kilobytes of javascript
+        //mostly): a self-hosted dashboard is often reached over a slow link, and the
+        //first load pays the full transfer otherwise.
+        builder.Services.AddResponseCompression(options =>
+        {
+            //Brotli wins on ratio and gzip on compatibility; every modern browser takes
+            //either, so list the better one first.
+            options.Providers.Add<BrotliCompressionProvider>();
+            options.Providers.Add<GzipCompressionProvider>();
+        });
 
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
@@ -258,17 +270,34 @@ internal static class Program
         return builder;
     }
 
+    /// <summary>
+    /// The built assets' path (the Vite output, content-hashed file names) and the
+    /// cache directive for it: a hashed name never changes under itself, so the
+    /// browser can keep it for a year without revalidation.
+    /// </summary>
+    const string AssetsPath = "/assets";
+    const string ImmutableCacheControl = "public, max-age=31536000, immutable";
+
     public static WebApplication Configure(this WebApplication app)
     {
         //Exception handler middleware first to catch exceptions. Authentication runs on
         //every request; rate limiting sits in front of the endpoints so the sign-in route
-        //caps attempts per client; static files are served before authorization so the
-        //app's assets load without a session; the FallbackPolicy then guards the
-        //endpoints, and its bare 401s become problem documents afterwards.
+        //caps attempts per client; response compression wraps every body (the app's
+        //assets above all); static files are served before authorization so the app's
+        //assets load without a session; the FallbackPolicy then guards the endpoints,
+        //and its bare 401s become problem documents afterwards.
         app.AddExceptionHandlerMiddleware()
             .UseAuthentication()
             .UseRateLimiter()
-            .UseStaticFiles()
+            .UseResponseCompression()
+            .UseStaticFiles(new StaticFileOptions
+            {
+                OnPrepareResponse = context =>
+                {
+                    if (context.Context.Request.Path.StartsWithSegments(AssetsPath, StringComparison.OrdinalIgnoreCase))
+                        context.Context.Response.Headers.CacheControl = ImmutableCacheControl;
+                },
+            })
             .UseAuthorization()
             .UseUnauthorizedProblem();
 

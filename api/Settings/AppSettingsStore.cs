@@ -118,6 +118,16 @@ internal sealed class AppSettingsStore(
             FileShare.Read | FileShare.Write | FileShare.Delete);
         input.CopyTo(output);
 
-        File.Delete(temporaryPath);
+        // The content is already in place, so a transient lock on the temp file (a
+        // file watcher or the OS scanning it) must not fail the save; a leftover is
+        // harmless and overwritten by the next save.
+        try
+        {
+            File.Delete(temporaryPath);
+        }
+        catch (IOException)
+        {
+            // ignored (see above)
+        }
     }
 }

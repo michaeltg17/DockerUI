@@ -198,7 +198,7 @@ namespace Api.Features.Lan
 
             try
             {
-                var connectTask = socket.ConnectAsync(endpoint);
+                var connectTask = socket.ConnectAsync(endpoint, cancellationToken).AsTask();
                 var completed = await Task.WhenAny(connectTask, Task.Delay(timeout, cancellationToken));
 
                 if (completed != connectTask)

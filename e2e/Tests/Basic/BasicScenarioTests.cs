@@ -164,6 +164,118 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Logs_dialog_refresh_button_sits_left_of_close_and_rereads_the_logs()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "View logs").ClickAsync();
+        var dialog = apps.LogsDialog("Docker UI logs");
+        await dialog.WaitForAsync();
+        await dialog
+            .GetByText("Now listening on")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // Both buttons live in the dialog header; the refresh one is to the left of close.
+        var refresh = dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Refresh", Exact = true });
+        var refreshBox = await refresh.BoundingBoxAsync();
+        var closeBox = await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Close", Exact = true })
+            .BoundingBoxAsync();
+        refreshBox.Should().NotBeNull();
+        closeBox.Should().NotBeNull();
+        refreshBox!.Y.Should().Be(closeBox!.Y, "because both sit in the dialog header");
+        refreshBox.X.Should().BeLessThan(closeBox.X, "because the refresh button is to the left of the close button");
+
+        // Re-reading the logs while the dialog is open succeeds and keeps showing them.
+        await refresh.ClickAsync();
+        await dialog
+            .GetByText("Now listening on")
+            .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = AppsPage.StateChangeTimeoutMs });
+    }
+
+    [Fact]
+    public async Task Maxing_a_dialog_scrollbar_does_not_scroll_the_page_behind()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var page = await context.NewPageAsync();
+
+        // A short viewport so the apps panel behind the dialog has to scroll.
+        await page.SetViewportSizeAsync(1280, 200);
+        var apps = new AppsPage(page);
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        // The apps panel (not the window) is the page's scroll container.
+        var panel = page.Locator("main");
+        (await panel.EvaluateAsync<long>("element => element.scrollHeight - element.clientHeight")).Should()
+            .BeGreaterThan(0, "because the test needs a scrollable panel behind the dialog");
+
+        // The icon picker is a dialog with its own tall scrollbar.
+        await apps.OpenEditDialogAsync("web-stack");
+        var dialog = apps.EditAppDialog("web-stack");
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.WaitForAsync();
+
+        var pickerBox = await picker.BoundingBoxAsync();
+        pickerBox.Should().NotBeNull();
+
+        // Max the picker's scrollbar, then wheel with the mouse inside it: the
+        // dialog's scroll must not chain to the panel behind.
+        var grid = picker.Locator(".grid.overflow-auto");
+        await grid.EvaluateAsync("element => { element.scrollTop = element.scrollHeight; }");
+        var wheelX = (float)(pickerBox!.X + (pickerBox!.Width / 2));
+        var wheelY = (float)(pickerBox!.Y + (pickerBox!.Height * 0.75));
+        await page.Mouse.MoveAsync(wheelX, wheelY);
+        var panelScrollBefore = await panel.EvaluateAsync<long>("element => element.scrollTop");
+        await page.Mouse.WheelAsync(0, 400);
+        await page.Mouse.WheelAsync(0, 400);
+        (await panel.EvaluateAsync<long>("element => element.scrollTop")).Should()
+            .Be(panelScrollBefore, "because the dialog's scrollbar is maxed and its scroll must not chain to the page");
+    }
+
+    [Fact]
+    public async Task The_apps_panel_scrollbar_sits_inside_the_panel_and_only_appears_on_overflow()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var page = await context.NewPageAsync();
+
+        // Wide enough that the centered panel is narrower than the window (so a
+        // window-edge scrollbar would be visible), short enough that the apps
+        // overflow the panel.
+        const int windowWidth = 1400;
+        const int windowHeight = 200;
+        await page.SetViewportSizeAsync(windowWidth, windowHeight);
+        var apps = new AppsPage(page);
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var panel = page.Locator("main");
+        var panelBox = await panel.BoundingBoxAsync();
+        panelBox.Should().NotBeNull();
+        panelBox!.X.Should().BeGreaterThan(0, "because the panel is centered in the wider window");
+        (panelBox.X + panelBox.Width).Should()
+            .BeLessThan(windowWidth, "because the panel is narrower than the window, so its scrollbar sits inside it");
+
+        // The panel, not the page, is the scroll container: it overflows at this
+        // height while the document itself never does.
+        (await panel.EvaluateAsync<long>("element => element.scrollHeight - element.clientHeight")).Should()
+            .BeGreaterThan(0, "because the apps overflow the short panel");
+        (await page.EvaluateAsync<long>("() => document.documentElement.scrollHeight - document.documentElement.clientHeight")).Should()
+            .Be(0, "because the page itself must not scroll");
+
+        // The scrollbar only appears when the panel overflows (auto, not scroll).
+        (await panel.EvaluateAsync<string>("element => getComputedStyle(element).overflowY")).Should()
+            .Be("auto", "because the scrollbar must only appear when a row of apps doesn't fit");
+    }
+
+    [Fact]
     public async Task Context_menu_shows_the_stack_logs()
     {
         await using var context = await browser.NewContextAsync(environment);
@@ -177,12 +289,13 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var dialog = apps.LogsDialog("web-stack logs");
         await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-        // web-stack runs two containers; each container's section is headed by its container name.
+        // web-stack runs two units (the nginx and redis services); each unit's section is
+        // headed by the unit's name (the compose service name).
         await dialog
-            .GetByText("web-stack-nginx-1")
+            .GetByText("=== nginx ===")
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         await dialog
-            .GetByText("web-stack-redis-1")
+            .GetByText("=== redis ===")
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
     }
 
@@ -392,22 +505,33 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
-    public async Task Lan_scan_in_a_container_without_subnet_config_finds_nothing()
+    public async Task Lan_scan_without_a_saved_subnet_scans_the_default_and_saves_it()
     {
         await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
 
+        // The scenario sets no 'DockerUI:Lan:Subnet', so the scan dialog's field is left
+        // empty (or pre-filled with a previous run's scan, which saved the same value):
+        // the scan runs over the default subnet.
         await apps.ScanLanAsync();
 
-        // The dashboard runs in a container and the scenario sets no 'DockerUI:Lan:Subnet',
-        // so the subnet scan is skipped (the bridge is not the user's LAN; its other
-        // containers and the host gateway would otherwise be found) and the scenario's
-        // bridge advertises no mDNS services: the scan must find nothing.
         await apps.ScanCompleteNotification
-            .GetByText("Found 0 services and added 0 new.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // The effective subnet is saved, so the next scan (and the dialog's prefill) uses it.
+        using var client = new HttpClient();
+        var settingsJson = await client.GetStringAsync(
+            new Uri(environment.BaseUrl, "api/settings"),
+            TestContext.Current.CancellationToken);
+
+        using var document = JsonDocument.Parse(settingsJson);
+        document.RootElement
+            .GetProperty("lan")
+            .GetProperty("subnet")
+            .GetString()
+            .Should().Be("192.168.1.0/24", "because the scanned subnet is saved for the next scan");
     }
 
     [Fact]
@@ -597,6 +721,10 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
 
+        // Remember the icon the app starts with so the restore below leaves it exactly as
+        // found: 'None' in the picker pins an explicit no-icon override, it does not clear one.
+        var originalIcon = await GetAppIconAsync("web-stack", TestContext.Current.CancellationToken);
+
         // Change the display name, icon, and url from the app's own menu.
         await apps.OpenEditDialogAsync("web-stack");
         var dialog = apps.EditAppDialog("web-stack");
@@ -634,12 +762,74 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
             .ClickAsync();
         var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
-        await picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true }).ClickAsync();
+        if (originalIcon is null)
+            await picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true }).ClickAsync();
+        else
+            await picker.Locator($"img[src=\"{originalIcon}\"]").ClickAsync();
         await restore
             .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
             .FillAsync("");
         await AppsPage.SaveEditAsync(restore);
         await apps.WaitForAppAsync("web-stack");
+    }
+
+    [Fact]
+    public async Task Edit_dialog_removes_a_docker_apps_resolved_icon()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // web-stack's containers match the built-in icon catalog, so the card shows a
+        // resolved icon while no override is set.
+        var resolvedIcon = await GetAppIconAsync("web-stack", cancellationToken);
+        resolvedIcon.Should().NotBeNull("because web-stack's images have built-in icons");
+
+        // Picking 'None' in the icon picker must remove the resolved icon, not just an override.
+        await apps.OpenEditDialogAsync("web-stack");
+        var dialog = apps.EditAppDialog("web-stack");
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true })
+            .ClickAsync();
+
+        // The url field starts from the app's displayed url (auto-resolved while no override
+        // is set) and a save pins whatever it holds, so clear it: this test must not leave a
+        // url override behind for the tests that run after it.
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("");
+        await AppsPage.SaveEditAsync(dialog);
+
+        // The card drops the image (falling back to its initials tile) and the API reports no icon.
+        await apps.CardIconImage("web-stack").WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+        (await GetAppIconAsync("web-stack", cancellationToken)).Should().BeNull();
+
+        // Restore the resolved icon so tests that expect the default state pass regardless of order.
+        await apps.OpenEditDialogAsync("web-stack");
+        var restore = apps.EditAppDialog("web-stack");
+        await restore
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+        // The picker is a layered dialog portaled to the page body, so the icon is
+        // located through it rather than the edit dialog it was opened from.
+        var restorePicker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await restorePicker
+            .Locator($"img[src=\"{resolvedIcon}\"]")
+            .ClickAsync();
+        await restore
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("");
+        await AppsPage.SaveEditAsync(restore);
+        await apps.CardIconImage("web-stack").WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = AppsPage.StateChangeTimeoutMs });
     }
 
     [Fact]
@@ -925,6 +1115,15 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForAppAsync("web-stack");
 
         var cancellationToken = TestContext.Current.CancellationToken;
+
+        using var client = new HttpClient();
+
+        // The order is persisted under the real app names, while the grid shows the display
+        // names; map between them so the assertion holds even when a card's display name
+        // differs from its name (a LAN finding with a discovered title).
+        var realNameOf = (await GetApiAppsAsync(client, environment.BaseUrl, cancellationToken))
+            .ToDictionary(app => app.DisplayName, app => app.Name, StringComparer.Ordinal);
+
         var names = await apps.CardNamesAsync();
         names.Count.Should().BeGreaterThan(1, "because the scenario runs several demo stacks");
 
@@ -940,6 +1139,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // The new order is persisted in the scenario's appsettings, which the dashboard bind-mounts.
         var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+        var expectedRealNames = expected
+            .Select(displayName => realNameOf[displayName])
+            .ToList();
         var deadline = DateTime.UtcNow.AddSeconds(10);
 
         while (true)
@@ -961,7 +1163,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
                         .Select(element => element.GetString() ?? string.Empty)
                         .ToList();
 
-                    persisted = storedNames.SequenceEqual(expected, StringComparer.Ordinal);
+                    persisted = storedNames.SequenceEqual(expectedRealNames, StringComparer.Ordinal);
                 }
             }
             catch (JsonException)
@@ -988,7 +1190,6 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForCardOrderAsync(names);
 
         // Clear the persisted order so the scenario's settings file is left as found.
-        using var client = new HttpClient();
         using var content = new StringContent("{\"order\":[]}", Encoding.UTF8, "application/json");
         var response = await client.PutAsync(
             new Uri(environment.BaseUrl, "api/apps/order"),
@@ -1292,6 +1493,19 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForAppAsync("web-stack");
 
+        // The LAN scan test may have left discovered shortcut cards behind; drop them so
+        // this test starts from a known, shortcut-free state (its end assertion is that
+        // removing the last shortcut prunes the section from the file).
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        using var client = new HttpClient();
+
+        foreach (var (appName, _, source) in await GetApiAppsAsync(client, environment.BaseUrl, cancellationToken))
+        {
+            if (source is "shortcut" or "lan")
+                await DeleteShortcutViaApiAsync(client, environment.BaseUrl, appName, cancellationToken);
+        }
+
         const string name = "E2E Zeta";
         await apps.CreateShortcutAsync(name, "https://example.com/zeta");
         await apps.WaitForAppAsync(name);
@@ -1580,12 +1794,17 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.CreateShortcutAsync(shortcut, "https://example.com/order");
         await apps.WaitForAppAsync(shortcut);
 
-        // Pin the shortcut to the front with an explicit order so its position is user-defined.
-        var names = await apps.CardNamesAsync();
-        var pinned = new List<string> { shortcut };
-        pinned.AddRange(names.Where(name => name != shortcut));
-
         using var client = new HttpClient();
+
+        // Pin the shortcut to the front with an explicit order so its position is user-defined.
+        // The order is sent as real app names (the API's identity) while the grid shows the
+        // display names, so an app with a display name different from its name (a LAN finding
+        // with a discovered title) cannot break the assertion.
+        var apiApps = await GetApiAppsAsync(client, environment.BaseUrl, cancellationToken);
+        List<(string Name, string DisplayName, string Source)> orderedApps =
+            [apiApps.First(app => app.Name == shortcut), .. apiApps.Where(app => app.Name != shortcut)];
+        var pinned = orderedApps.Select(app => app.Name).ToList();
+
         using var content = new StringContent(
             JsonSerializer.Serialize(new { order = pinned }),
             Encoding.UTF8,
@@ -1595,7 +1814,8 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             content,
             cancellationToken);
         response.IsSuccessStatusCode.Should().BeTrue("because the order endpoint accepts the pinned order");
-        await apps.WaitForCardOrderAsync(pinned);
+        var expected = orderedApps.Select(app => app.DisplayName).ToList();
+        await apps.WaitForCardOrderAsync(expected);
 
         // Rename the shortcut from its card; the pinned position must be preserved.
         const string renamed = "E2E Renamed";
@@ -1612,9 +1832,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .ClickAsync();
         await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
 
-        var expected = new List<string> { renamed };
-        expected.AddRange(pinned.Skip(1));
-        await apps.WaitForCardOrderAsync(expected);
+        var expectedAfterRename = new List<string> { renamed };
+        expectedAfterRename.AddRange(expected.Skip(1));
+        await apps.WaitForCardOrderAsync(expectedAfterRename);
 
         // Restore the scenario's defaults: delete the shortcut and clear the pinned order.
         await apps.DeleteShortcutAsync(renamed);
@@ -2081,6 +2301,23 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         throw new InvalidOperationException($"Shortcut '{name}' was not returned by the API.");
     }
 
+    /// <summary>The icon the API reports for the given app, or null when it has none.</summary>
+    async Task<string?> GetAppIconAsync(string name, CancellationToken cancellationToken)
+    {
+        using var client = new HttpClient();
+        var json = await client.GetStringAsync(new Uri(environment.BaseUrl, "api/apps"), cancellationToken);
+
+        using var document = JsonDocument.Parse(json);
+
+        foreach (var element in document.RootElement.EnumerateArray())
+        {
+            if (string.Equals(element.GetProperty("name").GetString(), name, StringComparison.Ordinal))
+                return element.GetProperty("icon").GetString();
+        }
+
+        throw new InvalidOperationException($"App '{name}' was not returned by the API.");
+    }
+
     /// <summary>Fetches the given favicon from the dashboard and returns its SVG content.</summary>
     static async Task<string> FetchFaviconAsync(HttpClient client, Uri baseUrl, string path, CancellationToken cancellationToken)
     {
@@ -2158,6 +2395,35 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var box = await dialog.BoundingBoxAsync()
             ?? throw new InvalidOperationException("The dialog has no bounding box.");
         return box.Height;
+    }
+
+    /// <summary>
+    /// The apps the dashboard currently lists, straight from the API: each app's real name
+    /// (what the order endpoint and the settings file use) next to the display name the grid
+    /// shows, so an order assertion stays correct when a card's display name differs from
+    /// its name (a LAN finding with a discovered title).
+    /// </summary>
+    static async Task<IReadOnlyList<(string Name, string DisplayName, string Source)>> GetApiAppsAsync(
+        HttpClient client, Uri baseUrl, CancellationToken cancellationToken)
+    {
+        var response = await client.GetAsync(new Uri(baseUrl, "api/apps"), cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.EnumerateArray()
+            .Select(element => (
+                element.GetProperty("name").GetString() ?? string.Empty,
+                element.GetProperty("displayName").GetString() ?? string.Empty,
+                element.GetProperty("source").GetString() ?? string.Empty))
+            .ToList();
+    }
+
+    /// <summary>Deletes a shortcut through the API (the same endpoint the card's menu uses).</summary>
+    static async Task DeleteShortcutViaApiAsync(HttpClient client, Uri baseUrl, string name, CancellationToken cancellationToken)
+    {
+        var response = await client.DeleteAsync(
+            new Uri(baseUrl, $"api/shortcuts/{Uri.EscapeDataString(name)}"), cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 }
 

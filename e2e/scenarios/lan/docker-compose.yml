@@ -11,7 +11,7 @@ networks:
 
 services:
   docker-ui:
-    image: docker-ui-e2e:latest
+    image: docker-ui-local:latest
     container_name: docker-ui-e2e-lan
     ports:
       - "5013:8080"

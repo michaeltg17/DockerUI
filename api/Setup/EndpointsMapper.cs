@@ -43,6 +43,7 @@ internal static class EndpointsMapper
         SetAppOrderEndpoint.Map(apps);
         SetAppVisibilityEndpoint.Map(apps);
         SetAppSettingsEndpoint.Map(apps);
+        MarkAppSeenEndpoint.Map(apps);
         SplitAppEndpoint.Map(apps);
         JoinAppEndpoint.Map(apps);
 

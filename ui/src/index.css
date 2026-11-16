@@ -46,37 +46,43 @@
     --radius: 0.5rem;
   }
 
+  /* Shared by every dark theme: near-white text on dark surfaces, plus the
+     same success/warning hues. Each dark block lists only its own values. */
+  [data-theme='dark'],
+  [data-theme='dark-blue'],
+  [data-theme='docker'] {
+    --foreground: 210 40% 98%;
+    --header-foreground: 210 40% 98%;
+    --card-foreground: 210 40% 98%;
+    --popover-foreground: 210 40% 98%;
+    --secondary-foreground: 210 40% 98%;
+    --accent-foreground: 210 40% 98%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 69% 58%;
+    --warning: 38 92% 62%;
+  }
+
   [data-theme='dark'] {
     --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
 
     --header: 217.2 32.6% 10.2%;
-    --header-foreground: 210 40% 98%;
 
     --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
 
     --popover: 217.2 32.6% 12.2%;
-    --popover-foreground: 210 40% 98%;
 
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
     --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
 
     /* Brighter than the light theme's red so it reads as text on a dark card. */
     --destructive: 0 84% 66%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 69% 58%;
-    --warning: 38 92% 62%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
@@ -85,34 +91,24 @@
 
   [data-theme='dark-blue'] {
     --background: 213 20% 8%;
-    --foreground: 210 40% 98%;
 
     --header: 221 55% 16%;
-    --header-foreground: 210 40% 98%;
 
     --card: 215 25% 12%;
-    --card-foreground: 210 40% 98%;
 
     --popover: 215 25% 14%;
-    --popover-foreground: 210 40% 98%;
 
     --primary: 204 84% 53%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 216 25% 18%;
-    --secondary-foreground: 210 40% 98%;
 
     --muted: 216 25% 14%;
     --muted-foreground: 215 20% 65%;
 
     --accent: 216 30% 20%;
-    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 50.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 69% 58%;
-    --warning: 38 92% 62%;
 
     --border: 215 22% 24%;
     --input: 215 22% 24%;
@@ -121,34 +117,24 @@
 
   [data-theme='docker'] {
     --background: 210 20% 8%;
-    --foreground: 210 40% 98%;
 
     --header: 220 56% 16%;
-    --header-foreground: 210 40% 98%;
 
     --card: 215 25% 12%;
-    --card-foreground: 210 40% 98%;
 
     --popover: 215 25% 14%;
-    --popover-foreground: 210 40% 98%;
 
     --primary: 204 84% 53%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 216 25% 18%;
-    --secondary-foreground: 210 40% 98%;
 
     --muted: 216 25% 14%;
     --muted-foreground: 215 20% 65%;
 
     --accent: 216 30% 20%;
-    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 50.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 69% 58%;
-    --warning: 38 92% 62%;
 
     --border: 215 22% 24%;
     --input: 215 22% 24%;

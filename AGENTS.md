@@ -28,7 +28,7 @@ through its socket.
   Each scenario under `e2e/scenarios` is its own DockerUI instance (own port,
   own `appsettings.json`) plus demo stacks; `Environments/` orchestrates the
   compose environments, `Playwright/` holds the browser fixture and the
-  `AppsPage` locators.
+  `AppsPage` locators (partials split by feature, one file per area).
 
 ## Conventions
 
@@ -89,13 +89,39 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   with `unix:///path/to.sock` or `npipe://./pipe/docker_engine` URIs.
   `WaitBeforeKillSeconds` is `uint?`. Container list responses expose `ID`
   (not `Id`) and `Labels` as `IDictionary<string,string>`.
+- k8s (client) package: `V1Patch` is a record —
+  `new V1Patch(body, V1Patch.PatchType.MergePatch)` — and template changes
+  (the `restartedAt` rollout annotation, the DaemonSet stop marker) go out
+  as merge patches, which apply atomically server-side and remove keys when
+  set to `null` (RFC 7386); a read-modify-write `Replace` loses races with
+  the controller's status updates. The scale subresource's PUT/replace
+  requires the object name in the body
+  (`new V1Scale { Metadata = new V1ObjectMeta { Name = name } }`) or the
+  API 400s with "name must be provided". `DeleteNamespacedPod...` returns
+  the deleted pod, and `HttpOperationResponse<T>` exposes `Response` /
+  `Body` (there is no `StatusCode` property — use
+  `ex.Response.StatusCode` on `HttpOperationException`).
+- Recreating a standalone pod (start after stop, restart): delete the pod,
+  then **wait until it is gone** before creating the replacement — a
+  deleting pod lingers (terminating) until the kubelet finishes, and a
+  create with the same name in that window 409s ("object is being deleted:
+  already exists").
+- A pod that is still draining from a stop keeps `phase: Running` while it
+  terminates, so "is running" for a unit must mean
+  `DeletionTimestamp is null && phase is Running`, or a start issued during
+  the drain is skipped as a no-op.
+- `kubectl config view` redacts certificate data; use `--raw`
+  (`kubectl config view --raw --minify --context <ctx> > kubeconfig.yaml`)
+  when a kubeconfig must work as-is, and `kind export kubeconfig` for kind.
 - CI audits the dashboard with Lighthouse CI (`lighthouserc.cjs` at the repo
-  root; pinned `@lhci/cli` in `ci.sh`): after the e2e scenarios it brings up a
-  fresh basic scenario on :5010, asserts the category score thresholds
-  (throttled mobile profile; keep the thresholds just below the measured
-  baseline), and tears it down. A local run is
+  root; pinned `@lhci/cli` in `ci.sh`): after the e2e scenarios it brings up
+  the dedicated `lighthouse/` scenario on :5015 (its own compose project with
+  its own demo stacks), asserts the category score thresholds (throttled
+  mobile profile; keep the thresholds just below the measured baseline), and
+  tears it down. A local run is
   `npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs` with the
-  basic scenario up.
+  lighthouse scenario up (its `stacks/` plus
+  `docker compose -f lighthouse/docker-compose.yml up -d`).
 - The published image runs as a non-root `dockerui` user (uid/gid 1000,
   created explicitly in the Dockerfile's runtime stage). `/app` and the
   packaged `appsettings.json` are the only paths owned by uid 1000, because

@@ -33,8 +33,9 @@ internal sealed class SettingsStore(AppSettingsStore store)
         });
 
     /// <summary>
-    /// Saves the display name, icon, and url overrides of the given app. Empty values
-    /// clear the override so the app falls back to its resolved name/icon/url.
+    /// Saves the display name, icon, and url overrides of the given app. An empty name or
+    /// url clears the override so the app falls back to its resolved name/url; an empty
+    /// icon persists an explicit 'no icon', so the app's auto-resolved icon stays off.
     /// </summary>
     public void SaveAppSettings(string appName, string? displayName, string? icon, string? url)
         => store.UpdateSection(section =>
@@ -43,7 +44,7 @@ internal sealed class SettingsStore(AppSettingsStore store)
             var targetName = !string.IsNullOrWhiteSpace(displayName) && !string.Equals(displayName, appName, StringComparison.Ordinal)
                 ? displayName
                 : null;
-            var targetIcon = string.IsNullOrWhiteSpace(icon) ? null : icon;
+            var targetIcon = string.IsNullOrWhiteSpace(icon) ? string.Empty : icon;
             var targetUrl = string.IsNullOrWhiteSpace(url) ? null : url;
 
             if (GetEntryValue(entry, nameof(AppUserSettings.Name)) == targetName &&
@@ -177,6 +178,116 @@ internal sealed class SettingsStore(AppSettingsStore store)
             }
 
             return changed;
+        });
+
+    /// <summary>
+    /// Updates the observed-apps baseline ('DockerUI:KnownApps') with the names the app
+    /// list just built: the first observation writes the whole baseline without tagging
+    /// anything, and a later observation appends the names it has not seen before and
+    /// flags them 'new' until the first interaction clears the flag. Does nothing when
+    /// every name is already observed, so a steady state never rewrites the settings file.
+    /// </summary>
+    public void SaveAppNewness(IReadOnlyCollection<string> names)
+        => store.UpdateSection(section =>
+        {
+            if (section[nameof(DockerUISettings.KnownApps)] is not JsonArray knownApps)
+            {
+                // The first observation is the baseline: everything observed now was
+                // already there, so nothing is tagged.
+                section[nameof(DockerUISettings.KnownApps)] = new JsonArray([.. names.Select(name => (JsonNode)name)]);
+                return true;
+            }
+
+            var newNames = names
+                .Where(name => !knownApps.Select(node => node?.GetValue<string>()).Contains(name, StringComparer.Ordinal))
+                .ToList();
+
+            if (newNames.Count == 0)
+                return false;
+
+            foreach (var name in newNames)
+            {
+                knownApps.Add((JsonNode)name);
+                GetAppEntry(section, name)[nameof(AppUserSettings.New)] = true;
+            }
+
+            return true;
+        });
+
+    /// <summary>
+    /// Clears the 'new' flag of the given app once the user interacts with its card. The
+    /// flag defaults to false, so only the non-default value is persisted and the key is
+    /// removed again (with the app entry when it becomes empty).
+    /// </summary>
+    public void SaveAppSeen(string appName)
+        => store.UpdateSection(section =>
+        {
+            if (section[nameof(DockerUISettings.Apps)] is not JsonObject apps ||
+                apps[appName] is not JsonObject entry)
+                return false;
+
+            if (entry[nameof(AppUserSettings.New)]?.GetValue<bool>() != true)
+                return false;
+
+            entry.Remove(nameof(AppUserSettings.New));
+            return PruneAppEntry(section, appName);
+        });
+
+    /// <summary>
+    /// Saves the replica count the kubernetes backend remembers for a stopped workload, so
+    /// 'Start' can bring the workload back at its previous size. Null removes the override
+    /// (the workload had no scale of its own, e.g. a DaemonSet).
+    /// </summary>
+    public void SaveAppLastReplicas(string appName, int? replicas)
+        => store.UpdateSection(section =>
+        {
+            var entry = GetAppEntry(section, appName);
+            var current = entry[nameof(AppUserSettings.LastReplicas)]?.GetValue<int?>();
+
+            if (current == replicas)
+                return false;
+
+            if (replicas is null)
+                entry.Remove(nameof(AppUserSettings.LastReplicas));
+            else
+                entry[nameof(AppUserSettings.LastReplicas)] = replicas.Value;
+
+            return PruneAppEntry(section, appName);
+        });
+
+    /// <summary>
+    /// Saves the pod spec snapshot the kubernetes backend takes of a standalone pod (json),
+    /// so the pod can be recreated after a stop. An empty spec removes the snapshot.
+    /// </summary>
+    public void SaveAppPodSpec(string appName, string? spec)
+        => store.UpdateSection(section =>
+        {
+            var entry = GetAppEntry(section, appName);
+            var current = entry[nameof(AppUserSettings.PodSpec)]?.GetValue<string>();
+
+            if (current == spec)
+                return false;
+
+            if (string.IsNullOrEmpty(spec))
+                entry.Remove(nameof(AppUserSettings.PodSpec));
+            else
+                entry[nameof(AppUserSettings.PodSpec)] = spec;
+
+            return PruneAppEntry(section, appName);
+        });
+
+    /// <summary>Saves the subnet a LAN scan used in the 'DockerUI:Lan:Subnet' setting.</summary>
+    public void SaveLanSubnet(string subnet)
+        => store.UpdateSection(section =>
+        {
+            var lan = section[nameof(DockerUISettings.Lan)] as JsonObject ?? [];
+            section[nameof(DockerUISettings.Lan)] = lan;
+
+            if (lan[nameof(LanSettings.Subnet)]?.GetValue<string>() == subnet)
+                return false;
+
+            lan[nameof(LanSettings.Subnet)] = subnet;
+            return true;
         });
 
     static JsonObject GetAppEntry(JsonObject section, string appName)

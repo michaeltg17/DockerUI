@@ -1,6 +1,4 @@
-using Api.Exceptions;
-using Docker.DotNet;
-using Docker.DotNet.Models;
+using Api.Features.Apps.Runtime;
 
 namespace Api.Features.Logging
 {
@@ -10,24 +8,12 @@ namespace Api.Features.Logging
 
         public static void Map(IEndpointRouteBuilder app)
         {
-            app.MapGet(Path, async (IContainerOperations containers, CancellationToken cancellationToken) =>
+            app.MapGet(Path, async (IAppRuntime runtime, CancellationToken cancellationToken) =>
             {
-                try
-                {
-                    var list = await containers.ListContainersAsync(new ContainersListParameters { All = true }, cancellationToken).ConfigureAwait(false);
-                    var selfId = OwnContainer.FindId(list.Select(container => container.ID));
-
-                    if (selfId is null)
-                        return Results.Ok(new LogDto(false, string.Empty));
-
-                    var (stdout, stderr) = await ContainerLogs.ReadAsync(containers, selfId, cancellationToken).ConfigureAwait(false);
-                    return Results.Ok(new LogDto(true, (stdout + stderr).TrimEnd()));
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    throw new DaemonUnavailableException(
-                        "Could not reach the Docker daemon. Check that the Docker socket is configured and available.", ex);
-                }
+                // The runtime's own app is found by the backend itself (own container, or
+                // own pod); outside one the logs are simply unavailable, not an error.
+                var logs = await runtime.ReadSelfLogsAsync(cancellationToken).ConfigureAwait(false);
+                return Results.Ok(new LogDto(logs is not null, logs ?? string.Empty));
             });
         }
     }

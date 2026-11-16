@@ -8,10 +8,12 @@ internal static class HealthCheckResponseWriter
 {
     public static async Task WriteAsync(HttpContext httpContext, HealthReport report)
     {
+        var cancellationToken = httpContext.RequestAborted;
+
         if (report.Status == HealthStatus.Healthy)
         {
             httpContext.Response.StatusCode = StatusCodes.Status200OK;
-            await httpContext.Response.WriteAsJsonAsync(new HealthResponse(report.Status)).ConfigureAwait(false);
+            await httpContext.Response.WriteAsJsonAsync(new HealthResponse(report.Status), cancellationToken).ConfigureAwait(false);
         }
         else
         {

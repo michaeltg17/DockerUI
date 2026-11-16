@@ -22,8 +22,8 @@ namespace Api.Features.Apps.Endpoints
             {
                 AppNameValidator.Validate(name);
 
-                // Resolve against the raw container list so the app must exist before its settings change.
-                await appService.ResolveAppContainersAsync(name, cancellationToken).ConfigureAwait(false);
+                // Resolve against the live runtime so the app must exist before its settings change.
+                await appService.ResolveAppUnitsAsync(name, cancellationToken).ConfigureAwait(false);
 
                 settingsStore.SaveAppSettings(name, input.DisplayName, input.Icon, input.Url);
                 await AppsEndpointsBroadcast.BroadcastAsync(appService, hubContext, monitor, cancellationToken).ConfigureAwait(false);

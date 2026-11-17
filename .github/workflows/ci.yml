@@ -57,6 +57,9 @@ jobs:
             .lighthouseci/*.report.html
           if-no-files-found: warn
           retention-days: 14
+          # .lighthouseci is a dot-directory, and the action skips hidden
+          # paths unless this is on.
+          include-hidden-files: true
 
       - name: Validate Docker image builds
         uses: docker/build-push-action@v7

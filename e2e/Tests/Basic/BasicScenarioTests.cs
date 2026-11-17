@@ -1696,6 +1696,43 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Add_shortcut_keeps_a_protocol_handler_url_as_is()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Protocol";
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync(name);
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("obs://startstream");
+
+        var create = dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Create", Exact = true });
+        (await create.IsEnabledAsync())
+            .Should().BeTrue("because a url with an explicit scheme is valid without the https prefix");
+
+        await create.ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+        await apps.WaitForAppAsync(name);
+
+        var shortcut = await GetShortcutAsync(name, TestContext.Current.CancellationToken);
+        shortcut.GetProperty("url").GetString()
+            .Should().Be("obs://startstream", "because an explicit scheme is kept, not https-prefixed");
+
+        await apps.DeleteShortcutAsync(name);
+    }
+
+    [Fact]
     public async Task Shortcut_dialog_explains_why_create_is_disabled()
     {
         await using var context = await browser.NewContextAsync(environment);

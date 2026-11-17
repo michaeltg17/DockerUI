@@ -32,6 +32,11 @@ through its socket.
 
 ## Conventions
 
+- TypeScript: keep `ui/src/lib/url.ts` scheme handling in sync with the API:
+  the UI accepts any absolute URL (`://` or `:?` counts as an explicit scheme,
+  anything else is https-prefixed so `host:port` keeps working);
+  `ShortcutService.ValidateUrl` accepts any absolute URI — validate on one side
+  only, the UI is the gate.
 - Central package management: add package versions in the solution's
   `Directory.Packages.props` (`api/` for the API, `e2e/` for tests),
   references in csproj files.

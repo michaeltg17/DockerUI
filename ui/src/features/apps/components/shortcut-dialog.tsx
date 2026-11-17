@@ -35,7 +35,9 @@ type ShortcutValidation = {
 /** Single source of truth for the dialog's field validation. */
 const validateShortcut = (name: string, url: string): ShortcutValidation => ({
   name: name.trim() ? null : 'Enter a name.',
-  url: isValidUrl(url) ? null : 'Enter a valid URL, e.g. https://example.com.',
+  url: isValidUrl(url)
+    ? null
+    : 'Enter a valid URL, e.g. https://example.com or obs://startstream.',
 });
 
 export const ShortcutDialog = ({
@@ -190,7 +192,7 @@ const ShortcutDialogForm = ({
               setError(null);
             }}
             onBlur={() => setUrlTouched(true)}
-            placeholder="e.g. https://example.com or example.com"
+            placeholder="e.g. https://example.com, example.com or obs://startstream"
           />
           <FieldError
             error={showUrlError ? urlError : null}

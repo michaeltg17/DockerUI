@@ -151,6 +151,11 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   web sockets (`ws: true`) for live updates in development.
 - UI build output (`ui/dist`) is copied into the API image's `wwwroot`;
   `MapFallbackToFile("index.html")` serves the SPA for all non-`/api` routes.
+- E2E: the suite builds `docker-ui-local:latest` only when the tag is missing,
+  so re-run `docker build -t docker-ui-local:latest .` after changing API/UI
+  code, or the scenarios test the stale image. Individual tests can be run
+  with `dotnet e2e/bin/Debug/net10.0/E2E.dll -method <Class.Method>` (the
+  scenario fixture still brings up the full basic environment).
 - E2E: the browser fixture launches the locally installed Chrome
   (`Channel = "chrome"`) so Playwright never downloads browsers (the Playwright
   CDN stalls on some networks; `Dockerfile.ci` therefore installs

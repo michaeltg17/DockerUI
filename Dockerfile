@@ -4,7 +4,10 @@
 FROM node:24-alpine AS ui-build
 WORKDIR /app
 COPY ui/package.json ui/package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# --ignore-scripts: the dependency tree is fixed by the lockfile, so no
+# package lifecycle code runs during install (verified: vite/esbuild resolve
+# their binaries through optionalDependencies).
+RUN npm ci --no-audit --no-fund --ignore-scripts
 COPY ui/ ./
 RUN npm run build
 

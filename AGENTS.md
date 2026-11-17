@@ -119,17 +119,28 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   (`kubectl config view --raw --minify --context <ctx> > kubeconfig.yaml`)
   when a kubeconfig must work as-is, and `kind export kubeconfig` for kind.
 - CI audits the dashboard with Lighthouse CI (`lighthouserc.cjs` at the repo
-  root; pinned `@lhci/cli` in `ci.sh`): after the e2e scenarios it brings up
-  the dedicated `lighthouse/` scenario on :5015 (its own compose project with
+  root; `@lhci/cli` pinned as a global install in `Dockerfile.ci`, so ci.sh
+  runs `lhci` directly — collect/assert/upload steps, not `autorun`, which
+  drops the reports when assertions fail): after the e2e scenarios it brings
+  up the dedicated `lighthouse/` scenario on :5015 (its own compose project with
   its own demo stacks, registered in `KnownApps`), asserts the category score
-  thresholds and the core metric budgets (LCP ≤ 2500 ms, TBT ≤ 200 ms,
+  thresholds and the core metric budgets (LCP ≤ 3000 ms, TBT ≤ 200 ms,
   CLS ≤ 0.1; throttled mobile profile; keep the thresholds just below the
   measured baseline), tears it down, and uploads the `.lighthouseci/` reports
   (plus a `scripts/summarize-lighthouse.mjs` score summary) as the
-  `lighthouse-audit` CI artifact. A local run is
+  `lighthouse-audit` CI artifact (upload-artifact needs
+  `include-hidden-files: true` for the dot-directory). A local run is
   `npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs` with the
   lighthouse scenario up (its `stacks/` plus
   `docker compose -f lighthouse/docker-compose.yml up -d`).
+- CI also runs the SonarQube Cloud analysis when `SONAR_TOKEN` is passed into
+  the container (`-e SONAR_TOKEN`, plus `SONAR_EVENT`/`SONAR_BRANCH` from the
+  workflow): `ci.sh` wraps the builds in `dotnet sonarscanner begin`/`end`
+  (scanner + JRE + jq baked into `Dockerfile.ci`) and then polls the quality
+  gate, failing on ERROR. Push runs analyze the branch (`sonar.branch.name`
+  for non-main); PR runs skip the scanner — the SonarCloud GitHub app already
+  analyzes PRs (decoration + QG check). Local runs without the token take the
+  unchanged path.
 - The published image runs as a non-root `dockerui` user (uid/gid 1000,
   created explicitly in the Dockerfile's runtime stage). `/app` and the
   packaged `appsettings.json` are the only paths owned by uid 1000, because

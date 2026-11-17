@@ -16,13 +16,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Build CI Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: Dockerfile.ci
@@ -38,14 +38,14 @@ jobs:
         # The checkout is mounted onto its own path so the compose file
         # volume sources the docker client sends resolve on the host daemon
         # (the client and the daemon must see identical paths).
-        run: docker run --rm --network host -w "${{ github.workspace }}" -v "${{ github.workspace }}:${{ github.workspace }}" -v /var/run/docker.sock:/var/run/docker.sock docker-ui-ci:latest
+        run: docker run --rm --network host -w "${{ github.workspace }}" -v "${{ github.workspace }}:${{ github.workspace }}" -v /var/run/docker.sock:/var/run/docker.sock -e SONAR_TOKEN="${{ secrets.SONAR_TOKEN }}" -e SONAR_EVENT="${{ github.event_name }}" -e SONAR_BRANCH="${{ github.ref_name }}" docker-ui-ci:latest
 
       - name: Upload Lighthouse audit results
         # The reports ci.sh left in the mounted checkout (assertion log + JSON
         # and HTML per audit + a one-glance summary); uploaded even on failure,
         # since that's when they matter most.
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: lighthouse-audit
           path: |
@@ -62,7 +62,7 @@ jobs:
           include-hidden-files: true
 
       - name: Validate Docker image builds
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: false
@@ -79,14 +79,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Metadata for Docker image
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/docker-ui
           tags: |
@@ -94,14 +94,14 @@ jobs:
             type=raw,value=latest
 
       - name: Log in to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: true

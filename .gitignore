@@ -414,6 +414,9 @@ docker-compose.override.yml
 # Lighthouse CI (lighthouserc.cjs) report output
 .lighthouseci/
 
+# SonarScanner for .NET scratch (dotnet sonarscanner begin)
+.sonarqube/
+
 # Local operator settings (see appsettings.example.json)
 /appsettings.json
 /opencode.json

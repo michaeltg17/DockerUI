@@ -30,7 +30,8 @@ const mappingOutFile = path.join(repoRoot, 'api', 'Features', 'Apps', 'Icons', '
 const ICON_EXTENSIONS = ['.svg', '.png', '.webp', '.jpg', '.jpeg']
 
 function git(args, cwd) {
-  execFileSync('git', args, {cwd, stdio: 'inherit'})
+  // A dev-only sync tool; it shells out to the PATH git by design.
+  execFileSync('git', args, {cwd, stdio: 'inherit'}) // NOSONAR
 }
 
 function normalizeImage(image) {
@@ -118,7 +119,7 @@ function findMainService(appId, services) {
   }
   if (resolved.size === 1) return [...resolved][0]
   if (resolved.size > 1) {
-    const sorted = [...resolved].sort()
+    const sorted = [...resolved].sort((a, b) => a.localeCompare(b))
     console.warn(
       `App ${appId} has app_proxy hosts pointing at multiple services (${sorted.join(', ')}); using "${sorted[0]}" as the main service.`,
     )

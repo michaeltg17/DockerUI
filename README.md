@@ -1,4 +1,8 @@
 [![ci](https://github.com/michaeltg17/DockerUI/actions/workflows/ci.yml/badge.svg)](https://github.com/michaeltg17/DockerUI/actions/workflows/ci.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/quality_gate?project=michaeltg17_DockerUI)](https://sonarcloud.io/project/overview?id=michaeltg17_DockerUI)
+[![Bugs](https://sonarcloud.io/api/project_badges/bugs?project=michaeltg17_DockerUI)](https://sonarcloud.io/project/overview?id=michaeltg17_DockerUI)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/vulnerabilities?project=michaeltg17_DockerUI)](https://sonarcloud.io/project/overview?id=michaeltg17_DockerUI)
+[![Duplicated Lines](https://sonarcloud.io/api/project_badges/duplicated_lines_density?project=michaeltg17_DockerUI)](https://sonarcloud.io/project/overview?id=michaeltg17_DockerUI)
 
 <div align="center">
   <h1>

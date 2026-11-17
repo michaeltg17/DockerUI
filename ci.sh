@@ -5,6 +5,43 @@ echo "========================================="
 echo "  CI - DockerUI"
 echo "========================================="
 
+# SonarQube Cloud analysis wraps the build steps (the C# analysis rides on the
+# dotnet builds, ui/**.ts(x) is picked up by multi-language analysis). Without
+# SONAR_TOKEN the pipeline behaves exactly as before. The SonarCloud GitHub
+# app already analyzes pull requests (decoration + quality-gate check), so the
+# scanner only runs the branch analyses (main, or sonar.branch.name branches).
+SONAR_TOKEN="${SONAR_TOKEN:-}"
+SONAR_ORG="michaeltg17"
+SONAR_PROJECT_KEY="michaeltg17_DockerUI"
+SONAR_EVENT="${SONAR_EVENT:-}"
+# The checkout is bind-mounted, so its owner differs from the container's root
+# (safe.directory keeps the branch fallback working for local runs).
+git config --global --add safe.directory "$(pwd)" >/dev/null 2>&1 || true
+SONAR_BRANCH="${SONAR_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)}"
+
+sonar_enabled() {
+  [[ -n "${SONAR_TOKEN}" ]] && [[ "${SONAR_EVENT}" != "pull_request" ]] && [[ -n "${SONAR_BRANCH}" && "${SONAR_BRANCH}" != "HEAD" ]]
+}
+
+if sonar_enabled; then
+  echo
+  echo "SonarQube Cloud: starting analysis of branch ${SONAR_BRANCH} (michaeltg17/${SONAR_PROJECT_KEY})."
+  branch_args=()
+  gate_url="https://sonarcloud.io/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}"
+  if [[ "${SONAR_BRANCH}" != "main" ]]; then
+    branch_args+=("/d:sonar.branch.name=${SONAR_BRANCH}")
+    gate_url+="&branch=${SONAR_BRANCH}"
+  fi
+  dotnet sonarscanner begin \
+    /k:"${SONAR_PROJECT_KEY}" /o:"${SONAR_ORG}" \
+    /d:sonar.token="${SONAR_TOKEN}" \
+    /d:sonar.exclusions="ui/node_modules/**,ui/dist/**,ui/coverage/**,**/bin/**,**/obj/**" \
+    "${branch_args[@]}"
+else
+  echo
+  echo "Skipping Sonar analysis (needs SONAR_TOKEN, and a named branch; PRs are analyzed by the SonarCloud GitHub app)."
+fi
+
 echo
 echo "API: building (Release)."
 dotnet build api/DockerUI.slnx --configuration Release
@@ -13,7 +50,7 @@ echo "API build passed"
 echo
 echo "UI: installing dependencies."
 cd ui
-npm ci --no-audit --no-fund
+npm ci --no-audit --no-fund --ignore-scripts
 
 echo
 echo "UI: lint."
@@ -73,7 +110,7 @@ for _ in $(seq 1 60); do
   fi
   sleep 2
 done
-if [ -z "${ready}" ]; then
+if [[ -z "${ready}" ]]; then
   docker compose -f lighthouse/docker-compose.yml logs
   echo "Lighthouse: the lighthouse scenario dashboard did not become ready" >&2
   exit 1
@@ -83,9 +120,10 @@ lighthouse_exit=0
 # The explicit steps instead of `autorun`: autorun skips the upload step when the
 # assertions fail, which is exactly when the reports are needed. upload with the
 # filesystem target is what writes the report json/html into .lighthouseci.
-npx --yes @lhci/cli@0.16.0 collect --config=lighthouserc.cjs || lighthouse_exit=$?
-npx --yes @lhci/cli@0.16.0 assert --config=lighthouserc.cjs || lighthouse_exit=$?
-npx --yes @lhci/cli@0.16.0 upload --target=filesystem --outputDir=.lighthouseci --config=lighthouserc.cjs || true
+# `lhci` is the pinned @lhci/cli the CI image installs (no npx at run time).
+lhci collect --config=lighthouserc.cjs || lighthouse_exit=$?
+lhci assert --config=lighthouserc.cjs || lighthouse_exit=$?
+lhci upload --target=filesystem --outputDir=.lighthouseci --config=lighthouserc.cjs || true
 
 echo
 # Persist a score/metric summary next to the reports so the CI artifact shows
@@ -103,7 +141,40 @@ for stack in lighthouse/stacks/*/; do
   docker compose -f "${stack}docker-compose.yml" down --remove-orphans
 done
 
-if [ "${lighthouse_exit}" -ne 0 ]; then
+# The sonar window closes after every build that feeds it, even when the
+# Lighthouse audit failed - the upload and quality gate still stand.
+if sonar_enabled; then
+  echo
+  echo "SonarQube Cloud: uploading analysis results."
+  dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+
+  echo
+  echo "SonarQube Cloud: waiting for the quality gate."
+  gate_status=
+  for _ in $(seq 1 36); do   # up to ~6 min
+    gate_status=$(curl -sf -H "Authorization: Bearer ${SONAR_TOKEN}" "${gate_url}" \
+      | jq -r '.projectStatus.status')
+    case "${gate_status}" in
+      OK)
+        echo "Quality gate: OK"
+        break
+        ;;
+      ERROR)
+        echo "Quality gate: FAILED" >&2
+        curl -sf -H "Authorization: Bearer ${SONAR_TOKEN}" "${gate_url}" \
+          | jq -r '.projectStatus.conditions[] | select(.status=="ERROR") | "  - " + .status + " " + (.metricKey // "?")' >&2
+        exit 1
+        ;;
+      *) sleep 10 ;;   # IN_PROGRESS / UNAVAILABLE
+    esac
+  done
+  if [[ "${gate_status}" != "OK" ]]; then
+    echo "Quality gate: still ${gate_status:-unknown} after the wait window" >&2
+    exit 1
+  fi
+fi
+
+if [[ "${lighthouse_exit}" -ne 0 ]]; then
   echo "Lighthouse: the audit failed (exit ${lighthouse_exit})" >&2
   exit "${lighthouse_exit}"
 fi

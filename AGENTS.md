@@ -177,7 +177,13 @@ Applies only when the user asks to start the automatic dev cycle.
 - Tasks ready for start developing are the ones in the `ready` column;
   never pick ones in the backlog. Ignore any task assigned to
   `michaeltg17`. Only pick unassigned tasks not in the backlog column.
-- When picking a task, move its card to `In progress`.
+- Work on exactly one task at a time. Move a card to `In progress` only
+  at the moment its implementation starts, never while scouting or
+  batching cards; the `In progress` column must reflect what is actually
+  being developed right now (at most one card, plus any cards already
+  there from before the cycle). If a picked task turns out to be blocked
+  or is deferred before its work starts, leave (or move it back to)
+  `Ready` instead of `In progress`.
 - Do the work, then commit and push on `dev` and open/update the
   `dev` → `main` PR, following the `## Workflow` instructions above.
 - A task counts as finished when it is committed, pushed, the PR is

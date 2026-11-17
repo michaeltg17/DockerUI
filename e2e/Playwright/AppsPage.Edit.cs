@@ -27,7 +27,7 @@ public sealed partial class AppsPage
         var picker = Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
         await picker.WaitForAsync();
 
-        var firstIcon = picker.Locator("img").Nth(0);
+        var firstIcon = picker.Locator(".grid.overflow-auto").Locator("img").Nth(0);
         var src = await firstIcon.GetAttributeAsync("src");
         await firstIcon.ClickAsync();
         return src ?? string.Empty;

@@ -765,7 +765,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         if (originalIcon is null)
             await picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true }).ClickAsync();
         else
-            await picker.Locator($"img[src=\"{originalIcon}\"]").ClickAsync();
+            await picker.Locator(".grid.overflow-auto").Locator($"img[src=\"{originalIcon}\"]").ClickAsync();
         await restore
             .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
             .FillAsync("");
@@ -822,6 +822,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // located through it rather than the edit dialog it was opened from.
         var restorePicker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
         await restorePicker
+            .Locator(".grid.overflow-auto")
             .Locator($"img[src=\"{resolvedIcon}\"]")
             .ClickAsync();
         await restore

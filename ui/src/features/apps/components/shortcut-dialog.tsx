@@ -216,6 +216,7 @@ const ShortcutDialogForm = ({
         <IconPickerDialog
           icons={icons}
           selected={icon === '' ? null : icon}
+          suggestion={{ name: trimmedName || initialName }}
           onSelect={(path) => {
             setIcon(path ?? '');
             setPickerOpen(false);

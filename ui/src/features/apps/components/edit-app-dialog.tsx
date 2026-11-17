@@ -166,6 +166,12 @@ const EditAppDialogForm = ({
         <IconPickerDialog
           icons={icons}
           selected={icon === '' ? null : icon}
+          suggestion={{
+            name: displayName.trim() || app.name,
+            images: app.services
+              .map((service) => service.image)
+              .filter((image): image is string => image !== null),
+          }}
           onSelect={(path) => {
             setIcon(path ?? '');
             setPickerOpen(false);

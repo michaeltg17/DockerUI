@@ -748,7 +748,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         using var client = new HttpClient();
         var response = await client.GetStringAsync(
             new Uri(environment.BaseUrl, "api/apps"), TestContext.Current.CancellationToken);
-        var renamed = JsonDocument.Parse(response).RootElement.EnumerateArray()
+        var renamed = JsonElement.Parse(response).EnumerateArray()
             .Single(app => app.GetProperty("name").GetString() == "web-stack");
         renamed.GetProperty("url").GetString().Should().Be("https://example.org");
 
@@ -1988,6 +1988,83 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .Should().Be(1, "because the shortcut was created with its picked icon");
 
         await apps.DeleteShortcutAsync(name);
+    }
+
+    [Fact]
+    public async Task Shortcut_icon_picker_auto_picks_the_icon_matching_the_name()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // The picker offers the choice automatically: it asks the api to resolve the
+        // icon from the shortcut's name, exactly as app cards resolve theirs.
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("AdGuard");
+
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        var auto = picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Auto", Exact = true });
+        await auto
+            .Locator("img[src='/icons/adguard-home.svg']")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await auto.ClickAsync();
+        await picker.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        (await dialog.Locator("img[src='/icons/adguard-home.svg']").CountAsync())
+            .Should().Be(1, "because the auto pick previews the matched icon in the dialog");
+
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Cancel", Exact = true }).ClickAsync();
+    }
+
+    [Fact]
+    public async Task App_icon_picker_auto_applies_the_icon_resolved_from_the_apps_images()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        await apps.OpenEditDialogAsync("web-stack");
+        var dialog = apps.EditAppDialog("web-stack");
+
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // web-stack matches the built-in catalog through its images, so the Auto
+        // button previews an icon; picking it pins that icon as the app's override.
+        var auto = picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Auto", Exact = true });
+        var suggestion = auto.Locator("img");
+        await suggestion.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        var suggestedIcon = await suggestion.GetAttributeAsync("src");
+        suggestedIcon.Should().NotBeNull("because web-stack's images have built-in icons");
+
+        await auto.ClickAsync();
+        await picker.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        (await dialog.Locator($"img[src='{suggestedIcon}']").CountAsync())
+            .Should().Be(1, "because the auto pick previews the resolved icon in the dialog");
+
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Cancel", Exact = true }).ClickAsync();
     }
 
     [Fact]

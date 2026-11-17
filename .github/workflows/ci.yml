@@ -53,6 +53,8 @@ jobs:
             .lighthouseci/assertion-results.json
             .lighthouseci/lhr-*.json
             .lighthouseci/lhr-*.html
+            .lighthouseci/*.report.json
+            .lighthouseci/*.report.html
           if-no-files-found: warn
           retention-days: 14
 

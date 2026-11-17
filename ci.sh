@@ -80,16 +80,20 @@ if [ -z "${ready}" ]; then
 fi
 
 lighthouse_exit=0
-npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs || lighthouse_exit=$?
+# The explicit steps instead of `autorun`: autorun skips the upload step when the
+# assertions fail, which is exactly when the reports are needed. upload with the
+# filesystem target is what writes the report json/html into .lighthouseci.
+npx --yes @lhci/cli@0.16.0 collect --config=lighthouserc.cjs || lighthouse_exit=$?
+npx --yes @lhci/cli@0.16.0 assert --config=lighthouserc.cjs || lighthouse_exit=$?
+npx --yes @lhci/cli@0.16.0 upload --target=filesystem --outputDir=.lighthouseci --config=lighthouserc.cjs || true
 
 echo
-# Persist the per-audit reports (JSON, HTML, Lighthouse's own assertion log) in
-# the checkout so the CI job can publish them as an artifact. The directory is
-# in .gitignore, so this never touches git.
-echo "Lighthouse: collecting the audit reports."
-mkdir -p .lighthouseci
-if compgen -G ".lighthouseci/lhr-*.json" > /dev/null; then
-  lhr=$(ls -t .lighthouseci/lhr-*.json | head -1)
+# Persist a score/metric summary next to the reports so the CI artifact shows
+# the numbers at a glance. The directory is in .gitignore, so this never
+# touches git.
+echo "Lighthouse: summarizing the audit reports."
+if compgen -G ".lighthouseci/*.report.json" > /dev/null; then
+  lhr=$(ls -t .lighthouseci/*.report.json | head -1)
   node scripts/summarize-lighthouse.mjs "$lhr" .lighthouseci/audit-summary.json
 fi
 

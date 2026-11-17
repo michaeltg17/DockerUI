@@ -23,6 +23,9 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
 
     public Uri BaseUrl => Scenario.BaseUrl;
 
+    /// <summary>The scenario's name (drives the per-scenario coverage output directories).</summary>
+    public string ScenarioName => Scenario.Name;
+
     /// <summary>The dashboard's compose directory (its appsettings.json and demo stacks live there).</summary>
     public string DashboardDirectory => Scenario.DashboardDirectory;
 
@@ -73,7 +76,9 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
             if (result.Succeeded)
                 return;
 
-            await DockerCli.EnsureSucceededAsync(Paths.RepoRoot, ["build", "-t", Paths.DashboardImageTag, "."]);
+            // The e2e variant of the image (source-mapped UI, coverage-collector
+            // entrypoint) is what the scenarios must run (Dockerfile.e2e).
+            await DockerCli.EnsureSucceededAsync(Paths.RepoRoot, ["build", "-f", "Dockerfile.e2e", "-t", Paths.DashboardImageTag, "."]);
         }
         finally
         {

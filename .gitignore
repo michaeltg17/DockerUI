@@ -121,6 +121,9 @@ ipch/
 # Visual Studio Trace Files
 *.e2e
 
+# The e2e image's Dockerfile (kept despite the VS trace-file pattern above)
+!Dockerfile.e2e
+
 # TFS 2012 Local Workspace
 $tf/
 
@@ -416,6 +419,12 @@ docker-compose.override.yml
 
 # SonarScanner for .NET scratch (dotnet sonarscanner begin)
 .sonarqube/
+
+# E2E coverage output: browser V8 dumps and converted reports (e2e/coverage/
+# subfolders + ui.lcov), and the scenario Cobertura sinks
+e2e/coverage/*/
+e2e/coverage/ui.lcov
+e2e/scenarios/*/coverage/
 
 # Local operator settings (see appsettings.example.json)
 /appsettings.json

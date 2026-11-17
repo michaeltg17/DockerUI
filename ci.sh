@@ -35,7 +35,9 @@ if sonar_enabled; then
   dotnet sonarscanner begin \
     /k:"${SONAR_PROJECT_KEY}" /o:"${SONAR_ORG}" \
     /d:sonar.token="${SONAR_TOKEN}" \
-    /d:sonar.exclusions="ui/node_modules/**,ui/dist/**,ui/coverage/**,**/bin/**,**/obj/**" \
+    /d:sonar.exclusions="ui/node_modules/**,ui/dist/**,ui/coverage/**,e2e/coverage/**,e2e/scenarios/*/coverage/**,**/bin/**,**/obj/**" \
+    /d:sonar.csharp.cobertura.reportsPaths=e2e/coverage/api/basic.cobertura.xml,e2e/coverage/api/settings.cobertura.xml,e2e/coverage/api/error.cobertura.xml,e2e/coverage/api/lan.cobertura.xml \
+    /d:sonar.javascript.lcov.reportPaths=e2e/coverage/ui.lcov \
     "${branch_args[@]}"
 else
   echo
@@ -75,6 +77,12 @@ echo "E2E: preparing scenario settings files for the non-root dashboard."
 # appsettings.json in place; on the CI runner the checkout is owned by the
 # runner user, so hand the files to the runtime user.
 find e2e/scenarios lighthouse -name appsettings.json -exec chown 1000:1000 {} +
+# The scenario coverage volumes (the collector entrypoint writes the Cobertura
+# report into the mounted directory) need the same ownership to exist first.
+for scenario in basic settings error lan; do
+  mkdir -p "e2e/scenarios/${scenario}/coverage"
+done
+find e2e/scenarios -type d -name coverage -exec chown 1000:1000 {} +
 
 echo
 echo "E2E: detecting the daemon socket's group."
@@ -89,6 +97,31 @@ echo "Daemon socket group gid: ${SOCKET_GROUP_GID}"
 echo
 echo "E2E: running scenarios (docker daemon required)."
 dotnet e2e/bin/Release/net10.0/E2E.dll
+
+echo
+echo "E2E: collecting coverage reports."
+# The scenario dashboards run under the dotnet-coverage collector (Dockerfile.e2e),
+# which flushes a Cobertura report into each scenario's ./coverage mount on
+# compose down; the browser dumps the suite wrote land under e2e/coverage/.
+# Coverage collection is diagnostics: failures warn but never fail the pipeline.
+mkdir -p e2e/coverage/api
+for file in e2e/scenarios/*/coverage/coverage.cobertura.xml; do
+  [[ -e "${file}" ]] || continue
+  scenario="$(basename "$(dirname "$(dirname "${file}")")")"
+  mv "${file}" "e2e/coverage/api/${scenario}.cobertura.xml"
+done
+
+if docker image inspect docker-ui-local:latest > /dev/null 2>&1; then
+  # The source maps from the very artifact the tests ran against.
+  container="$(docker create docker-ui-local:latest)"
+  docker cp "${container}":/app/wwwroot/assets e2e/coverage/assets
+  docker rm "${container}" > /dev/null
+  npm ci --prefix e2e/coverage --no-audit --no-fund --ignore-scripts \
+    && node e2e/coverage/convert.mjs \
+    || echo "E2E: UI coverage conversion failed; continuing without ui.lcov." >&2
+else
+  echo "E2E: docker-ui-local image not found; skipping UI coverage." >&2
+fi
 
 echo
 echo "Lighthouse: bringing up the lighthouse scenario."

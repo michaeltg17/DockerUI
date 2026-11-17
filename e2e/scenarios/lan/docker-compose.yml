@@ -19,6 +19,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Read-write: the LAN scan persists discovered shortcuts into this file.
       - ./appsettings.json:/app/appsettings.json
+      # Cobertura sink: the coverage-collector entrypoint (Dockerfile.e2e) writes
+      # coverage.cobertura.xml here when the container stops; ci.sh collects it.
+      - ./coverage:/app/coverage
     # The non-root dashboard reaches the socket through group access; ci.sh
     # exports the socket's gid (0/root covers Docker Desktop's root:root).
     group_add:

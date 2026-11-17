@@ -40,6 +40,22 @@ jobs:
         # (the client and the daemon must see identical paths).
         run: docker run --rm --network host -w "${{ github.workspace }}" -v "${{ github.workspace }}:${{ github.workspace }}" -v /var/run/docker.sock:/var/run/docker.sock docker-ui-ci:latest
 
+      - name: Upload Lighthouse audit results
+        # The reports ci.sh left in the mounted checkout (assertion log + JSON
+        # and HTML per audit + a one-glance summary); uploaded even on failure,
+        # since that's when they matter most.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-audit
+          path: |
+            .lighthouseci/audit-summary.json
+            .lighthouseci/assertion-results.json
+            .lighthouseci/lhr-*.json
+            .lighthouseci/lhr-*.html
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Validate Docker image builds
         uses: docker/build-push-action@v7
         with:

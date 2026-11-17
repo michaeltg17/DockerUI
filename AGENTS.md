@@ -116,9 +116,12 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
 - CI audits the dashboard with Lighthouse CI (`lighthouserc.cjs` at the repo
   root; pinned `@lhci/cli` in `ci.sh`): after the e2e scenarios it brings up
   the dedicated `lighthouse/` scenario on :5015 (its own compose project with
-  its own demo stacks), asserts the category score thresholds (throttled
-  mobile profile; keep the thresholds just below the measured baseline), and
-  tears it down. A local run is
+  its own demo stacks, registered in `KnownApps`), asserts the category score
+  thresholds and the core metric budgets (LCP ≤ 2500 ms, TBT ≤ 200 ms,
+  CLS ≤ 0.1; throttled mobile profile; keep the thresholds just below the
+  measured baseline), tears it down, and uploads the `.lighthouseci/` reports
+  (plus a `scripts/summarize-lighthouse.mjs` score summary) as the
+  `lighthouse-audit` CI artifact. A local run is
   `npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs` with the
   lighthouse scenario up (its `stacks/` plus
   `docker compose -f lighthouse/docker-compose.yml up -d`).

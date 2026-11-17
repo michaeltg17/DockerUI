@@ -83,6 +83,16 @@ lighthouse_exit=0
 npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs || lighthouse_exit=$?
 
 echo
+# Persist the per-audit reports (JSON, HTML, Lighthouse's own assertion log) in
+# the checkout so the CI job can publish them as an artifact. The directory is
+# in .gitignore, so this never touches git.
+echo "Lighthouse: collecting the audit reports."
+mkdir -p .lighthouseci
+if compgen -G ".lighthouseci/lhr-*.json" > /dev/null; then
+  lhr=$(ls -t .lighthouseci/lhr-*.json | head -1)
+  node scripts/summarize-lighthouse.mjs "$lhr" .lighthouseci/audit-summary.json
+fi
+
 echo "Lighthouse: tearing down the lighthouse scenario."
 docker compose -f lighthouse/docker-compose.yml down --remove-orphans
 for stack in lighthouse/stacks/*/; do

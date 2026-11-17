@@ -1444,6 +1444,14 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
 
+        // A wheel click on a scrollable page would start the browser's autoscroll
+        // and swallow the click; the card prevents the mousedown default instead.
+        // The window listener runs in the bubble phase, after the card's handler
+        // has had its chance to call preventDefault.
+        await apps.Page.EvaluateAsync(
+            "() => { window.middlePrevented = false; addEventListener('mousedown', " +
+            "(event) => { if (event.button === 1) window.middlePrevented = event.defaultPrevented; }); }");
+
         // web-stack publishes 8081, so its card url is http://localhost:8081.
         var openedPage = await apps.Page.RunAndWaitForPopupAsync(
             () => apps.Card("web-stack").ClickAsync(new LocatorClickOptions { Button = MouseButton.Middle }));
@@ -1452,6 +1460,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         openedPage.Url.Should().StartWith("http://localhost:8081", "because the app opens in a new tab");
         await openedPage.GetByText("Welcome to nginx!").WaitForAsync();
         await openedPage.CloseAsync();
+
+        (await apps.Page.EvaluateAsync<bool>("() => window.middlePrevented"))
+            .Should().BeTrue("because the wheel click suppresses the browser's autoscroll");
     }
 
     [Fact]
@@ -1771,14 +1782,14 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // Typing into the empty url field explains why it is required (validate on input).
         await url.FillAsync("dfdfdf");
         await dialog
-            .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
+            .GetByText("Enter a valid URL, e.g. https://example.com or obs://startstream.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         (await create.IsEnabledAsync()).Should().BeFalse("because the url is still missing");
 
         // Typing a valid url clears it and enables Create.
         await url.FillAsync("https://example.com");
         await dialog
-            .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
+            .GetByText("Enter a valid URL, e.g. https://example.com or obs://startstream.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
         (await create.IsEnabledAsync()).Should().BeTrue("because both fields are valid");
 
@@ -1811,7 +1822,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // A bare word is not a usable url: the field explains why and Create stays disabled.
         await dialog
-            .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
+            .GetByText("Enter a valid URL, e.g. https://example.com or obs://startstream.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         (await create.IsEnabledAsync()).Should().BeFalse("because 'dfdfdf' has no domain");
 

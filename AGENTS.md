@@ -139,8 +139,10 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   (scanner + JRE + jq baked into `Dockerfile.ci`) and then polls the quality
   gate, failing on ERROR. Push runs analyze the branch (`sonar.branch.name`
   for non-main); PR runs skip the scanner — the SonarCloud GitHub app already
-  analyzes PRs (decoration + QG check). Local runs without the token take the
-  unchanged path.
+  analyzes PRs (decoration + QG check). While the project keeps Automatic
+  Analysis enabled (project Administration > Analysis Method), SonarCloud
+  rejects manual uploads, and ci.sh skips the upload/gate with a warning
+  instead of failing. Local runs without the token take the unchanged path.
 - The published image runs as a non-root `dockerui` user (uid/gid 1000,
   created explicitly in the Dockerfile's runtime stage). `/app` and the
   packaged `appsettings.json` are the only paths owned by uid 1000, because

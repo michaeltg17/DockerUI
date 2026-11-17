@@ -146,31 +146,46 @@ done
 if sonar_enabled; then
   echo
   echo "SonarQube Cloud: uploading analysis results."
-  dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+  sonar_end_log="$(mktemp)"
+  sonar_skipped=0
+  if ! dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}" 2>&1 | tee "${sonar_end_log}"; then
+    if grep -q "Automatic Analysis is enabled" "${sonar_end_log}"; then
+      # The GitHub app's Automatic Analysis owns this project, so SonarCloud
+      # rejects manual uploads until it is turned off in the project's
+      # Administration > Analysis Method; don't fail the build over that.
+      echo "SonarQube Cloud: skipped - the project has Automatic Analysis enabled (GitHub app); turn it off in the project's Administration > Analysis Method to run CI-side analysis." >&2
+      sonar_skipped=1
+    else
+      exit 1
+    fi
+  fi
+  rm -f "${sonar_end_log}"
 
-  echo
-  echo "SonarQube Cloud: waiting for the quality gate."
-  gate_status=
-  for _ in $(seq 1 36); do   # up to ~6 min
-    gate_status=$(curl -sf -H "Authorization: Bearer ${SONAR_TOKEN}" "${gate_url}" \
-      | jq -r '.projectStatus.status')
-    case "${gate_status}" in
-      OK)
-        echo "Quality gate: OK"
-        break
-        ;;
-      ERROR)
-        echo "Quality gate: FAILED" >&2
-        curl -sf -H "Authorization: Bearer ${SONAR_TOKEN}" "${gate_url}" \
-          | jq -r '.projectStatus.conditions[] | select(.status=="ERROR") | "  - " + .status + " " + (.metricKey // "?")' >&2
-        exit 1
-        ;;
-      *) sleep 10 ;;   # IN_PROGRESS / UNAVAILABLE
-    esac
-  done
-  if [[ "${gate_status}" != "OK" ]]; then
-    echo "Quality gate: still ${gate_status:-unknown} after the wait window" >&2
-    exit 1
+  if [[ "${sonar_skipped}" -eq 0 ]]; then
+    echo
+    echo "SonarQube Cloud: waiting for the quality gate."
+    gate_status=
+    for _ in $(seq 1 36); do   # up to ~6 min
+      gate_status=$(curl -sf -H "Authorization: Bearer ${SONAR_TOKEN}" "${gate_url}" \
+        | jq -r '.projectStatus.status')
+      case "${gate_status}" in
+        OK)
+          echo "Quality gate: OK"
+          break
+          ;;
+        ERROR)
+          echo "Quality gate: FAILED" >&2
+          curl -sf -H "Authorization: Bearer ${SONAR_TOKEN}" "${gate_url}" \
+            | jq -r '.projectStatus.conditions[] | select(.status=="ERROR") | "  - " + .status + " " + (.metricKey // "?")' >&2
+          exit 1
+          ;;
+        *) sleep 10 ;;   # IN_PROGRESS / UNAVAILABLE
+      esac
+    done
+    if [[ "${gate_status}" != "OK" ]]; then
+      echo "Quality gate: still ${gate_status:-unknown} after the wait window" >&2
+      exit 1
+    fi
   fi
 fi
 

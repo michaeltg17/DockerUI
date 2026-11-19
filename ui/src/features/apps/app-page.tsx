@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react';
-import { Helmet } from 'react-helmet-async';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Logo } from '@/components/ui/logo';
 import { useNotifications } from '@/components/ui/notifications';
@@ -37,6 +36,12 @@ export const AppsPage = () => {
   const [removePasswordOpen, setRemovePasswordOpen] = useState(false);
 
   useAppsHub();
+
+  // The document title follows the dashboard name from settings (static meta
+  // lives in index.html; react-helmet-async was dropped as React 19 dead code).
+  useEffect(() => {
+    if (settings?.name) document.title = settings.name;
+  }, [settings?.name]);
 
   const scanLan = useScanLan();
 
@@ -76,14 +81,6 @@ export const AppsPage = () => {
     // The shell is exactly viewport-height: the header stays pinned and the
     // apps panel below it scrolls, so the page itself never gets a scrollbar.
     <div className="flex h-screen flex-col bg-background">
-      <Helmet>
-        <title>{settings?.name}</title>
-        <meta
-          name="description"
-          content="A lightweight user interface for your Docker stacks and more."
-        />
-      </Helmet>
-
       <header className="border-b border-border bg-header text-header-foreground">
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-6 py-4">
           <div aria-hidden="true" />

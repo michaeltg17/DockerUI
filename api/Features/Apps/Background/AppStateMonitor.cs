@@ -133,13 +133,15 @@ namespace Api.Features.Apps.Background
 
                 configurationRoot.Reload();
             }
-            catch (IOException ex)
+            catch (Exception exception) when (exception is IOException or InvalidDataException)
             {
-                // A transient read failure (the file is being written at the same time) must
-                // not stop the monitor: the new write times are left unrecorded, so the
-                // reload is retried on the next cycle and the last good configuration
-                // applies until then.
-                LogConfigurationReloadFailed(logger, ex);
+                // A transient read failure must not stop the monitor, let alone the host:
+                // the settings save rewrites the file in place (a rename would detach a
+                // bind mount), so a reload racing a save can hit a truncated file and an
+                // unparsable document (InvalidDataException), not only a locked one. The
+                // new write times are left unrecorded, so the reload is retried on the
+                // next cycle and the last good configuration applies until then.
+                LogConfigurationReloadFailed(logger, exception);
                 return;
             }
 

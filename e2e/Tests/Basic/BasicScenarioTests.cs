@@ -242,13 +242,12 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
-    public async Task The_apps_panel_scrollbar_sits_inside_the_panel_and_only_appears_on_overflow()
+    public async Task The_apps_panel_scrollbar_hugs_the_window_edge_and_only_appears_on_overflow()
     {
         await using var context = await browser.NewContextAsync(environment);
         var page = await context.NewPageAsync();
 
-        // Wide enough that the centered panel is narrower than the window (so a
-        // window-edge scrollbar would be visible), short enough that the apps
+        // Wide enough for several card columns, short enough that the apps
         // overflow the panel.
         const int windowWidth = 1400;
         const int windowHeight = 200;
@@ -260,9 +259,13 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var panel = page.Locator("main");
         var panelBox = await panel.BoundingBoxAsync();
         panelBox.Should().NotBeNull();
-        panelBox!.X.Should().BeGreaterThan(0, "because the panel is centered in the wider window");
+
+        // The scroll container spans the whole window: its scrollbar sits at the
+        // window's right edge, not inside the centered content column.
+        panelBox.X.Should().Be(0f, "because the scroll container starts at the window's left edge");
         (panelBox.X + panelBox.Width).Should()
-            .BeLessThan(windowWidth, "because the panel is narrower than the window, so its scrollbar sits inside it");
+            .BeGreaterThan(windowWidth - 1f, "because the scroll container spans the window, so its scrollbar hugs its right edge")
+            .And.BeLessThanOrEqualTo(windowWidth, "because it must not overflow the window");
 
         // The panel, not the page, is the scroll container: it overflows at this
         // height while the document itself never does.
@@ -274,6 +277,20 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // The scrollbar only appears when the panel overflows (auto, not scroll).
         (await panel.EvaluateAsync<string>("element => getComputedStyle(element).overflowY")).Should()
             .Be("auto", "because the scrollbar must only appear when a row of apps doesn't fit");
+
+        // The scrollbar chrome follows the dashboard theme instead of the
+        // browser's always-light default: a themed thumb color and a track that
+        // fades into the background.
+        var scrollbarColor = await panel.EvaluateAsync<string>("element => getComputedStyle(element).scrollbarColor");
+        scrollbarColor.Should().Contain("rgb(", "because the thumb color comes from the theme tokens");
+        scrollbarColor.Should().Contain("rgba(0, 0, 0, 0)", "because the track fades into the page background");
+
+        // The breathing room under the last row is a margin, which browsers leave
+        // out of a scroll container's overflow: with every row fully visible, the
+        // panel must not be scrollable at all (no scrollbar for padding alone).
+        await page.SetViewportSizeAsync(windowWidth, 1200);
+        (await panel.EvaluateAsync<long>("element => element.scrollHeight - element.clientHeight")).Should()
+            .BeLessThanOrEqualTo(0, "because every row fits at this height, so the bottom margin alone must not raise a scrollbar");
     }
 
     [Fact]

@@ -155,58 +155,63 @@ export const AppsPage = () => {
         onRemovePassword={() => setRemovePasswordOpen(true)}
       >
         <main
-          // The panel is the apps area's scroll container: its scrollbar sits
-          // at the panel's own right edge (inside the centered max-width) and
-          // only appears when a row of apps doesn't fit the screen.
+          // The panel spans the full width as the apps area's scroll container,
+          // so its scrollbar hugs the window's right edge (the content inside
+          // keeps its own centered max-width). The bottom breathing room is a
+          // margin, which browsers leave out of a scroll container's overflow:
+          // the scrollbar appears only when a row of apps doesn't fully fit,
+          // not when the padding below the last row would.
           className={cn(
-            'mx-auto h-full max-w-7xl overflow-y-auto px-6 py-8',
+            'h-full overflow-y-auto',
             // The content fades in once the apps finish loading, so the page
             // settles gently instead of popping in.
             !isPending && 'animate-fade-in',
           )}
         >
-          {isPending ? (
-            <div className="flex justify-center py-24">
-              <Spinner size="xl" />
-            </div>
-          ) : isError ? (
-            <div className="flex flex-col items-center gap-4 py-24 text-center">
-              <Logo className="size-10 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Could not load apps. Is the Docker daemon reachable?
-              </p>
-              <button
-                type="button"
-                onClick={() => void refetch()}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Retry
-              </button>
-            </div>
-          ) : apps.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-24 text-center text-muted-foreground">
-              <Logo className="size-10" />
-              {hasQuery ? (
-                <p className="text-sm">
-                  No apps match &ldquo;{query.trim()}&rdquo;.
+          <div className="mx-auto mb-8 max-w-7xl px-6 pt-8">
+            {isPending ? (
+              <div className="flex justify-center py-24">
+                <Spinner size="xl" />
+              </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center gap-4 py-24 text-center">
+                <Logo className="size-10 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Could not load apps. Is the Docker daemon reachable?
                 </p>
-              ) : (
-                <p className="text-sm">
-                  No apps found. Start a Docker Compose stack to see it here.
-                </p>
-              )}
-            </div>
-          ) : (
-            <AppsGrid
-              apps={apps}
-              onInteractApp={(name) => void markAppSeen.mutate(name)}
-              // Reordering a filtered subset would only pin that subset, so dragging
-              // is enabled while the whole list is visible.
-              onReorder={
-                hasQuery ? undefined : (names) => void setOrder.mutate(names)
-              }
-            />
-          )}
+                <button
+                  type="button"
+                  onClick={() => void refetch()}
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : apps.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-24 text-center text-muted-foreground">
+                <Logo className="size-10" />
+                {hasQuery ? (
+                  <p className="text-sm">
+                    No apps match &ldquo;{query.trim()}&rdquo;.
+                  </p>
+                ) : (
+                  <p className="text-sm">
+                    No apps found. Start a Docker Compose stack to see it here.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <AppsGrid
+                apps={apps}
+                onInteractApp={(name) => void markAppSeen.mutate(name)}
+                // Reordering a filtered subset would only pin that subset, so dragging
+                // is enabled while the whole list is visible.
+                onReorder={
+                  hasQuery ? undefined : (names) => void setOrder.mutate(names)
+                }
+              />
+            )}
+          </div>
         </main>
       </DashboardMenu>
     </div>

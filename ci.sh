@@ -56,7 +56,7 @@ if sonar_enabled; then
     /k:"${SONAR_PROJECT_KEY}" /o:"${SONAR_ORG}" \
     /d:sonar.token="${SONAR_TOKEN}" \
     /d:sonar.exclusions="ui/node_modules/**,ui/dist/**,ui/coverage/**,e2e/coverage/**,e2e/scenarios/*/coverage/**,**/bin/**,**/obj/**" \
-    /d:sonar.csharp.cobertura.reportsPaths=e2e/coverage/api/basic.cobertura.xml,e2e/coverage/api/settings.cobertura.xml,e2e/coverage/api/error.cobertura.xml,e2e/coverage/api/lan.cobertura.xml \
+    /d:sonar.cs.cobertura.reportsPaths="e2e/coverage/api/*.cobertura.xml" \
     /d:sonar.javascript.lcov.reportPaths=e2e/coverage/ui.lcov \
     "${analysis_args[@]}"
 else

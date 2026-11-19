@@ -202,6 +202,8 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
             await loginPage.WaitForLoginPageAsync();
             await loginPage.SubmitLoginAsync("abcd");
             await loginPage.WaitForAppAsync("web-stack");
+            (await loginPage.Card("web-stack").IsVisibleAsync())
+                .Should().BeTrue("because signing in with the short password opens the dashboard");
         }
         finally
         {
@@ -235,6 +237,7 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
             await newBox.FillAsync("abcd");
             var weak = dialog.GetByText("Weak", new LocatorGetByTextOptions { Exact = true });
             await weak.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+            (await weak.IsVisibleAsync()).Should().BeTrue("because shortening the field must drop the rating to weak");
 
             await apps.ClickDialogBackdropAsync();
         }

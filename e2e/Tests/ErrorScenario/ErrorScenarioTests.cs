@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using E2E.Environments;
 using E2E.Playwright;
 using Microsoft.Playwright;
@@ -22,6 +23,8 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
 
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         await apps.RetryButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs, State = WaitForSelectorState.Visible });
+        (await apps.RetryButton.IsVisibleAsync())
+            .Should().BeTrue("because the error state offers a retry");
     }
 
     [Fact]
@@ -37,9 +40,10 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
         var dialog = apps.LogsDialog("Docker UI logs");
         await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-        await dialog
-            .GetByText("Could not reach the Docker daemon")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        var daemonError = dialog.GetByText("Could not reach the Docker daemon");
+        await daemonError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await daemonError.IsVisibleAsync())
+            .Should().BeTrue("because the logs dialog must surface the daemon failure");
     }
 
     [Fact]
@@ -64,5 +68,7 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
         // and the Retry button must be re-established.
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         await apps.RetryButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs, State = WaitForSelectorState.Visible });
+        (await apps.LoadError.IsVisibleAsync())
+            .Should().BeTrue("because a refetch against an unreachable daemon keeps the error state up");
     }
 }

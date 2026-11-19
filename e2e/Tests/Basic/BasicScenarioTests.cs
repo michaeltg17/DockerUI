@@ -110,6 +110,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
 
         await apps.SearchBox.WaitForAsync();
+        (await apps.SearchBox.IsVisibleAsync()).Should().BeTrue("because the search box must be visible on load");
     }
 
     [Fact]
@@ -158,9 +159,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // The ASP.NET Core host always logs its listen address at startup, so the dialog
         // must show the dashboard's real container logs.
-        await dialog
-            .GetByText("Now listening on")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        var listenLine = dialog.GetByText("Now listening on");
+        await listenLine.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await listenLine.IsVisibleAsync()).Should().BeTrue("because the logs dialog must show the real container logs");
     }
 
     [Fact]
@@ -291,12 +292,12 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // web-stack runs two units (the nginx and redis services); each unit's section is
         // headed by the unit's name (the compose service name).
-        await dialog
-            .GetByText("=== nginx ===")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
-        await dialog
-            .GetByText("=== redis ===")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        var nginxHeader = dialog.GetByText("=== nginx ===");
+        var redisHeader = dialog.GetByText("=== redis ===");
+        await nginxHeader.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        await redisHeader.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await nginxHeader.IsVisibleAsync()).Should().BeTrue("because the nginx unit's section must show");
+        (await redisHeader.IsVisibleAsync()).Should().BeTrue("because the redis unit's section must show");
     }
 
     [Fact]
@@ -346,9 +347,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // With no log content the dialog shows its empty state instead of an empty log area
         // or bare (multi-container) section headers.
-        await dialog
-            .GetByText("No logs yet.")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        var emptyState = dialog.GetByText("No logs yet.");
+        await emptyState.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await emptyState.IsVisibleAsync()).Should().BeTrue("because an app whose containers logged nothing shows the empty state");
     }
 
     [Fact]
@@ -963,6 +964,13 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
         await apps.WaitForStateAsync("restart-stack", AppsPage.RunningState);
         await apps.WaitForStateAsync("e2e-standalone", AppsPage.RunningState);
+
+        var allRunning = await Task.WhenAll(
+            apps.CardInState("web-stack", AppsPage.RunningState).IsVisibleAsync(),
+            apps.CardInState("solo-stack", AppsPage.RunningState).IsVisibleAsync(),
+            apps.CardInState("restart-stack", AppsPage.RunningState).IsVisibleAsync(),
+            apps.CardInState("e2e-standalone", AppsPage.RunningState).IsVisibleAsync());
+        allRunning.Should().NotContain(false, "because every started stack's card must carry the running state");
     }
 
     [Fact]
@@ -974,6 +982,11 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         await apps.WaitForStateAsync("stopped-stack", AppsPage.StoppedState);
         await apps.WaitForStateAsync("start-stack", AppsPage.StoppedState);
+
+        var allStopped = await Task.WhenAll(
+            apps.CardInState("stopped-stack", AppsPage.StoppedState).IsVisibleAsync(),
+            apps.CardInState("start-stack", AppsPage.StoppedState).IsVisibleAsync());
+        allStopped.Should().NotContain(false, "because stacks with no running containers must carry the stopped state");
     }
 
     [Fact]
@@ -985,6 +998,8 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // partial-stack keeps one of its two containers stopped; the stack still counts as running.
         await apps.WaitForStateAsync("partial-stack", AppsPage.RunningState);
+        (await apps.CardInState("partial-stack", AppsPage.RunningState).IsVisibleAsync())
+            .Should().BeTrue("because a stack with a running container is shown as running");
     }
 
     [Fact]

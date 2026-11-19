@@ -85,7 +85,7 @@ namespace Api.Features.Apps.Icons
                 var score = Score(normalized, candidate.Key);
 
                 if (score > bestScore ||
-                    (score == bestScore &&
+                    (score.CompareTo(bestScore) == 0 &&
                      (candidate.Key.Length > best.Length ||
                      (candidate.Key.Length == best.Length && string.CompareOrdinal(candidate.Key, best) < 0))))
                 {

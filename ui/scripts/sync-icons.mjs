@@ -48,7 +48,7 @@ function listSubdirectories(dir) {
     .readdirSync(dir, {withFileTypes: true})
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
     .map((entry) => entry.name)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
 }
 
 function cloneAppsRepo(tempDir) {

@@ -135,18 +135,24 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   `docker compose -f lighthouse/docker-compose.yml up -d`).
 - CI also runs the SonarQube Cloud analysis when `SONAR_TOKEN` is passed into
   the container (`-e SONAR_TOKEN`, plus `SONAR_EVENT`/`SONAR_BRANCH` and the
-  PR context `SONAR_PULL_REQUEST_KEY/BRANCH/BASE` from the workflow): `ci.sh`
+  PR context `SONAR_PULL_REQUEST_KEY/BRANCH/BASE` from the workflow; all passed
+  via the step's `env:`, never expanded inside the `run:` block): `ci.sh`
   wraps the builds in `dotnet sonarscanner begin`/`end` (scanner + JRE + jq
   baked into `Dockerfile.ci`) and then polls the quality gate, failing on
   ERROR. Push runs analyze the branch (`sonar.branch.name` for non-main);
   pull_request runs analyze the PR (`sonar.pullrequest.key/branch/base`, with
   the QG polled for `pullRequest=<key>`), and the SonarCloud GitHub app
-  decorates the PR. The project's Automatic Analysis is OFF (project
-  Administration > Analysis Method) so the scanner owns all analysis; ci.sh
-  still detects a rejected upload (if it were ever re-enabled) and skips the
-  upload/gate with a warning instead of failing. The `begin` also imports the
-  e2e coverage reports (#229): C# Cobertura from `dotnet-coverage` and the
-  browser `ui.lcov`. Local runs without the token take the unchanged path.
+  decorates the PR. The `begin` also imports the e2e coverage reports (#229):
+  C# Cobertura from `dotnet-coverage` (`sonar.cs.cobertura.reportsPaths`, not
+  `sonar.csharp.*` — the wrong prefix silently imports nothing) and the
+  browser `ui.lcov` (`sonar.javascript.lcov.reportPaths`). The build job's
+  checkout uses `fetch-depth: 0` so the scanner gets git blame and the main
+  ref; a shallow clone makes every line count as new code and skews the
+  gate. The project's Automatic Analysis is OFF (project Administration >
+  Analysis Method) so the scanner owns all analysis; ci.sh still detects a
+  rejected upload (if it were ever re-enabled) and skips the upload/gate with
+  a warning instead of failing. Local runs without the token take the
+  unchanged path.
 - The published image runs as a non-root `dockerui` user (uid/gid 1000,
   created explicitly in the Dockerfile's runtime stage). `/app` and the
   packaged `appsettings.json` are the only paths owned by uid 1000, because

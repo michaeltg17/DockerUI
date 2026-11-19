@@ -1,8 +1,10 @@
-# The dashboard and two demo web services share a private /28 so the on-demand LAN scan has
-# a known subnet to probe. lan-demo is discovered and added as a 'lan' card; lan-dedup
+# The dashboard and three demo web services share a private /28 so the on-demand LAN scan has
+# a known subnet to probe. lan-demo is discovered and surfaced as a 'lan' card; lan-dedup
 # publishes the port the scenario's BaseUrl host (its own address) is probed on, so the scan
-# must skip it (the Docker flow already exposes it). The dashboard hides its own compose
-# project, so only the scanned shortcut (172.30.0.2) shows up on the grid.
+# must skip it (the Docker flow already exposes it); lan-nas is already a manual shortcut
+# under its own name ('E2E NAS' -> http://172.30.0.5), so the scan must not add a second,
+# ip-named card for the same address. The dashboard hides its own compose project, so only the
+# scanned shortcuts (172.30.0.2) and the manual shortcut show up on the grid.
 networks:
   lan_net:
     ipam:
@@ -29,6 +31,7 @@ services:
     depends_on:
       - lan-demo
       - lan-dedup
+      - lan-nas
     networks:
       lan_net:
         ipv4_address: 172.30.0.3
@@ -59,3 +62,15 @@ services:
     networks:
       lan_net:
         ipv4_address: 172.30.0.4
+
+  # A web service the user has already shortcutted by hand under its own name, so its address
+  # is already one card away and the scan must skip it instead of adding an ip-named twin.
+  lan-nas:
+    image: busybox:1.36
+    container_name: e2e-lan-nas
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "mkdir -p /www && echo '<!doctype html><html><head><title>E2E NAS Console</title></head><body>NAS demo</body></html>' > /www/index.html && exec httpd -f -p 80 -h /www"
+    networks:
+      lan_net:
+        ipv4_address: 172.30.0.5

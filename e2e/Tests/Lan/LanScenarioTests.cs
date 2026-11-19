@@ -11,13 +11,16 @@ namespace E2E.Tests.Lan;
 /// <summary>
 /// End-to-end tests for on-demand LAN discovery: the subnet scan finds the demo services,
 /// adds the ones nothing else surfaces as 'lan' shortcuts, enriches them with their page
-/// title, and shows them on the grid. Findings an existing card already reaches — a Docker
-/// app's published port, or a manual shortcut under its own name — are skipped.
+/// name — the title, or for a titleless page the best semantic fallback — and shows them on
+/// the grid. Findings an existing card already reaches — a Docker app's published port, or a
+/// manual shortcut under its own name — are skipped.
 /// </summary>
 [Trait("Scenario", "lan")]
 [Collection(nameof(E2eCollectionFixture))]
 public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture browser) : IClassFixture<LanEnvironment>
 {
+    const string Subnet = "172.30.0.0/28";
+
     const string ServiceIp = "172.30.0.2";
     const string ServiceTitle = "E2E LAN Service";
 
@@ -27,6 +30,10 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
 
     const string ShortcutName = "E2E NAS";
 
+    const string TitlelessIp = "172.30.0.6";
+
+    const string TitlelessTitle = "E2E Titleless Printer";
+
     [Fact]
     public async Task Scan_lan_adds_the_discovered_service_as_a_lan_card()
     {
@@ -34,7 +41,7 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
-        await apps.ScanLanAsync();
+        await apps.ScanLanAsync(Subnet);
         var app = await WaitForLanAppAsync(ServiceIp, enrichedTitle: ServiceTitle);
 
         app.GetProperty("source").GetString().Should().Be("lan", "because the card came from a LAN scan");
@@ -55,9 +62,9 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
         await DeleteShortcutAsync(ServiceIp);
         await WaitForAppGoneAsync(ServiceIp);
 
-        await apps.ScanLanAsync();
+        await apps.ScanLanAsync(Subnet);
         await apps.ScanCompleteNotification
-            .GetByText("Found 3 services and added 1 new.", new LocatorGetByTextOptions { Exact = true })
+            .GetByText("Found 4 services and added 1 new.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
         var app = await WaitForLanAppAsync(ServiceIp);
@@ -72,11 +79,12 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
-        await apps.ScanLanAsync();
-        // The scan finds all three services but adds nothing new: the demo is already a lan
-        // shortcut, the exposed one is Docker-reachable, and the nas is a manual shortcut.
+        await apps.ScanLanAsync(Subnet);
+        // The scan finds all four services but adds nothing new: the demo and the titleless
+        // one are already lan shortcuts, the exposed one is Docker-reachable, and the nas is
+        // a manual shortcut.
         await apps.ScanCompleteNotification
-            .GetByText("Found 3 services and added 0 new.", new LocatorGetByTextOptions { Exact = true })
+            .GetByText("Found 4 services and added 0 new.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
         var appsJson = await GetAppsJsonAsync();
@@ -93,7 +101,7 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
-        await apps.ScanLanAsync();
+        await apps.ScanLanAsync(Subnet);
         await apps.WaitForAppAsync(ShortcutName);
 
         // The service answers on 172.30.0.5:80, so the scan finds it, but the user's own
@@ -109,13 +117,33 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
     }
 
     [Fact]
+    public async Task Scan_lan_names_a_titleless_card_by_its_page_heading()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+
+        // The demo page carries no <title>: the card must take the first heading — the
+        // best semantic name on that page — not the ip and not the weaker site-name meta.
+        await DeleteShortcutAsync(TitlelessIp);
+        await WaitForAppGoneAsync(TitlelessIp);
+
+        await apps.ScanLanAsync(Subnet);
+        var app = await WaitForLanAppAsync(TitlelessIp, enrichedTitle: TitlelessTitle);
+
+        app.GetProperty("source").GetString().Should().Be("lan", "because the scan created the card");
+        app.GetProperty("displayName").GetString().Should().Be(TitlelessTitle, "because a titleless page is named by its heading");
+        app.GetProperty("url").GetString().Should().Be($"http://{TitlelessIp}", "because the service is discovered on port 80");
+    }
+
+    [Fact]
     public async Task Scanned_card_is_shown_on_the_grid_and_offers_rescan()
     {
         await using var context = await browser.NewContextAsync(environment);
         var apps = new AppsPage(await context.NewPageAsync());
         await apps.LoadAsync(environment.BaseUrl);
 
-        await apps.ScanLanAsync();
+        await apps.ScanLanAsync(Subnet);
 
         // The card appears under its enriched (page title) name.
         await apps.WaitForAppAsync(ServiceTitle);
@@ -131,7 +159,7 @@ public sealed class LanScenarioTests(LanEnvironment environment, BrowserFixture 
 
     /// <summary>
     /// Waits for the ip-named card, and for its enrichment when an <paramref name="enrichedTitle"/>
-    /// is given: the scan saves the shortcut and its page title in one write, so the title is
+    /// is given: the scan saves the shortcut and its page name in one write, so the name is
     /// what proves the card was enriched rather than merely listed.
     /// </summary>
     async Task<JsonElement> WaitForLanAppAsync(string ip, string? enrichedTitle = null)

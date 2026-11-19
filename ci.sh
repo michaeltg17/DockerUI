@@ -7,30 +7,50 @@ echo "========================================="
 
 # SonarQube Cloud analysis wraps the build steps (the C# analysis rides on the
 # dotnet builds, ui/**.ts(x) is picked up by multi-language analysis). Without
-# SONAR_TOKEN the pipeline behaves exactly as before. The SonarCloud GitHub
-# app already analyzes pull requests (decoration + quality-gate check), so the
-# scanner only runs the branch analyses (main, or sonar.branch.name branches).
+# SONAR_TOKEN the pipeline behaves exactly as before. The scanner runs both
+# analyses: pushes analyze their branch (sonar.branch.name for non-main), and
+# pull_request events analyze the PR (sonar.pullrequest.*, fed in by the
+# workflow as SONAR_PULL_REQUEST_*); the SonarCloud GitHub app decorates PRs.
 SONAR_TOKEN="${SONAR_TOKEN:-}"
 SONAR_ORG="michaeltg17"
 SONAR_PROJECT_KEY="michaeltg17_DockerUI"
 SONAR_EVENT="${SONAR_EVENT:-}"
+SONAR_PULL_REQUEST_KEY="${SONAR_PULL_REQUEST_KEY:-}"
+SONAR_PULL_REQUEST_BRANCH="${SONAR_PULL_REQUEST_BRANCH:-}"
+SONAR_PULL_REQUEST_BASE="${SONAR_PULL_REQUEST_BASE:-}"
 # The checkout is bind-mounted, so its owner differs from the container's root
 # (safe.directory keeps the branch fallback working for local runs).
 git config --global --add safe.directory "$(pwd)" >/dev/null 2>&1 || true
 SONAR_BRANCH="${SONAR_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)}"
 
 sonar_enabled() {
-  [[ -n "${SONAR_TOKEN}" ]] && [[ "${SONAR_EVENT}" != "pull_request" ]] && [[ -n "${SONAR_BRANCH}" && "${SONAR_BRANCH}" != "HEAD" ]]
+  [[ -n "${SONAR_TOKEN}" ]] && {
+    if [[ "${SONAR_EVENT}" == "pull_request" ]]; then
+      [[ -n "${SONAR_PULL_REQUEST_KEY}" && -n "${SONAR_PULL_REQUEST_BRANCH}" && -n "${SONAR_PULL_REQUEST_BASE}" ]]
+    else
+      [[ -n "${SONAR_BRANCH}" && "${SONAR_BRANCH}" != "HEAD" ]]
+    fi
+  }
 }
 
 if sonar_enabled; then
   echo
-  echo "SonarQube Cloud: starting analysis of branch ${SONAR_BRANCH} (michaeltg17/${SONAR_PROJECT_KEY})."
-  branch_args=()
+  analysis_args=()
   gate_url="https://sonarcloud.io/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}"
-  if [[ "${SONAR_BRANCH}" != "main" ]]; then
-    branch_args+=("/d:sonar.branch.name=${SONAR_BRANCH}")
-    gate_url+="&branch=${SONAR_BRANCH}"
+  if [[ "${SONAR_EVENT}" == "pull_request" ]]; then
+    echo "SonarQube Cloud: starting PR analysis of #${SONAR_PULL_REQUEST_KEY} (${SONAR_PULL_REQUEST_BRANCH} -> ${SONAR_PULL_REQUEST_BASE}, michaeltg17/${SONAR_PROJECT_KEY})."
+    analysis_args+=(
+      "/d:sonar.pullrequest.key=${SONAR_PULL_REQUEST_KEY}"
+      "/d:sonar.pullrequest.branch=${SONAR_PULL_REQUEST_BRANCH}"
+      "/d:sonar.pullrequest.base=${SONAR_PULL_REQUEST_BASE}"
+    )
+    gate_url+="&pullRequest=${SONAR_PULL_REQUEST_KEY}"
+  else
+    echo "SonarQube Cloud: starting analysis of branch ${SONAR_BRANCH} (michaeltg17/${SONAR_PROJECT_KEY})."
+    if [[ "${SONAR_BRANCH}" != "main" ]]; then
+      analysis_args+=("/d:sonar.branch.name=${SONAR_BRANCH}")
+      gate_url+="&branch=${SONAR_BRANCH}"
+    fi
   fi
   dotnet sonarscanner begin \
     /k:"${SONAR_PROJECT_KEY}" /o:"${SONAR_ORG}" \
@@ -38,10 +58,10 @@ if sonar_enabled; then
     /d:sonar.exclusions="ui/node_modules/**,ui/dist/**,ui/coverage/**,e2e/coverage/**,e2e/scenarios/*/coverage/**,**/bin/**,**/obj/**" \
     /d:sonar.csharp.cobertura.reportsPaths=e2e/coverage/api/basic.cobertura.xml,e2e/coverage/api/settings.cobertura.xml,e2e/coverage/api/error.cobertura.xml,e2e/coverage/api/lan.cobertura.xml \
     /d:sonar.javascript.lcov.reportPaths=e2e/coverage/ui.lcov \
-    "${branch_args[@]}"
+    "${analysis_args[@]}"
 else
   echo
-  echo "Skipping Sonar analysis (needs SONAR_TOKEN, and a named branch; PRs are analyzed by the SonarCloud GitHub app)."
+  echo "Skipping Sonar analysis (needs SONAR_TOKEN; branch runs also need a branch name, PR runs SONAR_PULL_REQUEST_KEY/BRANCH/BASE from the workflow)."
 fi
 
 echo

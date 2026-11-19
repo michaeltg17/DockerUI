@@ -134,15 +134,19 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   lighthouse scenario up (its `stacks/` plus
   `docker compose -f lighthouse/docker-compose.yml up -d`).
 - CI also runs the SonarQube Cloud analysis when `SONAR_TOKEN` is passed into
-  the container (`-e SONAR_TOKEN`, plus `SONAR_EVENT`/`SONAR_BRANCH` from the
-  workflow): `ci.sh` wraps the builds in `dotnet sonarscanner begin`/`end`
-  (scanner + JRE + jq baked into `Dockerfile.ci`) and then polls the quality
-  gate, failing on ERROR. Push runs analyze the branch (`sonar.branch.name`
-  for non-main); PR runs skip the scanner — the SonarCloud GitHub app already
-  analyzes PRs (decoration + QG check). While the project keeps Automatic
-  Analysis enabled (project Administration > Analysis Method), SonarCloud
-  rejects manual uploads, and ci.sh skips the upload/gate with a warning
-  instead of failing. Local runs without the token take the unchanged path.
+  the container (`-e SONAR_TOKEN`, plus `SONAR_EVENT`/`SONAR_BRANCH` and the
+  PR context `SONAR_PULL_REQUEST_KEY/BRANCH/BASE` from the workflow): `ci.sh`
+  wraps the builds in `dotnet sonarscanner begin`/`end` (scanner + JRE + jq
+  baked into `Dockerfile.ci`) and then polls the quality gate, failing on
+  ERROR. Push runs analyze the branch (`sonar.branch.name` for non-main);
+  pull_request runs analyze the PR (`sonar.pullrequest.key/branch/base`, with
+  the QG polled for `pullRequest=<key>`), and the SonarCloud GitHub app
+  decorates the PR. The project's Automatic Analysis is OFF (project
+  Administration > Analysis Method) so the scanner owns all analysis; ci.sh
+  still detects a rejected upload (if it were ever re-enabled) and skips the
+  upload/gate with a warning instead of failing. The `begin` also imports the
+  e2e coverage reports (#229): C# Cobertura from `dotnet-coverage` and the
+  browser `ui.lcov`. Local runs without the token take the unchanged path.
 - The published image runs as a non-root `dockerui` user (uid/gid 1000,
   created explicitly in the Dockerfile's runtime stage). `/app` and the
   packaged `appsettings.json` are the only paths owned by uid 1000, because

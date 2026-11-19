@@ -38,7 +38,7 @@ jobs:
         # The checkout is mounted onto its own path so the compose file
         # volume sources the docker client sends resolve on the host daemon
         # (the client and the daemon must see identical paths).
-        run: docker run --rm --network host -w "${{ github.workspace }}" -v "${{ github.workspace }}:${{ github.workspace }}" -v /var/run/docker.sock:/var/run/docker.sock -e SONAR_TOKEN="${{ secrets.SONAR_TOKEN }}" -e SONAR_EVENT="${{ github.event_name }}" -e SONAR_BRANCH="${{ github.ref_name }}" docker-ui-ci:latest
+        run: docker run --rm --network host -w "${{ github.workspace }}" -v "${{ github.workspace }}:${{ github.workspace }}" -v /var/run/docker.sock:/var/run/docker.sock -e SONAR_TOKEN="${{ secrets.SONAR_TOKEN }}" -e SONAR_EVENT="${{ github.event_name }}" -e SONAR_BRANCH="${{ github.ref_name }}" -e SONAR_PULL_REQUEST_KEY="${{ github.event.pull_request.number }}" -e SONAR_PULL_REQUEST_BRANCH="${{ github.head_ref }}" -e SONAR_PULL_REQUEST_BASE="${{ github.base_ref }}" docker-ui-ci:latest
 
       - name: Upload Lighthouse audit results
         # The reports ci.sh left in the mounted checkout (assertion log + JSON

@@ -65,20 +65,23 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
         await refetch;
 
         // The refetch fails against the unreachable daemon, so the error state
-        // and the Retry button must be re-established. 'Stays in error state'
-        // means stable, so sample visibility across the refetch/retry window
-        // instead of trusting a single instant between renders.
+        // and the Retry button must be re-established. The regression this
+        // guards against is the apps cache wrongly settling on 'success' with
+        // an empty list, which swaps the error panel for the empty-dashboard
+        // message - a permanent swap any sample in the settle window catches,
+        // while a momentary re-render blip does not fail the assertion.
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         await apps.RetryButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs, State = WaitForSelectorState.Visible });
 
         var cancellationToken = TestContext.Current.CancellationToken;
-        var stayedUp = true;
         for (var attempt = 0; attempt < 5; attempt++)
         {
-            stayedUp &= await apps.LoadError.IsVisibleAsync();
+            (await apps.EmptyDashboardMessage.IsVisibleAsync())
+                .Should().BeFalse("because a failed refetch must not settle the dashboard on the empty-apps state");
             await Task.Delay(400, cancellationToken);
         }
 
-        stayedUp.Should().BeTrue("because a refetch against an unreachable daemon keeps the error state up");
+        (await apps.LoadError.IsVisibleAsync())
+            .Should().BeTrue("because a refetch against an unreachable daemon keeps the error state up");
     }
 }

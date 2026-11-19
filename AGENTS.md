@@ -73,7 +73,7 @@ docker compose up -d --build                # http://localhost:5000
 
 # E2E (Docker Desktop must be running)
 dotnet build e2e/DockerUIE2E.slnx
-dotnet e2e/bin/Debug/net10.0/E2E.dll
+dotnet e2e/bin/Debug/net11.0/E2E.dll
 # Builds the DockerUI image once, then brings up the basic/settings/error/
 # lan/readonly-settings scenarios (ports 5010-5014) and tears them all down afterwards.
 
@@ -177,7 +177,7 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
 - E2E: the suite builds `docker-ui-local:latest` only when the tag is missing,
   so re-run `docker build -t docker-ui-local:latest .` after changing API/UI
   code, or the scenarios test the stale image. Individual tests can be run
-  with `dotnet e2e/bin/Debug/net10.0/E2E.dll -method <Class.Method>` (the
+  with `dotnet e2e/bin/Debug/net11.0/E2E.dll -method <Class.Method>` (the
   scenario fixture still brings up the full basic environment).
 - E2E: the browser fixture launches the locally installed Chrome
   (`Channel = "chrome"`) so Playwright never downloads browsers (the Playwright

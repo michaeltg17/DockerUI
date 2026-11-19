@@ -12,7 +12,7 @@ COPY ui/ ./
 RUN npm run build
 
 # ---- Stage 2: build the .NET API --------------------------------------------------
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api-build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS api-build
 WORKDIR /src
 COPY .editorconfig ./
 # global.json must sit in the stage root (the SDK resolves it from the working
@@ -25,7 +25,7 @@ COPY api/ ./api/
 RUN dotnet publish api/Api.csproj -c Release -o /app/api /p:UseAppHost=false
 
 # ---- Stage 3: runtime -------------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS runtime
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production

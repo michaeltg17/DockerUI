@@ -122,7 +122,7 @@ namespace Api.Features.Apps.Icons
             if (digest >= 0)
                 reference = reference[..digest];
 
-            var tag = reference.LastIndexOf(':');
+            var tag = reference.LastIndexOf(':', StringComparison.Ordinal);
             if (tag >= 0 && !reference[(tag + 1)..].Contains('/', StringComparison.Ordinal))
                 reference = reference[..tag];
 
@@ -186,7 +186,7 @@ namespace Api.Features.Apps.Icons
 
         static string LastSegment(string reference)
         {
-            var slash = reference.LastIndexOf('/');
+            var slash = reference.LastIndexOf('/', StringComparison.Ordinal);
             return slash < 0 ? reference : reference[(slash + 1)..];
         }
 
@@ -219,7 +219,7 @@ namespace Api.Features.Apps.Icons
                     names[name] = icon;
 
                 var fileName = mapping.Icon;
-                var dot = fileName.LastIndexOf('.');
+                var dot = fileName.LastIndexOf('.', StringComparison.Ordinal);
                 var key = NormalizeName(dot > 0 ? fileName[..dot] : fileName);
                 if (key.Length > 0)
                     iconNames.TryAdd(key, icon);

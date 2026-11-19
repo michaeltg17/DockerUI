@@ -3,7 +3,7 @@
 # build output into the bind-mounted checkout, which the runner user owns.
 #
 # NOSONAR
-FROM mcr.microsoft.com/dotnet/sdk:10.0
+FROM mcr.microsoft.com/dotnet/sdk:11.0
 
 WORKDIR /app
 

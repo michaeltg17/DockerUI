@@ -116,7 +116,7 @@ echo "Daemon socket group gid: ${SOCKET_GROUP_GID}"
 
 echo
 echo "E2E: running scenarios (docker daemon required)."
-dotnet e2e/bin/Release/net10.0/E2E.dll
+dotnet e2e/bin/Release/net11.0/E2E.dll
 
 echo
 echo "E2E: collecting coverage reports."

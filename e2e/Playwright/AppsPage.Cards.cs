@@ -88,6 +88,10 @@ public sealed partial class AppsPage
     /// <summary>The progress bar inside the app icon; present only while a start/stop/restart is in flight.</summary>
     public ILocator CardProgressBar(string appName) => Card(appName).GetByRole(AriaRole.Progressbar, new LocatorGetByRoleOptions { Name = $"Updating {appName}", Exact = true });
 
+    /// <summary>Waits until the given app's card has no start/stop/restart in flight (its progress bar is gone).</summary>
+    public async Task WaitForCardIdleAsync(string appName, int timeoutMs = StateChangeTimeoutMs)
+        => await CardProgressBar(appName).WaitForAsync(new LocatorWaitForOptions { Timeout = timeoutMs, State = WaitForSelectorState.Detached });
+
     /// <summary>
     /// The problem badge on the given app's card icon; present while the app has a problem
     /// (crashed, crash-looping, unhealthy, failed start, dead). Its accessible name is the

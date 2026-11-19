@@ -1310,6 +1310,10 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenCardMenuAsync("solo-stack");
         await AppsPage.MenuItem(menu, "Stop").ClickAsync();
         await apps.WaitForStateAsync("solo-stack", AppsPage.StoppedState);
+        // The monitor can push the stopped state before the stop POST's response
+        // settles, and the card keeps its menu items disabled while a start/stop
+        // is in flight - so the card must go idle before its menu is read.
+        await apps.WaitForCardIdleAsync("solo-stack");
 
         menu = await apps.OpenCardMenuAsync("solo-stack");
         (await AppsPage.MenuItem(menu, "Start").IsDisabledAsync()).Should().BeFalse();

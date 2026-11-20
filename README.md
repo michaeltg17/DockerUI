@@ -15,6 +15,6 @@
 
 A lightweight user interface for your Docker stacks and more.
 
-Built with the help of local AI using https://github.com/michaeltg17/best-model-dual-3090 and [OpenCode](https://github.com/anomalyco/opencode).
+Built with [my AI setup](https://github.com/michaeltg17/my-AI-setup).
 
 See [wiki](https://github.com/michaeltg17/DockerUI/wiki) for docs.

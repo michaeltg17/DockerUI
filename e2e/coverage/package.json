@@ -1,0 +1,13 @@
+{
+  "name": "dockerui-e2e-coverage",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Remaps the e2e suite's browser V8 coverage to ui/src and writes an LCOV report for SonarCloud",
+  "scripts": {
+    "convert": "node convert.mjs"
+  },
+  "dependencies": {
+    "v8-to-istanbul": "^9.3.0"
+  }
+}

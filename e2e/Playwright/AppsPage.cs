@@ -47,6 +47,8 @@ public sealed partial class AppsPage(IPage page)
 
     public ILocator NoMatchesMessage(string query) => Page.GetByText($"No apps match \u201C{query}\u201D.");
 
+    public ILocator EmptyDashboardMessage => Page.GetByText("No apps found. Start a Docker Compose stack to see it here.");
+
     /// <summary>Navigates to the dashboard. Callers then wait for the specific content they need.</summary>
     public async Task LoadAsync(Uri baseUrl)
     {

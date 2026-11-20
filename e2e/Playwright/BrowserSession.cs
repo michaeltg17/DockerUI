@@ -1,6 +1,7 @@
 using E2E.Environments;
 using Microsoft.Playwright;
 using Serilog;
+using System.Text.Json;
 
 namespace E2E.Playwright;
 
@@ -19,6 +20,7 @@ public sealed class BrowserSession : IAsyncDisposable
     readonly ILogger logger;
     readonly BrowserDiagnostics diagnostics;
     readonly DateTimeOffset startedAtUtc;
+    readonly List<IPage> coveragePages = [];
     bool disposed;
 
     public BrowserSession(IBrowserContext context, ScenarioEnvironment environment, ILogger logger)
@@ -37,12 +39,18 @@ public sealed class BrowserSession : IAsyncDisposable
     /// <summary>The pages created from the context (tests assert on <c>Pages.Count</c>).</summary>
     public IReadOnlyList<IPage> Pages => context.Pages;
 
-    /// <summary>Opens a new page in the context.</summary>
-    public Task<IPage> NewPageAsync() => context.NewPageAsync();
+    /// <summary>Opens a new page in the context, with CDP JavaScript coverage armed on it.</summary>
+    public async Task<IPage> NewPageAsync()
+    {
+        var page = await context.NewPageAsync();
+        await StartJsCoverageAsync(page);
+        return page;
+    }
 
     /// <summary>
-    /// Flushes the dashboard's container logs since the test started to the test output
-    /// (always, not only on failure), then disposes the wrapped context.
+    /// Flushes this session's JavaScript coverage to the scenario's coverage dump,
+    /// then the dashboard's container logs since the test started to the test output
+    /// (always, not only on failure), and disposes the wrapped context.
     /// </summary>
     public async ValueTask DisposeAsync()
     {
@@ -52,6 +60,17 @@ public sealed class BrowserSession : IAsyncDisposable
         disposed = true;
 
         diagnostics.Dispose();
+
+        try
+        {
+            await CollectJsCoverageAsync();
+        }
+#pragma warning disable CA1031 // Coverage capture is diagnostics; it must never mask the test outcome.
+        catch (Exception exception)
+#pragma warning restore CA1031
+        {
+            logger.Warning(exception, "Failed to collect the page JavaScript coverage");
+        }
 
         try
         {
@@ -65,6 +84,47 @@ public sealed class BrowserSession : IAsyncDisposable
         }
 
         await context.DisposeAsync();
+    }
+
+    // The .NET client has no coverage API, so the driver's Page channel commands
+    // are driven directly (see PageCoverageChannel).
+    async Task StartJsCoverageAsync(IPage page)
+    {
+        try
+        {
+            await PageCoverageChannel.SendAsync(page, "startJSCoverage");
+            coveragePages.Add(page);
+        }
+#pragma warning disable CA1031 // Coverage capture is diagnostics; tests run fine without it.
+        catch (Exception exception)
+#pragma warning restore CA1031
+        {
+            logger.Warning(exception, "Failed to start JavaScript coverage for a page");
+        }
+    }
+
+    async Task CollectJsCoverageAsync()
+    {
+        if (coveragePages.Count == 0)
+            return;
+
+        var stopResponses = new List<JsonElement>(coveragePages.Count);
+
+        foreach (var page in coveragePages)
+        {
+            try
+            {
+                stopResponses.Add(await PageCoverageChannel.SendAsync(page, "stopJSCoverage"));
+            }
+#pragma warning disable CA1031 // A page closed before disposal loses only its own coverage.
+            catch (Exception exception) when (exception is PlaywrightException or NotSupportedException)
+#pragma warning restore CA1031
+            {
+                continue;
+            }
+        }
+
+        JsCoverageDump.Write(environment.ScenarioName, stopResponses);
     }
 
     // Dispose runs on the test thread (await using), where the shared sink still targets

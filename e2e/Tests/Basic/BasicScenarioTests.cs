@@ -110,6 +110,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
 
         await apps.SearchBox.WaitForAsync();
+        (await apps.SearchBox.IsVisibleAsync()).Should().BeTrue("because the search box must be visible on load");
     }
 
     [Fact]
@@ -158,9 +159,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // The ASP.NET Core host always logs its listen address at startup, so the dialog
         // must show the dashboard's real container logs.
-        await dialog
-            .GetByText("Now listening on")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        var listenLine = dialog.GetByText("Now listening on");
+        await listenLine.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await listenLine.IsVisibleAsync()).Should().BeTrue("because the logs dialog must show the real container logs");
     }
 
     [Fact]
@@ -241,13 +242,12 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
-    public async Task The_apps_panel_scrollbar_sits_inside_the_panel_and_only_appears_on_overflow()
+    public async Task The_apps_panel_scrollbar_hugs_the_window_edge_and_only_appears_on_overflow()
     {
         await using var context = await browser.NewContextAsync(environment);
         var page = await context.NewPageAsync();
 
-        // Wide enough that the centered panel is narrower than the window (so a
-        // window-edge scrollbar would be visible), short enough that the apps
+        // Wide enough for several card columns, short enough that the apps
         // overflow the panel.
         const int windowWidth = 1400;
         const int windowHeight = 200;
@@ -259,9 +259,13 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var panel = page.Locator("main");
         var panelBox = await panel.BoundingBoxAsync();
         panelBox.Should().NotBeNull();
-        panelBox!.X.Should().BeGreaterThan(0, "because the panel is centered in the wider window");
+
+        // The scroll container spans the whole window: its scrollbar sits at the
+        // window's right edge, not inside the centered content column.
+        panelBox.X.Should().Be(0f, "because the scroll container starts at the window's left edge");
         (panelBox.X + panelBox.Width).Should()
-            .BeLessThan(windowWidth, "because the panel is narrower than the window, so its scrollbar sits inside it");
+            .BeGreaterThan(windowWidth - 1f, "because the scroll container spans the window, so its scrollbar hugs its right edge")
+            .And.BeLessThanOrEqualTo(windowWidth, "because it must not overflow the window");
 
         // The panel, not the page, is the scroll container: it overflows at this
         // height while the document itself never does.
@@ -273,6 +277,20 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // The scrollbar only appears when the panel overflows (auto, not scroll).
         (await panel.EvaluateAsync<string>("element => getComputedStyle(element).overflowY")).Should()
             .Be("auto", "because the scrollbar must only appear when a row of apps doesn't fit");
+
+        // The scrollbar chrome follows the dashboard theme instead of the
+        // browser's always-light default: a themed thumb color and a track that
+        // fades into the background.
+        var scrollbarColor = await panel.EvaluateAsync<string>("element => getComputedStyle(element).scrollbarColor");
+        scrollbarColor.Should().Contain("rgb(", "because the thumb color comes from the theme tokens");
+        scrollbarColor.Should().Contain("rgba(0, 0, 0, 0)", "because the track fades into the page background");
+
+        // The breathing room under the last row is a margin, which browsers leave
+        // out of a scroll container's overflow: with every row fully visible, the
+        // panel must not be scrollable at all (no scrollbar for padding alone).
+        await page.SetViewportSizeAsync(windowWidth, 1200);
+        (await panel.EvaluateAsync<long>("element => element.scrollHeight - element.clientHeight")).Should()
+            .BeLessThanOrEqualTo(0, "because every row fits at this height, so the bottom margin alone must not raise a scrollbar");
     }
 
     [Fact]
@@ -291,12 +309,12 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // web-stack runs two units (the nginx and redis services); each unit's section is
         // headed by the unit's name (the compose service name).
-        await dialog
-            .GetByText("=== nginx ===")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
-        await dialog
-            .GetByText("=== redis ===")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        var nginxHeader = dialog.GetByText("=== nginx ===");
+        var redisHeader = dialog.GetByText("=== redis ===");
+        await nginxHeader.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        await redisHeader.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await nginxHeader.IsVisibleAsync()).Should().BeTrue("because the nginx unit's section must show");
+        (await redisHeader.IsVisibleAsync()).Should().BeTrue("because the redis unit's section must show");
     }
 
     [Fact]
@@ -346,9 +364,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // With no log content the dialog shows its empty state instead of an empty log area
         // or bare (multi-container) section headers.
-        await dialog
-            .GetByText("No logs yet.")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        var emptyState = dialog.GetByText("No logs yet.");
+        await emptyState.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await emptyState.IsVisibleAsync()).Should().BeTrue("because an app whose containers logged nothing shows the empty state");
     }
 
     [Fact]
@@ -748,7 +766,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         using var client = new HttpClient();
         var response = await client.GetStringAsync(
             new Uri(environment.BaseUrl, "api/apps"), TestContext.Current.CancellationToken);
-        var renamed = JsonDocument.Parse(response).RootElement.EnumerateArray()
+        var renamed = JsonElement.Parse(response).EnumerateArray()
             .Single(app => app.GetProperty("name").GetString() == "web-stack");
         renamed.GetProperty("url").GetString().Should().Be("https://example.org");
 
@@ -765,7 +783,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         if (originalIcon is null)
             await picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "None", Exact = true }).ClickAsync();
         else
-            await picker.Locator($"img[src=\"{originalIcon}\"]").ClickAsync();
+            await picker.Locator(".grid.overflow-auto").Locator($"img[src=\"{originalIcon}\"]").ClickAsync();
         await restore
             .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
             .FillAsync("");
@@ -822,6 +840,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // located through it rather than the edit dialog it was opened from.
         var restorePicker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
         await restorePicker
+            .Locator(".grid.overflow-auto")
             .Locator($"img[src=\"{resolvedIcon}\"]")
             .ClickAsync();
         await restore
@@ -962,6 +981,13 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.WaitForStateAsync("solo-stack", AppsPage.RunningState);
         await apps.WaitForStateAsync("restart-stack", AppsPage.RunningState);
         await apps.WaitForStateAsync("e2e-standalone", AppsPage.RunningState);
+
+        var allRunning = await Task.WhenAll(
+            apps.CardInState("web-stack", AppsPage.RunningState).IsVisibleAsync(),
+            apps.CardInState("solo-stack", AppsPage.RunningState).IsVisibleAsync(),
+            apps.CardInState("restart-stack", AppsPage.RunningState).IsVisibleAsync(),
+            apps.CardInState("e2e-standalone", AppsPage.RunningState).IsVisibleAsync());
+        allRunning.Should().NotContain(false, "because every started stack's card must carry the running state");
     }
 
     [Fact]
@@ -973,6 +999,11 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         await apps.WaitForStateAsync("stopped-stack", AppsPage.StoppedState);
         await apps.WaitForStateAsync("start-stack", AppsPage.StoppedState);
+
+        var allStopped = await Task.WhenAll(
+            apps.CardInState("stopped-stack", AppsPage.StoppedState).IsVisibleAsync(),
+            apps.CardInState("start-stack", AppsPage.StoppedState).IsVisibleAsync());
+        allStopped.Should().NotContain(false, "because stacks with no running containers must carry the stopped state");
     }
 
     [Fact]
@@ -984,6 +1015,8 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // partial-stack keeps one of its two containers stopped; the stack still counts as running.
         await apps.WaitForStateAsync("partial-stack", AppsPage.RunningState);
+        (await apps.CardInState("partial-stack", AppsPage.RunningState).IsVisibleAsync())
+            .Should().BeTrue("because a stack with a running container is shown as running");
     }
 
     [Fact]
@@ -1277,6 +1310,10 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         var menu = await apps.OpenCardMenuAsync("solo-stack");
         await AppsPage.MenuItem(menu, "Stop").ClickAsync();
         await apps.WaitForStateAsync("solo-stack", AppsPage.StoppedState);
+        // The monitor can push the stopped state before the stop POST's response
+        // settles, and the card keeps its menu items disabled while a start/stop
+        // is in flight - so the card must go idle before its menu is read.
+        await apps.WaitForCardIdleAsync("solo-stack");
 
         menu = await apps.OpenCardMenuAsync("solo-stack");
         (await AppsPage.MenuItem(menu, "Start").IsDisabledAsync()).Should().BeFalse();
@@ -1443,6 +1480,14 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         await apps.LoadAsync(environment.BaseUrl);
         await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
 
+        // A wheel click on a scrollable page would start the browser's autoscroll
+        // and swallow the click; the card prevents the mousedown default instead.
+        // The window listener runs in the bubble phase, after the card's handler
+        // has had its chance to call preventDefault.
+        await apps.Page.EvaluateAsync(
+            "() => { window.middlePrevented = false; addEventListener('mousedown', " +
+            "(event) => { if (event.button === 1) window.middlePrevented = event.defaultPrevented; }); }");
+
         // web-stack publishes 8081, so its card url is http://localhost:8081.
         var openedPage = await apps.Page.RunAndWaitForPopupAsync(
             () => apps.Card("web-stack").ClickAsync(new LocatorClickOptions { Button = MouseButton.Middle }));
@@ -1451,6 +1496,9 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         openedPage.Url.Should().StartWith("http://localhost:8081", "because the app opens in a new tab");
         await openedPage.GetByText("Welcome to nginx!").WaitForAsync();
         await openedPage.CloseAsync();
+
+        (await apps.Page.EvaluateAsync<bool>("() => window.middlePrevented"))
+            .Should().BeTrue("because the wheel click suppresses the browser's autoscroll");
     }
 
     [Fact]
@@ -1695,6 +1743,43 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
     }
 
     [Fact]
+    public async Task Add_shortcut_keeps_a_protocol_handler_url_as_is()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        const string name = "E2E Protocol";
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync(name);
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "URL", Exact = true })
+            .FillAsync("obs://startstream");
+
+        var create = dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Create", Exact = true });
+        (await create.IsEnabledAsync())
+            .Should().BeTrue("because a url with an explicit scheme is valid without the https prefix");
+
+        await create.ClickAsync();
+        await dialog.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+        await apps.WaitForAppAsync(name);
+
+        var shortcut = await GetShortcutAsync(name, TestContext.Current.CancellationToken);
+        shortcut.GetProperty("url").GetString()
+            .Should().Be("obs://startstream", "because an explicit scheme is kept, not https-prefixed");
+
+        await apps.DeleteShortcutAsync(name);
+    }
+
+    [Fact]
     public async Task Shortcut_dialog_explains_why_create_is_disabled()
     {
         await using var context = await browser.NewContextAsync(environment);
@@ -1733,14 +1818,14 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
         // Typing into the empty url field explains why it is required (validate on input).
         await url.FillAsync("dfdfdf");
         await dialog
-            .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
+            .GetByText("Enter a valid URL, e.g. https://example.com or obs://startstream.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         (await create.IsEnabledAsync()).Should().BeFalse("because the url is still missing");
 
         // Typing a valid url clears it and enables Create.
         await url.FillAsync("https://example.com");
         await dialog
-            .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
+            .GetByText("Enter a valid URL, e.g. https://example.com or obs://startstream.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
         (await create.IsEnabledAsync()).Should().BeTrue("because both fields are valid");
 
@@ -1773,7 +1858,7 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
 
         // A bare word is not a usable url: the field explains why and Create stays disabled.
         await dialog
-            .GetByText("Enter a valid URL, e.g. https://example.com.", new LocatorGetByTextOptions { Exact = true })
+            .GetByText("Enter a valid URL, e.g. https://example.com or obs://startstream.", new LocatorGetByTextOptions { Exact = true })
             .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         (await create.IsEnabledAsync()).Should().BeFalse("because 'dfdfdf' has no domain");
 
@@ -1988,6 +2073,83 @@ public sealed class BasicScenarioTests(BasicEnvironment environment, BrowserFixt
             .Should().Be(1, "because the shortcut was created with its picked icon");
 
         await apps.DeleteShortcutAsync(name);
+    }
+
+    [Fact]
+    public async Task Shortcut_icon_picker_auto_picks_the_icon_matching_the_name()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForAppAsync("web-stack");
+
+        var menu = await apps.OpenDashboardMenuAsync();
+        await AppsPage.MenuItem(menu, "Add shortcut").ClickAsync();
+
+        var dialog = apps.ShortcutDialog("Add shortcut");
+        await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // The picker offers the choice automatically: it asks the api to resolve the
+        // icon from the shortcut's name, exactly as app cards resolve theirs.
+        await dialog
+            .GetByRole(AriaRole.Textbox, new LocatorGetByRoleOptions { Name = "Name", Exact = true })
+            .FillAsync("AdGuard");
+
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        var auto = picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Auto", Exact = true });
+        await auto
+            .Locator("img[src='/icons/adguard-home.svg']")
+            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        await auto.ClickAsync();
+        await picker.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        (await dialog.Locator("img[src='/icons/adguard-home.svg']").CountAsync())
+            .Should().Be(1, "because the auto pick previews the matched icon in the dialog");
+
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Cancel", Exact = true }).ClickAsync();
+    }
+
+    [Fact]
+    public async Task App_icon_picker_auto_applies_the_icon_resolved_from_the_apps_images()
+    {
+        await using var context = await browser.NewContextAsync(environment);
+        var apps = new AppsPage(await context.NewPageAsync());
+        await apps.LoadAsync(environment.BaseUrl);
+        await apps.WaitForStateAsync("web-stack", AppsPage.RunningState);
+
+        await apps.OpenEditDialogAsync("web-stack");
+        var dialog = apps.EditAppDialog("web-stack");
+
+        await dialog
+            .GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Choose icon", Exact = true })
+            .ClickAsync();
+
+        var picker = apps.Page.GetByRole(AriaRole.Dialog, new PageGetByRoleOptions { Name = "Choose an icon", Exact = true });
+        await picker.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        // web-stack matches the built-in catalog through its images, so the Auto
+        // button previews an icon; picking it pins that icon as the app's override.
+        var auto = picker.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Auto", Exact = true });
+        var suggestion = auto.Locator("img");
+        await suggestion.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+
+        var suggestedIcon = await suggestion.GetAttributeAsync("src");
+        suggestedIcon.Should().NotBeNull("because web-stack's images have built-in icons");
+
+        await auto.ClickAsync();
+        await picker.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = AppsPage.StateChangeTimeoutMs });
+
+        (await dialog.Locator($"img[src='{suggestedIcon}']").CountAsync())
+            .Should().Be(1, "because the auto pick previews the resolved icon in the dialog");
+
+        await dialog.GetByRole(AriaRole.Button, new LocatorGetByRoleOptions { Name = "Cancel", Exact = true }).ClickAsync();
     }
 
     [Fact]

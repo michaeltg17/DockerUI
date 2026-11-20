@@ -32,6 +32,11 @@ through its socket.
 
 ## Conventions
 
+- TypeScript: keep `ui/src/lib/url.ts` scheme handling in sync with the API:
+  the UI accepts any absolute URL (`://` or `:?` counts as an explicit scheme,
+  anything else is https-prefixed so `host:port` keeps working);
+  `ShortcutService.ValidateUrl` accepts any absolute URI — validate on one side
+  only, the UI is the gate.
 - Central package management: add package versions in the solution's
   `Directory.Packages.props` (`api/` for the API, `e2e/` for tests),
   references in csproj files.
@@ -68,7 +73,7 @@ docker compose up -d --build                # http://localhost:5000
 
 # E2E (Docker Desktop must be running)
 dotnet build e2e/DockerUIE2E.slnx
-dotnet e2e/bin/Debug/net10.0/E2E.dll
+dotnet e2e/bin/Debug/net11.0/E2E.dll
 # Builds the DockerUI image once, then brings up the basic/settings/error/
 # lan/readonly-settings scenarios (ports 5010-5014) and tears them all down afterwards.
 
@@ -114,14 +119,40 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   (`kubectl config view --raw --minify --context <ctx> > kubeconfig.yaml`)
   when a kubeconfig must work as-is, and `kind export kubeconfig` for kind.
 - CI audits the dashboard with Lighthouse CI (`lighthouserc.cjs` at the repo
-  root; pinned `@lhci/cli` in `ci.sh`): after the e2e scenarios it brings up
-  the dedicated `lighthouse/` scenario on :5015 (its own compose project with
-  its own demo stacks), asserts the category score thresholds (throttled
-  mobile profile; keep the thresholds just below the measured baseline), and
-  tears it down. A local run is
+  root; `@lhci/cli` pinned as a global install in `Dockerfile.ci`, so ci.sh
+  runs `lhci` directly — collect/assert/upload steps, not `autorun`, which
+  drops the reports when assertions fail): after the e2e scenarios it brings
+  up the dedicated `lighthouse/` scenario on :5015 (its own compose project with
+  its own demo stacks, registered in `KnownApps`), asserts the category score
+  thresholds and the core metric budgets (LCP ≤ 3000 ms, TBT ≤ 200 ms,
+  CLS ≤ 0.1; throttled mobile profile; keep the thresholds just below the
+  measured baseline), tears it down, and uploads the `.lighthouseci/` reports
+  (plus a `scripts/summarize-lighthouse.mjs` score summary) as the
+  `lighthouse-audit` CI artifact (upload-artifact needs
+  `include-hidden-files: true` for the dot-directory). A local run is
   `npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs` with the
   lighthouse scenario up (its `stacks/` plus
   `docker compose -f lighthouse/docker-compose.yml up -d`).
+- CI also runs the SonarQube Cloud analysis when `SONAR_TOKEN` is passed into
+  the container (`-e SONAR_TOKEN`, plus `SONAR_EVENT`/`SONAR_BRANCH` and the
+  PR context `SONAR_PULL_REQUEST_KEY/BRANCH/BASE` from the workflow; all passed
+  via the step's `env:`, never expanded inside the `run:` block): `ci.sh`
+  wraps the builds in `dotnet sonarscanner begin`/`end` (scanner + JRE + jq
+  baked into `Dockerfile.ci`) and then polls the quality gate, failing on
+  ERROR. Push runs analyze the branch (`sonar.branch.name` for non-main);
+  pull_request runs analyze the PR (`sonar.pullrequest.key/branch/base`, with
+  the QG polled for `pullRequest=<key>`), and the SonarCloud GitHub app
+  decorates the PR. The `begin` also imports the e2e coverage reports (#229):
+  C# Cobertura from `dotnet-coverage` (`sonar.cs.cobertura.reportsPaths`, not
+  `sonar.csharp.*` — the wrong prefix silently imports nothing) and the
+  browser `ui.lcov` (`sonar.javascript.lcov.reportPaths`). The build job's
+  checkout uses `fetch-depth: 0` so the scanner gets git blame and the main
+  ref; a shallow clone makes every line count as new code and skews the
+  gate. The project's Automatic Analysis is OFF (project Administration >
+  Analysis Method) so the scanner owns all analysis; ci.sh still detects a
+  rejected upload (if it were ever re-enabled) and skips the upload/gate with
+  a warning instead of failing. Local runs without the token take the
+  unchanged path.
 - The published image runs as a non-root `dockerui` user (uid/gid 1000,
   created explicitly in the Dockerfile's runtime stage). `/app` and the
   packaged `appsettings.json` are the only paths owned by uid 1000, because
@@ -143,6 +174,11 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   web sockets (`ws: true`) for live updates in development.
 - UI build output (`ui/dist`) is copied into the API image's `wwwroot`;
   `MapFallbackToFile("index.html")` serves the SPA for all non-`/api` routes.
+- E2E: the suite builds `docker-ui-local:latest` only when the tag is missing,
+  so re-run `docker build -t docker-ui-local:latest .` after changing API/UI
+  code, or the scenarios test the stale image. Individual tests can be run
+  with `dotnet e2e/bin/Debug/net11.0/E2E.dll -method <Class.Method>` (the
+  scenario fixture still brings up the full basic environment).
 - E2E: the browser fixture launches the locally installed Chrome
   (`Channel = "chrome"`) so Playwright never downloads browsers (the Playwright
   CDN stalls on some networks; `Dockerfile.ci` therefore installs
@@ -177,7 +213,13 @@ Applies only when the user asks to start the automatic dev cycle.
 - Tasks ready for start developing are the ones in the `ready` column;
   never pick ones in the backlog. Ignore any task assigned to
   `michaeltg17`. Only pick unassigned tasks not in the backlog column.
-- When picking a task, move its card to `In progress`.
+- Work on exactly one task at a time. Move a card to `In progress` only
+  at the moment its implementation starts, never while scouting or
+  batching cards; the `In progress` column must reflect what is actually
+  being developed right now (at most one card, plus any cards already
+  there from before the cycle). If a picked task turns out to be blocked
+  or is deferred before its work starts, leave (or move it back to)
+  `Ready` instead of `In progress`.
 - Do the work, then commit and push on `dev` and open/update the
   `dev` → `main` PR, following the `## Workflow` instructions above.
 - A task counts as finished when it is committed, pushed, the PR is

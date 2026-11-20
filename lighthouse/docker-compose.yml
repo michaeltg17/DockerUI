@@ -8,6 +8,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Read-write: the audit runs against a real, stateful dashboard.
       - ./appsettings.json:/app/appsettings.json
+    # The audit measures production runtime behavior, so drop the coverage
+    # collector entrypoint the e2e image carries (Dockerfile.e2e).
+    entrypoint: ["dotnet", "Api.dll"]
     # The non-root dashboard reaches the socket through group access; ci.sh
     # exports the socket's gid (0/root covers Docker Desktop's root:root).
     group_add:

@@ -16,13 +16,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        # Full history: the Sonar scanner needs git blame to scope new code to
+        # the actual changes (a shallow clone loses blame and the main ref, and
+        # every line then looks new to the quality gate).
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Build CI Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: Dockerfile.ci
@@ -37,11 +42,43 @@ jobs:
         # localhost (5010-5012), which the container must be able to reach.
         # The checkout is mounted onto its own path so the compose file
         # volume sources the docker client sends resolve on the host daemon
-        # (the client and the daemon must see identical paths).
-        run: docker run --rm --network host -w "${{ github.workspace }}" -v "${{ github.workspace }}:${{ github.workspace }}" -v /var/run/docker.sock:/var/run/docker.sock docker-ui-ci:latest
+        # (the client and the daemon must see identical paths). The context
+        # values reach the container through the step's env, never expanded
+        # inside the run block (secrets and PR-controlled expressions there
+        # are an injection and leak risk).
+        env:
+          WORKSPACE: ${{ github.workspace }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_EVENT: ${{ github.event_name }}
+          SONAR_BRANCH: ${{ github.ref_name }}
+          SONAR_PULL_REQUEST_KEY: ${{ github.event.pull_request.number }}
+          SONAR_PULL_REQUEST_BRANCH: ${{ github.head_ref }}
+          SONAR_PULL_REQUEST_BASE: ${{ github.base_ref }}
+        run: docker run --rm --network host -w "$WORKSPACE" -v "$WORKSPACE:$WORKSPACE" -v /var/run/docker.sock:/var/run/docker.sock -e SONAR_TOKEN -e SONAR_EVENT -e SONAR_BRANCH -e SONAR_PULL_REQUEST_KEY -e SONAR_PULL_REQUEST_BRANCH -e SONAR_PULL_REQUEST_BASE docker-ui-ci:latest
+
+      - name: Upload Lighthouse audit results
+        # The reports ci.sh left in the mounted checkout (assertion log + JSON
+        # and HTML per audit + a one-glance summary); uploaded even on failure,
+        # since that's when they matter most.
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lighthouse-audit
+          path: |
+            .lighthouseci/audit-summary.json
+            .lighthouseci/assertion-results.json
+            .lighthouseci/lhr-*.json
+            .lighthouseci/lhr-*.html
+            .lighthouseci/*.report.json
+            .lighthouseci/*.report.html
+          if-no-files-found: warn
+          retention-days: 14
+          # .lighthouseci is a dot-directory, and the action skips hidden
+          # paths unless this is on.
+          include-hidden-files: true
 
       - name: Validate Docker image builds
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: false
@@ -58,14 +95,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Metadata for Docker image
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/docker-ui
           tags: |
@@ -73,14 +110,14 @@ jobs:
             type=raw,value=latest
 
       - name: Log in to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: true

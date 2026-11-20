@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useSettings } from '../hooks/use-settings';
 
 /** The subnet scanned when the field is left empty (the most common home LAN). */
-const DEFAULT_SUBNET = '192.168.1.0/24';
+const DEFAULT_SUBNET = '192.168.1.0/24'; // NOSONAR - an intentional example default, not a connection target
 
 type LanScanDialogProps = {
   open: boolean;

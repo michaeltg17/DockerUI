@@ -4,6 +4,14 @@ import type { Shortcut } from '../types';
 
 export const getIcons = () => http.get<string[]>('/icons');
 
+export const suggestIcon = (name: string, images: string[]) =>
+  http.get<{ icon: string | null }>('/icons/suggest', {
+    params: { name, image: images },
+    // The api reads repeated 'image' params, not bracket-indexed ones.
+    paramsSerializer: { indexes: null },
+    silentError: true,
+  });
+
 export const addShortcut = (shortcut: Shortcut) =>
   http.post<Shortcut[]>('/shortcuts', shortcut);
 

@@ -120,6 +120,13 @@ export const AppCard = ({
     }
   };
 
+  // On a scrollable page a middle-button press starts the browser's autoscroll,
+  // which swallows the click; suppressing the mousedown default keeps the
+  // wheel click on the card (the auxclick above still opens the app).
+  const preventWheelScroll = (event: MouseEvent) => {
+    if (event.button === 1) event.preventDefault();
+  };
+
   if (!isRuntimeApp) {
     const isLan = app.source === 'lan';
 
@@ -168,6 +175,7 @@ export const AppCard = ({
               type="button"
               onClick={openUrl}
               onAuxClick={openUrl}
+              onMouseDown={preventWheelScroll}
               data-state={app.state}
               {...cardDragProps}
               className={cn(cardClasses, isDragging && 'opacity-50')}
@@ -328,6 +336,7 @@ export const AppCard = ({
             type="button"
             onClick={openUrl}
             onAuxClick={openUrl}
+            onMouseDown={preventWheelScroll}
             data-state={app.state}
             {...cardDragProps}
             className={cn(cardClasses, isDragging && 'opacity-50')}

@@ -13,9 +13,10 @@ namespace Api.Features.Lan
     /// <summary>
     /// Coordinates a LAN scan: discovers services, auto-adds any new ones as 'lan' shortcuts,
     /// and enriches them (page title, favicon) so the cards show a real name and icon.
-    /// Findings already exposed by a runtime app (the dashboard base host plus a published
-    /// port in docker, or a NodePort in kubernetes) are skipped, so the runtime flow stays
-    /// the single source for them.
+    /// A finding is skipped when something already surfaces its address: a runtime app that
+    /// exposes it (the dashboard base host plus a published port in docker, or a NodePort in
+    /// kubernetes), or a shortcut that opens it — including a manual shortcut the user named
+    /// after the host, which is matched by its url, not just by the card name.
     /// </summary>
     internal sealed class LanService(
         LanScanner scanner,
@@ -49,12 +50,22 @@ namespace Api.Features.Lan
 
             var existing = shortcuts.GetAll().ToList();
             var byName = existing.ToDictionary(shortcut => shortcut.Name, StringComparer.OrdinalIgnoreCase);
+            // A shortcut can point at a host under a name the user chose, so the scan also
+            // collects the endpoints its shortcuts already open: an address that is already
+            // one card away must not get a second, ip-named one.
+            var shortcutEndpoints = new HashSet<(string Host, int Port)>();
+
+            foreach (var shortcut in existing)
+                if (EndpointOf(shortcut.Url) is { } shortcutEndpoint)
+                    shortcutEndpoints.Add(shortcutEndpoint);
+
             var toEnrich = new List<Shortcut>();
             var added = 0;
 
             foreach (var finding in findings)
             {
-                var coveredByRuntime = IsRuntimeReachable(finding, runtimeAddresses);
+                var endpoint = EndpointOf(finding.Url);
+                var coveredByRuntime = endpoint is { } runtimeEndpoint && runtimeAddresses.Contains(runtimeEndpoint);
 
                 if (byName.TryGetValue(finding.Name, out var match))
                 {
@@ -75,9 +86,16 @@ namespace Api.Features.Lan
                 if (coveredByRuntime)
                     continue;
 
+                if (endpoint is { } knownEndpoint && shortcutEndpoints.Contains(knownEndpoint))
+                    continue;
+
                 var shortcut = new Shortcut(finding.Name, finding.Url, Source: ShortcutSource.Lan, Color: AppCatalog.RandomIconHue());
                 existing.Add(shortcut);
                 byName[finding.Name] = shortcut;
+
+                if (endpoint is { } newEndpoint)
+                    shortcutEndpoints.Add(newEndpoint);
+
                 toEnrich.Add(shortcut);
                 added++;
             }
@@ -130,20 +148,19 @@ namespace Api.Features.Lan
         }
 
         /// <summary>
-        /// Whether the finding is served on the same host and port as an address a runtime
-        /// app already exposes, so the runtime flow already surfaces it. Default ports are
-        /// resolved, since findings on 80/443 carry no explicit port in their url.
+        /// The (host, port) a url opens, with default ports resolved, since findings on
+        /// 80/443 carry no explicit port in their url. Null when the url is not absolute.
         /// </summary>
-        static bool IsRuntimeReachable(LanFinding finding, HashSet<(string Host, int Port)> addresses)
+        static (string Host, int Port)? EndpointOf(string url)
         {
-            if (!Uri.TryCreate(finding.Url, UriKind.Absolute, out var url))
-                return false;
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed))
+                return null;
 
-            var port = url.IsDefaultPort
-                ? (url.Scheme == Uri.UriSchemeHttps ? 443 : 80)
-                : url.Port;
+            var port = parsed.IsDefaultPort
+                ? (parsed.Scheme == Uri.UriSchemeHttps ? 443 : 80)
+                : parsed.Port;
 
-            return addresses.Contains((url.IdnHost, port));
+            return (parsed.IdnHost, port);
         }
     }
 }

@@ -140,10 +140,6 @@
     "icon": "formicaio.svg"
   },
   {
-    "image": "boltz/boltz-client",
-    "icon": "core-lightning-rtl.svg"
-  },
-  {
     "image": "boypt/cloud-torrent",
     "icon": "simple-torrent.svg"
   },
@@ -226,6 +222,10 @@
   {
     "image": "coreylphillips/bitcoin-regtest-dashboard",
     "icon": "bitcoin-regtest-dashboard.svg"
+  },
+  {
+    "image": "crocodilestick/calibre-web-automated",
+    "icon": "calibre-web-automated.svg"
   },
   {
     "image": "datarhei/restreamer",
@@ -352,6 +352,10 @@
     "icon": "strix.svg"
   },
   {
+    "image": "ekkoye8888/hermes-web-ui",
+    "icon": "ekko-studio.svg"
+  },
+  {
     "image": "elasticsearch",
     "icon": "tubearchivist.svg"
   },
@@ -393,7 +397,7 @@
   },
   {
     "image": "filebrowser/filebrowser",
-    "icon": "agora.svg"
+    "icon": "file-browser.svg"
   },
   {
     "image": "fireflyiii/core",
@@ -429,15 +433,11 @@
   },
   {
     "image": "getumbrel/electrs",
-    "icon": "bitcoin-regtest-dashboard.svg"
+    "icon": "electrs.svg"
   },
   {
     "image": "getumbrel/media-app-configurator",
     "icon": "lidarr.svg"
-  },
-  {
-    "image": "getumbrel/nostr-rs-relay",
-    "icon": "nostr-relay.svg"
   },
   {
     "image": "getumbrel/umbrel-back-that-mac-up",
@@ -450,22 +450,6 @@
   {
     "image": "getumbrel/umbrel-lightning",
     "icon": "lightning.svg"
-  },
-  {
-    "image": "getumbrel/umbrel-mempool-widget-server",
-    "icon": "mempool.svg"
-  },
-  {
-    "image": "getumbrel/umbrel-nostr-relay",
-    "icon": "nostr-relay.svg"
-  },
-  {
-    "image": "getumbrel/umbrel-nostr-relay-proxy",
-    "icon": "nostr-relay.svg"
-  },
-  {
-    "image": "getumbrel/umbrel-transmission-widget-server",
-    "icon": "transmission.svg"
   },
   {
     "image": "ghcr.io/1440000bytes/joinstr-web",
@@ -764,6 +748,14 @@
     "icon": "llama-gpt.svg"
   },
   {
+    "image": "ghcr.io/getumbrel/murmur",
+    "icon": "murmur.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/nostr-rs-relay",
+    "icon": "nostr-relay.svg"
+  },
+  {
     "image": "ghcr.io/getumbrel/openclaw-umbrel",
     "icon": "openclaw.svg"
   },
@@ -780,8 +772,24 @@
     "icon": "electrumx.svg"
   },
   {
+    "image": "ghcr.io/getumbrel/umbrel-mempool-widget",
+    "icon": "mempool.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/umbrel-nostr-relay",
+    "icon": "nostr-relay.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/umbrel-nostr-relay-proxy",
+    "icon": "nostr-relay.svg"
+  },
+  {
     "image": "ghcr.io/getumbrel/umbrel-public-pool-widget",
     "icon": "public-pool.svg"
+  },
+  {
+    "image": "ghcr.io/getumbrel/umbrel-transmission-widget",
+    "icon": "transmission.svg"
   },
   {
     "image": "ghcr.io/glasshome/dash",
@@ -794,6 +802,10 @@
   {
     "image": "ghcr.io/gobrrrme/gobrrr-pool-webui",
     "icon": "gobrrr-pool.svg"
+  },
+  {
+    "image": "ghcr.io/gotson/komga",
+    "icon": "komga.svg"
   },
   {
     "image": "ghcr.io/hargata/lubelogger",
@@ -936,6 +948,10 @@
     "icon": "lnmarkets.svg"
   },
   {
+    "image": "ghcr.io/lobehub/lobehub-gateway",
+    "icon": "lobe-chat.svg"
+  },
+  {
     "image": "ghcr.io/lukegus/termix",
     "icon": "termix.svg"
   },
@@ -964,7 +980,7 @@
     "icon": "home-assistant-fusion-ui.svg"
   },
   {
-    "image": "ghcr.io/matter-js/python-matter-server",
+    "image": "ghcr.io/matter-js/matterjs-server",
     "icon": "matter-server.svg"
   },
   {
@@ -1010,6 +1026,10 @@
   {
     "image": "ghcr.io/netbirdio/netbird",
     "icon": "netbird.svg"
+  },
+  {
+    "image": "ghcr.io/nmfretz/umbrel-fulcrum",
+    "icon": "fulcrum.svg"
   },
   {
     "image": "ghcr.io/open-webui/open-webui",
@@ -1100,7 +1120,7 @@
     "icon": "deepsea.svg"
   },
   {
-    "image": "ghcr.io/retropex/datum",
+    "image": "ghcr.io/retropex/datum-gateway",
     "icon": "datum.svg"
   },
   {
@@ -1137,7 +1157,7 @@
   },
   {
     "image": "ghcr.io/searxng/searxng",
-    "icon": "lobe-chat.svg"
+    "icon": "searxng.svg"
   },
   {
     "image": "ghcr.io/seerr-team/seerr",
@@ -1276,8 +1296,12 @@
     "icon": "grafana.svg"
   },
   {
+    "image": "guacamole/guacamole",
+    "icon": "guacamole.svg"
+  },
+  {
     "image": "guacamole/guacd",
-    "icon": "termix.svg"
+    "icon": "guacamole.svg"
   },
   {
     "image": "guggero/chantools",
@@ -1305,7 +1329,7 @@
   },
   {
     "image": "influxdb",
-    "icon": "influxdb.svg"
+    "icon": "influxdb2.svg"
   },
   {
     "image": "interaapps/pastefy",
@@ -1612,6 +1636,10 @@
     "icon": "ln-visualizer.svg"
   },
   {
+    "image": "mbentley/omada-controller",
+    "icon": "omada-controller.svg"
+  },
+  {
     "image": "mbentley/timemachine",
     "icon": "back-that-mac-up.svg"
   },
@@ -1680,10 +1708,6 @@
     "icon": "ordinals.svg"
   },
   {
-    "image": "nmfretz/umbrel-fulcrum",
-    "icon": "fulcrum.svg"
-  },
-  {
     "image": "nocodb/nocodb",
     "icon": "nocodb.svg"
   },
@@ -1736,6 +1760,10 @@
     "icon": "saifa.svg"
   },
   {
+    "image": "penpotapp/admin-console",
+    "icon": "penpot.svg"
+  },
+  {
     "image": "penpotapp/backend",
     "icon": "penpot.svg"
   },
@@ -1756,6 +1784,10 @@
     "icon": "librephotos.svg"
   },
   {
+    "image": "pgsty/silo",
+    "icon": "silo.svg"
+  },
+  {
     "image": "pgvector/pgvector",
     "icon": "bffless.svg"
   },
@@ -1774,6 +1806,10 @@
   {
     "image": "portainer/portainer-ce",
     "icon": "portainer.svg"
+  },
+  {
+    "image": "portainer/portainer-ee",
+    "icon": "portainer-business.svg"
   },
   {
     "image": "postgres",
@@ -1802,10 +1838,6 @@
   {
     "image": "quay.io/jupyter/base-notebook",
     "icon": "jupyterlab.svg"
-  },
-  {
-    "image": "quay.io/minio/mc",
-    "icon": "lobe-chat.svg"
   },
   {
     "image": "quay.io/minio/minio",
@@ -1868,6 +1900,10 @@
     "icon": "rustdesk-server.svg"
   },
   {
+    "image": "rustfs/rc",
+    "icon": "lobe-chat.svg"
+  },
+  {
     "image": "rustfs/rustfs",
     "icon": "lobe-chat.svg"
   },
@@ -1912,8 +1948,20 @@
     "icon": "bark-wallet.svg"
   },
   {
+    "image": "semaphoreui/semaphore",
+    "icon": "semaphore.svg"
+  },
+  {
     "image": "shahanafarooqui/rtl",
     "icon": "core-lightning-rtl.svg"
+  },
+  {
+    "image": "simplexchat/smp-server",
+    "icon": "simplexmq.svg"
+  },
+  {
+    "image": "simplexchat/xftp-server",
+    "icon": "simplexmq.svg"
   },
   {
     "image": "solidtime/solidtime",

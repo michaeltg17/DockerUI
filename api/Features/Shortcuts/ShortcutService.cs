@@ -123,9 +123,13 @@ namespace Api.Features.Shortcuts
                 : trimmed;
         }
 
+        // The original (trimmed) url is stored, not the parsed Uri: Uri.ToString()
+        // normalizes (e.g. appends '/' to 'obs://startstream'), which changes the
+        // exact string a browser protocol handler receives. The UI already
+        // https-prefixes scheme-less values, so the stored url is always absolute.
         static string ValidateUrl(string? url) =>
-            Uri.TryCreate(url, UriKind.Absolute, out var parsed)
-                ? parsed.ToString()
+            url is { } && Uri.TryCreate(url.Trim(), UriKind.Absolute, out _)
+                ? url.Trim()
                 : throw new BadHttpRequestException("The shortcut url must be an absolute URL, e.g. https://example.com.");
 
         static string? NormalizeIcon(string? icon) => string.IsNullOrWhiteSpace(icon) ? null : icon;

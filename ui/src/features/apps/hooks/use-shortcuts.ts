@@ -4,6 +4,7 @@ import {
   addShortcut,
   deleteShortcut,
   getIcons,
+  suggestIcon,
   updateShortcut,
 } from '../api/shortcuts';
 import type { Shortcut } from '../types';
@@ -17,6 +18,19 @@ export const useIcons = () =>
   useQuery({
     queryKey: ICONS_QUERY_KEY,
     queryFn: getIcons,
+    staleTime: Infinity,
+  });
+
+/**
+ * The icon the api would auto-resolve for a name (and container images), using
+ * the same catalogs as the app cards. Cached like the icon list: it only
+ * changes when the name or the catalogs do.
+ */
+export const useIconSuggestion = (name: string, images: string[] = []) =>
+  useQuery({
+    queryKey: [...ICONS_QUERY_KEY, 'suggest', name.trim(), images],
+    queryFn: () => suggestIcon(name.trim(), images),
+    enabled: name.trim().length > 0,
     staleTime: Infinity,
   });
 

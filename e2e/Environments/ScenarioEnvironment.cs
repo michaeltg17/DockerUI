@@ -17,6 +17,8 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
 
     const string DashboardService = "docker-ui";
 
+    const string Ipv4LoopbackHost = "127.0.0.1";
+
     static readonly ConcurrentDictionary<string, SemaphoreSlim> ScenarioLocks = new(StringComparer.OrdinalIgnoreCase);
 
     static readonly SemaphoreSlim ImageBuildLock = new(1, 1);
@@ -125,42 +127,65 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
 
     static async Task WaitUntilReadyAsync(Scenario scenario)
     {
-        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        var healthUrl = new Uri(scenario.BaseUrl, "/health/live");
+        // Bounded connect per address, and IPv4 first for 'localhost' urls: once an
+        // IPv6 bridge (kind's) joins the VM, the published port's IPv6 form can
+        // black-hole - .NET resolves ::1 before 127.0.0.1 and the request dies
+        // before it would fall back to the working address.
+        using var handler = new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(3) };
+        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+        var probeUrls = BuildProbeUrls(scenario.BaseUrl);
         var deadline = DateTime.UtcNow.AddSeconds(ReadyTimeoutSeconds);
+        var lastFailure = "no attempt made";
 
         while (true)
         {
-            try
+            foreach (var probeUrl in probeUrls)
             {
-                using var response = await client.GetAsync(healthUrl);
-                if (response.StatusCode == HttpStatusCode.OK)
-                    return;
-            }
-            catch (HttpRequestException)
-            {
-                // The dashboard is not up yet; keep waiting.
-            }
-            catch (TaskCanceledException)
-            {
-                // The request timed out; the dashboard is probably still starting up.
+                try
+                {
+                    using var response = await client.GetAsync(probeUrl);
+                    if (response.StatusCode == HttpStatusCode.OK)
+                        return;
+
+                    lastFailure = $"{probeUrl} answered {(int)response.StatusCode}";
+                }
+                catch (HttpRequestException exception)
+                {
+                    // The dashboard is not up yet; keep waiting.
+                    lastFailure = $"{probeUrl} request failed: {exception.Message}";
+                }
+                catch (TaskCanceledException exception)
+                {
+                    // The request timed out; the dashboard is probably still starting up.
+                    lastFailure = $"{probeUrl} request timed out: {exception.Message}";
+                }
             }
 
             if (DateTime.UtcNow >= deadline)
             {
                 // A broken bring-up must be diagnosable in the CI log: include the
-                // dashboard's container logs in the failure.
+                // dashboard's container logs and the last failed probe in the failure.
                 var logs = await DockerCli.RunAsync(
                     scenario.DashboardDirectory,
                     ["compose", "logs", "--no-color", DashboardService]);
 
                 throw new TimeoutException(
-                    $"The dashboard at {scenario.BaseUrl} did not become ready within {ReadyTimeoutSeconds}s.\n" +
+                    $"The dashboard at {scenario.BaseUrl} did not become ready within {ReadyTimeoutSeconds}s; last probe: {lastFailure}.\n" +
                     $"--- dashboard logs ---\n{logs.StandardOutput}{logs.StandardError}");
             }
 
             await Task.Delay(TimeSpan.FromSeconds(2));
         }
+    }
+
+    static IReadOnlyList<Uri> BuildProbeUrls(Uri baseUrl)
+    {
+        var healthUrl = new Uri(baseUrl, "/health/live");
+        var isLocalhost = string.Equals(healthUrl.Host, "localhost", StringComparison.OrdinalIgnoreCase);
+        IReadOnlyList<Uri> probeUrls = isLocalhost
+            ? [new UriBuilder(healthUrl) { Host = Ipv4LoopbackHost }.Uri, healthUrl]
+            : [healthUrl];
+        return probeUrls;
     }
 
     sealed class ScenarioLock(SemaphoreSlim semaphore) : IAsyncDisposable

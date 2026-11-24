@@ -31,9 +31,11 @@ public sealed class KubernetesScenarioTests(KubernetesEnvironment environment, B
         await apps.WaitForStateAsync("k8s-standalone", AppsPage.RunningState);
 
         // The image that can never be pulled keeps its pod pending; the container that
-        // exits right away crash-loops.
+        // exits right away shows a crash problem - 'Crash-looping' while the kubelet is
+        // in backoff, 'Crashed (exit code N)' in the window right after an exit, so the
+        // assertion matches the common 'Crash' prefix of both.
         await apps.WaitForProblemBadgeAsync("k8s-broken", "Pending");
-        await apps.WaitForProblemBadgeAsync("k8s-crash", "Crash-looping");
+        await apps.WaitForProblemBadgeAsync("k8s-crash", "Crash");
     }
 
     [Fact]

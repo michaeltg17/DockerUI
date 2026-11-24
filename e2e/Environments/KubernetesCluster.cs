@@ -11,6 +11,9 @@ public static partial class KubernetesCluster
 {
     public const string ClusterName = "dockerui-e2e-k8s";
 
+    /// <summary>kind's name for the control-plane container, reachable by DNS on the kind network.</summary>
+    const string ControlPlaneNodeName = ClusterName + "-control-plane";
+
     const string ScenarioDirectory = "scenarios/kubernetes";
 
     /// <summary>
@@ -30,9 +33,10 @@ public static partial class KubernetesCluster
             ["create", "cluster", "--name", ClusterName, "--config", Path.Combine(scenarioDirectory, "kind-config.yaml"), "--wait", "120s"],
             cancellationToken);
 
-        // kind writes 'server: https://127.0.0.1:<random port>'; from inside a container
-        // that is the container itself, so the mounted copy points the API server at the
-        // host gateway (extra_hosts: host.docker.internal in the scenario's compose file).
+        // kind writes 'server: https://127.0.0.1:<random port>' - and on Linux the host
+        // binds that port to the loopback interface only, so no host address would reach
+        // it from another container. The mounted copy instead addresses the control-plane
+        // container directly on the kind network, which the dashboard joins (compose file).
         var hostKubeConfigPath = Path.Combine(scenarioDirectory, "kubeconfig.yaml");
         await DockerCli.EnsureSucceededToolAsync(
             "kind",
@@ -41,7 +45,7 @@ public static partial class KubernetesCluster
             cancellationToken);
 
         var kubeConfig = await File.ReadAllTextAsync(hostKubeConfigPath, cancellationToken);
-        var containerKubeConfig = RewriteServerHostRegex().Replace(kubeConfig, "https://host.docker.internal:$2");
+        var containerKubeConfig = RewriteServerUrlRegex().Replace(kubeConfig, $"https://{ControlPlaneNodeName}:6443");
         await File.WriteAllTextAsync(Path.Combine(scenarioDirectory, "kubeconfig.container.yaml"), containerKubeConfig, cancellationToken);
 
         // Pre-load the images the other scenarios already pulled, so the demo workloads
@@ -61,5 +65,5 @@ public static partial class KubernetesCluster
         => await DockerCli.RunToolAsync("kind", Paths.RepoRoot, ["delete", "cluster", "--name", ClusterName], cancellationToken);
 
     [GeneratedRegex(@"https://(127\.0\.0\.1|0\.0\.0\.0):(\d+)")]
-    private static partial Regex RewriteServerHostRegex();
+    private static partial Regex RewriteServerUrlRegex();
 }

@@ -201,10 +201,15 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
    (deployment + NodePort service, stateful set, daemon set, unpullable and
    crash-looping deployments, a standalone pod) and exports the kubeconfig.
    The container-side copy (`kubeconfig.container.yaml`, gitignored) rewrites
-   the API server to `host.docker.internal:<exported port>` — reachable via
-   the compose file's `extra_hosts: host-gateway`, and accepted by TLS because
-   `kind-config.yaml` adds that name to the API server's cert SANs through a
-   kubeadm patch. NodePort 30080 is host-published so card urls resolve. The
+   the API server to `https://dockerui-e2e-k8s-control-plane:6443` — the
+   dashboard joins kind's Docker network only (compose `networks: [kind]`,
+   external; deliberately no project network — a multi-homed container can
+   black-hole its own traffic), and the name is a serving cert SAN
+   (`kind-config.yaml` pins it via a kubeadm
+   patch). Do not route through the host instead: kind publishes the API-server
+   port on the loopback interface only (on Linux), so `host.docker.internal`
+   gets connection-refused from other containers. NodePort 30080 is
+   host-published so card urls resolve. The
    suite needs `kind` + `kubectl` in PATH: `Dockerfile.ci` installs pinned
    copies (the cluster containers land on the mounted daemon); running the
    k8s scenario on the host would need them installed there. A stopped

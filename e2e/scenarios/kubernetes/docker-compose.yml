@@ -4,10 +4,19 @@ services:
     container_name: docker-ui-e2e-kubernetes
     ports:
       - "5016:8080"
-    extra_hosts:
-      # Lets the bind-mounted kubeconfig reach the kind API server on the host.
-      - "host.docker.internal:host-gateway"
+    networks:
+      # Only the kind network: the mounted kubeconfig addresses the API server as
+      # dockerui-e2e-k8s-control-plane:6443 (the cluster exists before compose-up).
+      # The service deliberately joins no project network - a container on two
+      # bridge networks whose dynamic subnets overlap black-holes its traffic,
+      # and this service needs no other network.
+      - kind
     volumes:
       - ./appsettings.json:/app/appsettings.json
       - ./kubeconfig.container.yaml:/app/kubeconfig.yaml:ro
       - ./coverage:/app/coverage
+
+networks:
+  kind:
+    external: true
+    name: kind

@@ -1,8 +1,12 @@
-# The dashboard and two demo web services share a private /28 so the on-demand LAN scan has
-# a known subnet to probe. lan-demo is discovered and added as a 'lan' card; lan-dedup
+# The dashboard and four demo web services share a private /28 so the on-demand LAN scan has
+# a known subnet to probe. lan-demo is discovered and surfaced as a 'lan' card; lan-dedup
 # publishes the port the scenario's BaseUrl host (its own address) is probed on, so the scan
-# must skip it (the Docker flow already exposes it). The dashboard hides its own compose
-# project, so only the scanned shortcut (172.30.0.2) shows up on the grid.
+# must skip it (the Docker flow already exposes it); lan-nas is already a manual shortcut
+# under its own name ('E2E NAS' -> http://172.30.0.5), so the scan must not add a second,
+# ip-named card for the same address; lan-titleless serves a page with no <title>, so its
+# card must be named by the page's first heading instead of the ip. The dashboard hides its
+# own compose project, so only the scanned shortcuts (172.30.0.2 and 172.30.0.6) and the
+# manual shortcut show up on the grid.
 networks:
   lan_net:
     ipam:
@@ -19,6 +23,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Read-write: the LAN scan persists discovered shortcuts into this file.
       - ./appsettings.json:/app/appsettings.json
+      # Cobertura sink: the coverage-collector entrypoint (Dockerfile.e2e) writes
+      # coverage.cobertura.xml here when the container stops; ci.sh collects it.
+      - ./coverage:/app/coverage
     # The non-root dashboard reaches the socket through group access; ci.sh
     # exports the socket's gid (0/root covers Docker Desktop's root:root).
     group_add:
@@ -26,6 +33,8 @@ services:
     depends_on:
       - lan-demo
       - lan-dedup
+      - lan-nas
+      - lan-titleless
     networks:
       lan_net:
         ipv4_address: 172.30.0.3
@@ -56,3 +65,27 @@ services:
     networks:
       lan_net:
         ipv4_address: 172.30.0.4
+
+  # A web service the user has already shortcutted by hand under its own name, so its address
+  # is already one card away and the scan must skip it instead of adding an ip-named twin.
+  lan-nas:
+    image: busybox:1.36
+    container_name: e2e-lan-nas
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "mkdir -p /www && echo '<!doctype html><html><head><title>E2E NAS Console</title></head><body>NAS demo</body></html>' > /www/index.html && exec httpd -f -p 80 -h /www"
+    networks:
+      lan_net:
+        ipv4_address: 172.30.0.5
+
+  # A web service whose page carries no <title> (only an <h1> and a site-name meta), so the
+  # scan must name its card by the page's best semantic fallback, not by the ip.
+  lan-titleless:
+    image: busybox:1.36
+    container_name: e2e-lan-titleless
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "mkdir -p /www && echo '<!doctype html><html><head><meta property=\"og:site_name\" content=\"Printer Site\"></head><body><h1>E2E Titleless Printer</h1></body></html>' > /www/index.html && exec httpd -f -p 80 -h /www"
+    networks:
+      lan_net:
+        ipv4_address: 172.30.0.6

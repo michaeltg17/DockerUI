@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using E2E.Environments;
 using E2E.Playwright;
 using Microsoft.Playwright;
@@ -22,6 +23,8 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
 
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         await apps.RetryButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs, State = WaitForSelectorState.Visible });
+        (await apps.RetryButton.IsVisibleAsync())
+            .Should().BeTrue("because the error state offers a retry");
     }
 
     [Fact]
@@ -37,9 +40,10 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
         var dialog = apps.LogsDialog("Docker UI logs");
         await dialog.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
 
-        await dialog
-            .GetByText("Could not reach the Docker daemon")
-            .WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        var daemonError = dialog.GetByText("Could not reach the Docker daemon");
+        await daemonError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+        (await daemonError.IsVisibleAsync())
+            .Should().BeTrue("because the logs dialog must surface the daemon failure");
     }
 
     [Fact]
@@ -61,8 +65,23 @@ public sealed class ErrorScenarioTests(ErrorEnvironment environment, BrowserFixt
         await refetch;
 
         // The refetch fails against the unreachable daemon, so the error state
-        // and the Retry button must be re-established.
+        // and the Retry button must be re-established. The regression this
+        // guards against is the apps cache wrongly settling on 'success' with
+        // an empty list, which swaps the error panel for the empty-dashboard
+        // message - a permanent swap any sample in the settle window catches,
+        // while a momentary re-render blip does not fail the assertion.
         await apps.LoadError.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
         await apps.RetryButton.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs, State = WaitForSelectorState.Visible });
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            (await apps.EmptyDashboardMessage.IsVisibleAsync())
+                .Should().BeFalse("because a failed refetch must not settle the dashboard on the empty-apps state");
+            await Task.Delay(400, cancellationToken);
+        }
+
+        (await apps.LoadError.IsVisibleAsync())
+            .Should().BeTrue("because a refetch against an unreachable daemon keeps the error state up");
     }
 }

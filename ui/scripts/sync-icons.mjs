@@ -30,7 +30,8 @@ const mappingOutFile = path.join(repoRoot, 'api', 'Features', 'Apps', 'Icons', '
 const ICON_EXTENSIONS = ['.svg', '.png', '.webp', '.jpg', '.jpeg']
 
 function git(args, cwd) {
-  execFileSync('git', args, {cwd, stdio: 'inherit'})
+  // A dev-only sync tool; it shells out to the PATH git by design.
+  execFileSync('git', args, {cwd, stdio: 'inherit'}) // NOSONAR
 }
 
 function normalizeImage(image) {
@@ -47,7 +48,7 @@ function listSubdirectories(dir) {
     .readdirSync(dir, {withFileTypes: true})
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
     .map((entry) => entry.name)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
 }
 
 function cloneAppsRepo(tempDir) {
@@ -71,8 +72,64 @@ function cloneGalleryRepo(tempDir) {
   return dir
 }
 
+const APP_PROXY_HOST_ENV = 'APP_HOST'
+const MAIN_SERVICE_NAME = 'app'
+
+function getEnvironmentValue(service, name) {
+  const environment = service?.environment
+  if (environment === null || typeof environment !== 'object') return undefined
+  if (Array.isArray(environment)) {
+    const prefix = `${name}=`
+    const entry = environment.find((item) => typeof item === 'string' && item.startsWith(prefix))
+    return typeof entry === 'string' ? entry.slice(prefix.length) : undefined
+  }
+  return Object.hasOwn(environment, name) ? String(environment[name]) : undefined
+}
+
+// Resolves an app_proxy APP_HOST value (service name, container_name, or the
+// compose <app-id>_<service>_<n> container-name form) to a service name.
+function resolveHostToService(appId, host, services) {
+  let value = host.trim()
+  const scheme = value.indexOf('://')
+  if (scheme !== -1) value = value.slice(scheme + 3)
+  value = value.split('/')[0]
+  const port = value.lastIndexOf(':')
+  if (port !== -1 && /^\d+$/.test(value.slice(port + 1))) value = value.slice(0, port)
+  if (!value) return null
+
+  if (Object.hasOwn(services, value)) return value
+  for (const [name, service] of Object.entries(services))
+    if (typeof service?.container_name === 'string' && service.container_name === value) return name
+
+  const suffix = value.match(/_\d+$/)
+  if (value.startsWith(`${appId}_`) && suffix) {
+    const base = value.slice(appId.length + 1, value.length - suffix[0].length)
+    if (Object.hasOwn(services, base)) return base
+  }
+  return null
+}
+
+function findMainService(appId, services) {
+  const resolved = new Set()
+  for (const service of Object.values(services)) {
+    const host = getEnvironmentValue(service, APP_PROXY_HOST_ENV)
+    if (host === undefined) continue
+    const target = resolveHostToService(appId, host, services)
+    if (target) resolved.add(target)
+  }
+  if (resolved.size === 1) return [...resolved][0]
+  if (resolved.size > 1) {
+    const sorted = [...resolved].sort((a, b) => a.localeCompare(b))
+    console.warn(
+      `App ${appId} has app_proxy hosts pointing at multiple services (${sorted.join(', ')}); using "${sorted[0]}" as the main service.`,
+    )
+    return sorted[0]
+  }
+  return Object.hasOwn(services, MAIN_SERVICE_NAME) ? MAIN_SERVICE_NAME : null
+}
+
 function collectImages(appsRepoDir) {
-  const images = new Map() // normalized image -> app id
+  const apps = [] // { appId, services, mainService } in alphabetical order
 
   for (const appId of listSubdirectories(appsRepoDir)) {
     const composeFile = path.join(appsRepoDir, appId, 'docker-compose.yml')
@@ -89,20 +146,58 @@ function collectImages(appsRepoDir) {
     const services = doc?.services
     if (services === null || typeof services !== 'object' || Array.isArray(services)) continue
 
+    apps.push({appId, services, mainService: findMainService(appId, services)})
+  }
+
+  // normalized image -> { main: [], deps: [] } of { appId, serviceName }
+  const claims = new Map()
+  const addClaim = (normalized, claim, tier) => {
+    if (!claims.has(normalized)) claims.set(normalized, {main: [], deps: []})
+    claims.get(normalized)[tier].push(claim)
+  }
+
+  // Two passes so every main-service claim is known before any dependency claim.
+  for (const {appId, services, mainService} of apps) {
+    if (!mainService) continue
+    const image = services[mainService]?.image
+    if (typeof image !== 'string' || image.includes('${')) continue
+    const normalized = normalizeImage(image)
+    if (normalized) addClaim(normalized, {appId, serviceName: mainService}, 'main')
+  }
+  for (const {appId, services, mainService} of apps) {
     for (const [serviceName, service] of Object.entries(services)) {
+      if (serviceName === mainService) continue
       const image = service?.image
       if (typeof image !== 'string' || image.includes('${')) continue
-
       const normalized = normalizeImage(image)
-      if (!normalized) continue
-
-      // First app id (alphabetical) claiming an image wins.
-      if (!images.has(normalized)) images.set(normalized, appId)
-      else if (images.get(normalized) !== appId)
-        console.warn(
-          `Image ${normalized} is used by both "${images.get(normalized)}" and "${appId}" (service "${serviceName}"); keeping the first.`,
-        )
+      if (normalized) addClaim(normalized, {appId, serviceName}, 'deps')
     }
+  }
+
+  const images = new Map() // normalized image -> app id
+  for (const [normalized, {main, deps}] of claims) {
+    // A main-service (app_proxy) claim owned by exactly one app wins outright.
+    if (main.length === 1) {
+      images.set(normalized, main[0].appId)
+      continue
+    }
+
+    const seen = new Set()
+    const candidates = [...main, ...deps].filter((claim) => !seen.has(claim.appId) && seen.add(claim.appId))
+    candidates.sort((a, b) => a.appId.localeCompare(b.appId))
+
+    // Otherwise an app whose id is the image's last path segment wins
+    // (searxng beats lobe-chat for ghcr.io/searxng/searxng); failing that the
+    // first app id (alphabetical) claiming an image wins.
+    const lastSegment = normalized.split('/').pop()
+    const winner = candidates.find((claim) => claim.appId === lastSegment) ?? candidates[0]
+    images.set(normalized, winner.appId)
+
+    if (winner === candidates[0])
+      for (const other of candidates.slice(1))
+        console.warn(
+          `Image ${normalized} is used by both "${winner.appId}" and "${other.appId}" (service "${other.serviceName}"); keeping the first.`,
+        )
   }
 
   return images
@@ -132,7 +227,7 @@ function copyIcons(galleryRepoDir) {
 
 function writeMapping(images, iconFiles) {
   const entries = [...images.entries()]
-    .filter(([image, appId]) => iconFiles.has(appId))
+    .filter(([, appId]) => iconFiles.has(appId))
     .map(([image, appId]) => ({image, icon: iconFiles.get(appId)}))
     .sort((a, b) => a.image.localeCompare(b.image) || a.icon.localeCompare(b.icon))
 

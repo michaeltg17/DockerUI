@@ -1,0 +1,23 @@
+# kind cluster for the e2e kubernetes scenario (created by KubernetesCluster.cs).
+# The dashboard container joins the 'kind' network and reaches the API server as
+# <cluster>-control-plane:6443, so the exported host port (which kind binds to the
+# loopback interface only on Linux) never has to be reachable across hosts. The
+# control-plane name is already a serving certificate SAN; listing it through the
+# kubeadm patch keeps that guarantee explicit. The NodePort mapping lets the
+# dashboard's node-port app urls (nodePort 30080 on the k8s-web service) resolve
+# on the host.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: dockerui-e2e-k8s
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          certSANs:
+            - dockerui-e2e-k8s-control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP

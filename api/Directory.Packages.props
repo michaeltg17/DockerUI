@@ -5,18 +5,18 @@
     <!-- Kubernetes -->
     <PackageVersion Include="KubernetesClient" Version="21.0.8" />
     <!-- Discovery -->
-    <PackageVersion Include="Haukcode.Mdns" Version="1.1.23" />
+    <PackageVersion Include="Haukcode.Mdns" Version="1.1.24" />
     <!-- Fuzzy matching -->
-    <PackageVersion Include="Raffinert.FuzzySharp" Version="6.0.1" />
+    <PackageVersion Include="Raffinert.FuzzySharp" Version="6.0.2" />
     <!-- Microsoft -->
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="11.0.0" />
     <!-- Serilog -->
     <PackageVersion Include="Serilog" Version="4.4.0" />
-    <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="11.0.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
   </ItemGroup>

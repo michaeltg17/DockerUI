@@ -12,8 +12,9 @@ namespace E2E.Tests.Basic;
 
 /// <summary>
 /// End-to-end tests for the optional single-password authentication: setting a password
-/// locks the dashboard behind a login page, the password can be changed and removed, and a
-/// locked instance answers unauthenticated API calls with a 401 problem document.
+/// locks the dashboard behind a login page, the password can be changed and removed, a
+/// locked instance answers unauthenticated API calls with a 401 problem document, and
+/// repeated failed sign-ins hit the login rate limiter's 429.
 /// </summary>
 [Trait("Scenario", "basic")]
 [Collection(nameof(E2eCollectionFixture))]
@@ -25,6 +26,9 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
     /// <summary>How long to wait for the dashboard to return to open mode after a password removal.</summary>
     const int OpenModeTimeoutSeconds = 30;
 
+    /// <summary>How long to wait for a reset login-rate limit to reach the dashboard and take effect.</summary>
+    const int RateLimitRestoreTimeoutSeconds = 60;
+
     /// <summary>The password the tests set.</summary>
     const string Password = "e2e-password-12345";
 
@@ -33,6 +37,9 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
 
     /// <summary>A wrong password.</summary>
     const string WrongPassword = "wrong-password-4321";
+
+    /// <summary>Accepted login answers for a wrong password: 401 until the rate-limit window budget is spent, then 429.</summary>
+    static readonly int[] LoginAttemptStatuses = [401, 429];
 
     /// <summary>The reset dialog's intro: where the password is stored in the settings file.</summary>
     const string ResetInstructionsIntro =
@@ -202,6 +209,8 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
             await loginPage.WaitForLoginPageAsync();
             await loginPage.SubmitLoginAsync("abcd");
             await loginPage.WaitForAppAsync("web-stack");
+            (await loginPage.Card("web-stack").IsVisibleAsync())
+                .Should().BeTrue("because signing in with the short password opens the dashboard");
         }
         finally
         {
@@ -235,6 +244,7 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
             await newBox.FillAsync("abcd");
             var weak = dialog.GetByText("Weak", new LocatorGetByTextOptions { Exact = true });
             await weak.WaitForAsync(new LocatorWaitForOptions { Timeout = AppsPage.StateChangeTimeoutMs });
+            (await weak.IsVisibleAsync()).Should().BeTrue("because shortening the field must drop the rating to weak");
 
             await apps.ClickDialogBackdropAsync();
         }
@@ -307,6 +317,75 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
         finally
         {
             await EnsurePasswordRemovedAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Too_many_login_attempts_are_answered_with_a_429_problem()
+    {
+        await EnsurePasswordRemovedAsync();
+
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var client = new AuthApiClient(environment.BaseUrl);
+
+        try
+        {
+            // Set the password through the API; setting the first password signs the caller in.
+            var set = await client.PostAsync(
+                new Uri(environment.BaseUrl, "api/auth/change-password"),
+                new { currentPassword = (string?)null, newPassword = Password },
+                cancellationToken);
+            set.EnsureSuccessStatusCode();
+
+            // Shrink the login window in the scenario's settings; the dashboard
+            // hot-reloads the file and the limiter reads its limits per request. Keep
+            // spending attempts (a few a second) until the reloaded limit starts
+            // answering the over-budget ones with 429 - the reload's own timing is not
+            // part of what this test asserts.
+            SetLoginAttemptLimit(1);
+
+            using var anonymous = new AuthApiClient(environment.BaseUrl);
+
+            HttpStatusCode? rejected = null;
+            var deadline = DateTime.UtcNow.AddSeconds(60);
+
+            while (rejected is null && DateTime.UtcNow < deadline)
+            {
+                using var response = await anonymous.PostAsync(
+                    new Uri(environment.BaseUrl, "api/auth/login"),
+                    new { password = WrongPassword },
+                    cancellationToken);
+
+                LoginAttemptStatuses.Should()
+                    .Contain((int)response.StatusCode, "because a wrong password is a 401 until the window budget is spent, then a 429");
+
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                {
+                    rejected = response.StatusCode;
+                    response.Content.Headers.ContentType?.MediaType
+                        .Should().Be("application/problem+json", "because the rejection is an RFC 9457 problem");
+                    (await response.Content.ReadAsStringAsync(cancellationToken))
+                        .Should().Contain("Too many sign-in attempts", "because the rejection explains the retry");
+                    break;
+                }
+
+                await Task.Delay(1_000, cancellationToken);
+            }
+
+            rejected.Should().Be(
+                HttpStatusCode.TooManyRequests,
+                "because repeated attempts cannot fit a one-attempt window once the setting applies");
+        }
+        finally
+        {
+            await EnsurePasswordRemovedAsync();
+
+            // The API's password removal keeps the test's reduced limit in the file, so
+            // reset the scenario's settings to the defaults and wait until the dashboard
+            // reloads them and stops rejecting logins - the next test must not inherit
+            // the one-attempt window.
+            ResetPasswordInScenarioSettings();
+            await WaitUntilLoginAllowedAsync(cancellationToken);
         }
     }
 
@@ -472,6 +551,33 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
     }
 
     /// <summary>
+    /// Waits until the login route stops answering with 429: the scenario's settings were
+    /// reset to the default attempt limit and the dashboard reloaded them, so the next test
+    /// starts with a healthy limiter instead of the test window's exhausted budget.
+    /// </summary>
+    async Task WaitUntilLoginAllowedAsync(CancellationToken cancellationToken)
+    {
+        using var client = new AuthApiClient(environment.BaseUrl);
+        var deadline = DateTime.UtcNow.AddSeconds(RateLimitRestoreTimeoutSeconds);
+
+        while (true)
+        {
+            using var response = await client.PostAsync(
+                new Uri(environment.BaseUrl, "api/auth/login"),
+                new { password = WrongPassword },
+                cancellationToken);
+
+            if (response.StatusCode != HttpStatusCode.TooManyRequests)
+                return;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("The login rate limit stayed reduced after the settings reset.");
+
+            await Task.Delay(1_000, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Waits until the scenario's appsettings (bind-mounted into the dashboard) carry the
     /// password hash, and proves it is stored as a hash, never in plain text.
     /// </summary>
@@ -551,6 +657,30 @@ public sealed class PasswordScenarioTests(BasicEnvironment environment, BrowserF
 
             await Task.Delay(200, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Writes the login attempt limit into the scenario's 'DockerUI:Auth' settings (keeping
+    /// the rest of the section); the dashboard reloads the file and the limiter picks the
+    /// new limit up on its next request.
+    /// </summary>
+    static void SetLoginAttemptLimit(int limit)
+    {
+        var appSettingsPath = Paths.CombineE2e("scenarios/basic/appsettings.json");
+
+        var settings = JsonNode.Parse(File.ReadAllText(appSettingsPath)) as JsonObject
+            ?? throw new InvalidOperationException("The scenario's appsettings.json must contain a JSON object.");
+
+        if (settings["DockerUI"] is not JsonObject dockerUi)
+            throw new InvalidOperationException("The scenario's appsettings.json must contain the DockerUI section.");
+
+        if (dockerUi["Auth"] is not JsonObject auth)
+            throw new InvalidOperationException("The scenario's settings must already carry the Auth section.");
+
+        auth["MaxLoginAttemptsPerWindow"] = limit;
+
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
+        File.WriteAllText(appSettingsPath, settings.ToJsonString(options) + Environment.NewLine);
     }
 
     /// <summary>

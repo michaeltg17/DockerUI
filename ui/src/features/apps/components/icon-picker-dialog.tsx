@@ -1,15 +1,22 @@
-import { Check } from 'lucide-react';
+import { Check, Wand2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { SearchBar } from '@/components/ui/search-bar';
 
+import { useIconSuggestion } from '../hooks/use-shortcuts';
+
 import { AppIcon } from './app-icon';
 
 type IconPickerDialogProps = {
   icons: string[];
   selected: string | null;
+  /**
+   * When set, an 'Auto' button offers the icon the dashboard itself resolves
+   * for this name (and container images), using the same catalogs as the apps.
+   */
+  suggestion?: { name: string; images?: string[] };
   onSelect: (icon: string | null) => void;
   onClose: () => void;
 };
@@ -22,11 +29,18 @@ export const iconLabel = (path: string) => {
 export const IconPickerDialog = ({
   icons,
   selected,
+  suggestion,
   onSelect,
   onClose,
 }: IconPickerDialogProps) => {
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const { data: suggested, isFetching } = useIconSuggestion(
+    suggestion?.name ?? '',
+    suggestion?.images ?? [],
+  );
+  const autoIcon = suggested?.icon ?? null;
 
   useEffect(() => {
     // The base dialog focuses the search box on open.
@@ -56,6 +70,33 @@ export const IconPickerDialog = ({
           label="Search icons by name"
           className="min-w-0 flex-1"
         />
+        {suggestion && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={autoIcon === null}
+            title={
+              autoIcon !== null
+                ? `Use the ${iconLabel(autoIcon)} icon`
+                : isFetching
+                  ? 'Checking for a matching icon…'
+                  : 'No icon matches this name'
+            }
+            onClick={() => autoIcon !== null && onSelect(autoIcon)}
+          >
+            {autoIcon !== null ? (
+              <img
+                src={autoIcon}
+                alt=""
+                className="size-4"
+                aria-hidden="true"
+              />
+            ) : (
+              <Wand2 className="size-4" aria-hidden="true" />
+            )}
+            Auto
+          </Button>
+        )}
         <Button type="button" variant="outline" onClick={() => onSelect(null)}>
           None
         </Button>

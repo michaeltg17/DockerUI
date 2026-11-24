@@ -7,8 +7,8 @@ namespace E2E.Environments;
 public static class Paths
 {
     /// <summary>
-    /// Tag of the DockerUI image the scenarios run against (built from the repo root;
-    /// 'local' = built from this checkout, never pushed).
+    /// Tag of the DockerUI image the scenarios run against (built from the repo root
+    /// via Dockerfile.e2e; 'local' = built from this checkout, never pushed).
     /// </summary>
     public const string DashboardImageTag = "docker-ui-local:latest";
 

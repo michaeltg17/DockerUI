@@ -1,11 +1,26 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0
+# The CI container intentionally runs as root: ci.sh chowns the scenario
+# settings files to the dashboard's uid 1000 and writes generated reports and
+# build output into the bind-mounted checkout, which the runner user owns.
+#
+# NOSONAR
+FROM mcr.microsoft.com/dotnet/sdk:11.0
+
 WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates curl \
+        openjdk-21-jre-headless jq \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# SonarScanner for .NET (the JRE above is its engine; jq polls the quality gate).
+RUN dotnet tool install --global dotnet-sonarscanner --version 12.1.0 \
+    && ln -sf /root/.dotnet/tools/dotnet-sonarscanner /usr/local/bin/dotnet-sonarscanner
+
+# Lighthouse CI, pinned here so ci.sh runs the installed `lhci` directly
+# (npx's on-demand install is a supply-chain risk we don't want at run time).
+RUN npm install -g --ignore-scripts @lhci/cli@0.16.0
 
 # Docker CLI + compose plugin (the daemon socket is mounted by CI).
 # The dotnet SDK image is Ubuntu-based, so the distro comes from /etc/os-release.
@@ -24,6 +39,12 @@ RUN curl -fsSL -o /tmp/google-chrome-stable.deb https://dl.google.com/linux/dire
     && apt-get install -y --no-install-recommends /tmp/google-chrome-stable.deb \
     && rm -f /tmp/google-chrome-stable.deb \
     && rm -rf /var/lib/apt/lists/*
+
+# kind + kubectl (the e2e kubernetes scenario creates a kind cluster on the mounted
+# daemon and seeds it with kubectl; pinned for reproducible clusters).
+RUN curl -fsSL "https://dl.k8s.io/release/v1.36.1/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl \
+    && curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64" -o /usr/local/bin/kind \
+    && chmod +x /usr/local/bin/kubectl /usr/local/bin/kind
 
 # The repository is bind-mounted onto its own checkout path at run time
 # (see ci.yml, -w + -v <workspace>:<workspace>), so the compose file volume

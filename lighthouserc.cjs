@@ -16,14 +16,21 @@ module.exports = {
       },
     },
     assert: {
-      // A little below the current baseline (performance ~95 with the compressed
-      // static assets, everything else 100): catch regressions without flapping on
-      // run-to-run jitter.
+      // The scores sit a little below the current baseline (performance ~95 with
+      // the compressed static assets, everything else 100) and the metric budgets
+      // are the standard "good" LCP/TBT/CLS values, all with headroom so real
+      // regressions fail the build without flapping on run-to-run jitter.
       assertions: {
         'categories:performance': ['error', { minScore: 0.8 }],
         'categories:accessibility': ['error', { minScore: 0.95 }],
         'categories:best-practices': ['error', { minScore: 0.95 }],
         'categories:seo': ['error', { minScore: 0.95 }],
+        // 2500 ms is the standard "good" LCP, but the CI runner's throttled run
+        // measures ~2600 ms on the local network, so the budget leaves headroom
+        // there while still catching real regressions.
+        'largest-contentful-paint': ['error', { maxNumericValue: 3000 }],
+        'total-blocking-time': ['error', { maxNumericValue: 200 }],
+        'cumulative-layout-shift': ['error', { maxNumericValue: 0.1 }],
       },
     },
   },

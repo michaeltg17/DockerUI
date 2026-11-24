@@ -39,7 +39,7 @@ public sealed partial class AppsPage
             await picker
                 .GetByRole(AriaRole.Searchbox, new LocatorGetByRoleOptions { Name = "Search icons by name", Exact = true })
                 .FillAsync(label);
-            await picker.Locator($"img[src='{icon}']").ClickAsync();
+            await picker.Locator(".grid.overflow-auto").Locator($"img[src='{icon}']").ClickAsync();
             await picker.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden, Timeout = timeoutMs });
         }
 

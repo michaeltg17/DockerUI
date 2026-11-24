@@ -16,6 +16,9 @@ public sealed record Scenario
     /// <summary>Directories under e2e/ holding the demo stacks' compose files.</summary>
     public IReadOnlyList<string> Stacks { get; init; } = [];
 
+    /// <summary>Extra steps before anything is brought up (external infrastructure, e.g. a kind cluster).</summary>
+    public Func<Scenario, CancellationToken, Task>? PrepareAsync { get; init; }
+
     /// <summary>Extra steps after everything is up (stopping containers, running standalone containers).</summary>
     public Func<Scenario, CancellationToken, Task>? SetupAsync { get; init; }
 

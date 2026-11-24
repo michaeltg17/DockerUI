@@ -5,6 +5,65 @@ echo "========================================="
 echo "  CI - DockerUI"
 echo "========================================="
 
+# SonarQube Cloud analysis wraps the build steps (the C# analysis rides on the
+# dotnet builds, ui/**.ts(x) is picked up by multi-language analysis). Without
+# SONAR_TOKEN the pipeline behaves exactly as before. The scanner runs both
+# analyses: pushes analyze their branch (sonar.branch.name for non-main), and
+# pull_request events analyze the PR (sonar.pullrequest.*, fed in by the
+# workflow as SONAR_PULL_REQUEST_*); the SonarCloud GitHub app decorates PRs.
+SONAR_TOKEN="${SONAR_TOKEN:-}"
+SONAR_ORG="michaeltg17"
+SONAR_PROJECT_KEY="michaeltg17_DockerUI"
+SONAR_EVENT="${SONAR_EVENT:-}"
+SONAR_PULL_REQUEST_KEY="${SONAR_PULL_REQUEST_KEY:-}"
+SONAR_PULL_REQUEST_BRANCH="${SONAR_PULL_REQUEST_BRANCH:-}"
+SONAR_PULL_REQUEST_BASE="${SONAR_PULL_REQUEST_BASE:-}"
+# The checkout is bind-mounted, so its owner differs from the container's root
+# (safe.directory keeps the branch fallback working for local runs).
+git config --global --add safe.directory "$(pwd)" >/dev/null 2>&1 || true
+SONAR_BRANCH="${SONAR_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)}"
+
+sonar_enabled() {
+  [[ -n "${SONAR_TOKEN}" ]] && {
+    if [[ "${SONAR_EVENT}" == "pull_request" ]]; then
+      [[ -n "${SONAR_PULL_REQUEST_KEY}" && -n "${SONAR_PULL_REQUEST_BRANCH}" && -n "${SONAR_PULL_REQUEST_BASE}" ]]
+    else
+      [[ -n "${SONAR_BRANCH}" && "${SONAR_BRANCH}" != "HEAD" ]]
+    fi
+  }
+}
+
+if sonar_enabled; then
+  echo
+  analysis_args=()
+  gate_url="https://sonarcloud.io/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}"
+  if [[ "${SONAR_EVENT}" == "pull_request" ]]; then
+    echo "SonarQube Cloud: starting PR analysis of #${SONAR_PULL_REQUEST_KEY} (${SONAR_PULL_REQUEST_BRANCH} -> ${SONAR_PULL_REQUEST_BASE}, michaeltg17/${SONAR_PROJECT_KEY})."
+    analysis_args+=(
+      "/d:sonar.pullrequest.key=${SONAR_PULL_REQUEST_KEY}"
+      "/d:sonar.pullrequest.branch=${SONAR_PULL_REQUEST_BRANCH}"
+      "/d:sonar.pullrequest.base=${SONAR_PULL_REQUEST_BASE}"
+    )
+    gate_url+="&pullRequest=${SONAR_PULL_REQUEST_KEY}"
+  else
+    echo "SonarQube Cloud: starting analysis of branch ${SONAR_BRANCH} (michaeltg17/${SONAR_PROJECT_KEY})."
+    if [[ "${SONAR_BRANCH}" != "main" ]]; then
+      analysis_args+=("/d:sonar.branch.name=${SONAR_BRANCH}")
+      gate_url+="&branch=${SONAR_BRANCH}"
+    fi
+  fi
+  dotnet sonarscanner begin \
+    /k:"${SONAR_PROJECT_KEY}" /o:"${SONAR_ORG}" \
+    /d:sonar.token="${SONAR_TOKEN}" \
+    /d:sonar.exclusions="ui/node_modules/**,ui/dist/**,ui/coverage/**,e2e/coverage/**,e2e/scenarios/*/coverage/**,**/bin/**,**/obj/**" \
+    /d:sonar.cs.cobertura.reportsPaths="e2e/coverage/api/*.cobertura.xml" \
+    /d:sonar.javascript.lcov.reportPaths=e2e/coverage/ui.lcov \
+    "${analysis_args[@]}"
+else
+  echo
+  echo "Skipping Sonar analysis (needs SONAR_TOKEN; branch runs also need a branch name, PR runs SONAR_PULL_REQUEST_KEY/BRANCH/BASE from the workflow)."
+fi
+
 echo
 echo "API: building (Release)."
 dotnet build api/DockerUI.slnx --configuration Release
@@ -13,7 +72,7 @@ echo "API build passed"
 echo
 echo "UI: installing dependencies."
 cd ui
-npm ci --no-audit --no-fund
+npm ci --no-audit --no-fund --ignore-scripts
 
 echo
 echo "UI: lint."
@@ -38,6 +97,12 @@ echo "E2E: preparing scenario settings files for the non-root dashboard."
 # appsettings.json in place; on the CI runner the checkout is owned by the
 # runner user, so hand the files to the runtime user.
 find e2e/scenarios lighthouse -name appsettings.json -exec chown 1000:1000 {} +
+# The scenario coverage volumes (the collector entrypoint writes the Cobertura
+# report into the mounted directory) need the same ownership to exist first.
+for scenario in basic settings error lan kubernetes; do
+  mkdir -p "e2e/scenarios/${scenario}/coverage"
+done
+find e2e/scenarios -type d -name coverage -exec chown 1000:1000 {} +
 
 echo
 echo "E2E: detecting the daemon socket's group."
@@ -51,7 +116,39 @@ echo "Daemon socket group gid: ${SOCKET_GROUP_GID}"
 
 echo
 echo "E2E: running scenarios (docker daemon required)."
-dotnet e2e/bin/Release/net10.0/E2E.dll
+dotnet e2e/bin/Release/net11.0/E2E.dll
+
+echo
+echo "E2E: collecting coverage reports."
+# The scenario dashboards run under the dotnet-coverage collector (Dockerfile.e2e),
+# which flushes a Cobertura report into each scenario's ./coverage mount on
+# compose down; the browser dumps the suite wrote land under e2e/coverage/.
+# Coverage collection is diagnostics: failures warn but never fail the pipeline.
+mkdir -p e2e/coverage/api
+for file in e2e/scenarios/*/coverage/coverage.cobertura.xml; do
+  [[ -e "${file}" ]] || continue
+  scenario="$(basename "$(dirname "$(dirname "${file}")")")"
+  target="e2e/coverage/api/${scenario}.cobertura.xml"
+  mv "${file}" "${target}"
+  # The paths in the report are the e2e image's build directory (Dockerfile.e2e
+  # builds the API from /src) and dotnet-coverage writes no <sources> root, so
+  # SonarCloud cannot resolve them to the files it analyzed and imports no C#
+  # coverage at all. The analysis runs with the checkout as its base directory, so
+  # make the paths relative to that: /src/api/Features/... -> api/Features/...
+  sed -i 's|filename="/src/|filename="|g' "${target}"
+done
+
+if docker image inspect docker-ui-local:latest > /dev/null 2>&1; then
+  # The source maps from the very artifact the tests ran against.
+  container="$(docker create docker-ui-local:latest)"
+  docker cp "${container}":/app/wwwroot/assets e2e/coverage/assets
+  docker rm "${container}" > /dev/null
+  npm ci --prefix e2e/coverage --no-audit --no-fund --ignore-scripts \
+    && node e2e/coverage/convert.mjs \
+    || echo "E2E: UI coverage conversion failed; continuing without ui.lcov." >&2
+else
+  echo "E2E: docker-ui-local image not found; skipping UI coverage." >&2
+fi
 
 echo
 echo "Lighthouse: bringing up the lighthouse scenario."
@@ -73,23 +170,86 @@ for _ in $(seq 1 60); do
   fi
   sleep 2
 done
-if [ -z "${ready}" ]; then
+if [[ -z "${ready}" ]]; then
   docker compose -f lighthouse/docker-compose.yml logs
   echo "Lighthouse: the lighthouse scenario dashboard did not become ready" >&2
   exit 1
 fi
 
 lighthouse_exit=0
-npx --yes @lhci/cli@0.16.0 autorun --config=lighthouserc.cjs || lighthouse_exit=$?
+# The explicit steps instead of `autorun`: autorun skips the upload step when the
+# assertions fail, which is exactly when the reports are needed. upload with the
+# filesystem target is what writes the report json/html into .lighthouseci.
+# `lhci` is the pinned @lhci/cli the CI image installs (no npx at run time).
+lhci collect --config=lighthouserc.cjs || lighthouse_exit=$?
+lhci assert --config=lighthouserc.cjs || lighthouse_exit=$?
+lhci upload --target=filesystem --outputDir=.lighthouseci --config=lighthouserc.cjs || true
 
 echo
+# Persist a score/metric summary next to the reports so the CI artifact shows
+# the numbers at a glance. The directory is in .gitignore, so this never
+# touches git.
+echo "Lighthouse: summarizing the audit reports."
+if compgen -G ".lighthouseci/*.report.json" > /dev/null; then
+  lhr=$(ls -t .lighthouseci/*.report.json | head -1)
+  node scripts/summarize-lighthouse.mjs "$lhr" .lighthouseci/audit-summary.json
+fi
+
 echo "Lighthouse: tearing down the lighthouse scenario."
 docker compose -f lighthouse/docker-compose.yml down --remove-orphans
 for stack in lighthouse/stacks/*/; do
   docker compose -f "${stack}docker-compose.yml" down --remove-orphans
 done
 
-if [ "${lighthouse_exit}" -ne 0 ]; then
+# The sonar window closes after every build that feeds it, even when the
+# Lighthouse audit failed - the upload and quality gate still stand.
+if sonar_enabled; then
+  echo
+  echo "SonarQube Cloud: uploading analysis results."
+  sonar_end_log="$(mktemp)"
+  sonar_skipped=0
+  if ! dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}" 2>&1 | tee "${sonar_end_log}"; then
+    if grep -q "Automatic Analysis is enabled" "${sonar_end_log}"; then
+      # The GitHub app's Automatic Analysis owns this project, so SonarCloud
+      # rejects manual uploads until it is turned off in the project's
+      # Administration > Analysis Method; don't fail the build over that.
+      echo "SonarQube Cloud: skipped - the project has Automatic Analysis enabled (GitHub app); turn it off in the project's Administration > Analysis Method to run CI-side analysis." >&2
+      sonar_skipped=1
+    else
+      exit 1
+    fi
+  fi
+  rm -f "${sonar_end_log}"
+
+  if [[ "${sonar_skipped}" -eq 0 ]]; then
+    echo
+    echo "SonarQube Cloud: waiting for the quality gate."
+    gate_status=
+    for _ in $(seq 1 36); do   # up to ~6 min
+      gate_status=$(curl -sf -H "Authorization: Bearer ${SONAR_TOKEN}" "${gate_url}" \
+        | jq -r '.projectStatus.status')
+      case "${gate_status}" in
+        OK)
+          echo "Quality gate: OK"
+          break
+          ;;
+        ERROR)
+          echo "Quality gate: FAILED" >&2
+          curl -sf -H "Authorization: Bearer ${SONAR_TOKEN}" "${gate_url}" \
+            | jq -r '.projectStatus.conditions[] | select(.status=="ERROR") | "  - " + .status + " " + (.metricKey // "?")' >&2
+          exit 1
+          ;;
+        *) sleep 10 ;;   # IN_PROGRESS / UNAVAILABLE
+      esac
+    done
+    if [[ "${gate_status}" != "OK" ]]; then
+      echo "Quality gate: still ${gate_status:-unknown} after the wait window" >&2
+      exit 1
+    fi
+  fi
+fi
+
+if [[ "${lighthouse_exit}" -ne 0 ]]; then
   echo "Lighthouse: the audit failed (exit ${lighthouse_exit})" >&2
   exit "${lighthouse_exit}"
 fi

@@ -1,14 +1,18 @@
+using System.Net;
 using System.Text.RegularExpressions;
 
 namespace Api.Features.Lan
 {
-    /// <summary>The enrichment fetched for a service: its page title and a favicon as a data URI.</summary>
+    /// <summary>The enrichment fetched for a service: its best page name and a favicon as a data URI.</summary>
     internal sealed record Enrichment(string? IconDataUri, string? Title);
 
     /// <summary>
-    /// Best-effort enrichment of a discovered service: fetches the page to read its title
+    /// Best-effort enrichment of a discovered service: fetches the page to read its name
     /// and fetches its favicon as a data URI, so the card shows a real name and icon
-    /// instead of the bare address.
+    /// instead of the bare address. The name comes from the first source the page offers:
+    /// its &lt;title&gt;, then the social meta titles (og:title, twitter:title), the
+    /// application-name meta, the first heading, and finally the site name — so services
+    /// without a plain title still get a meaningful card instead of an ip-named one.
     /// </summary>
     internal sealed partial class LanEnricher(HttpClient http)
     {
@@ -26,6 +30,21 @@ namespace Api.Features.Lan
 
         [GeneratedRegex("<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
         private static partial Regex CreateTitleRegex();
+
+        [GeneratedRegex("<meta[^>]*>", RegexOptions.IgnoreCase)]
+        private static partial Regex CreateMetaTagRegex();
+
+        [GeneratedRegex("(?:property|name)\\s*=\\s*[\"']([^\"']*)[\"']", RegexOptions.IgnoreCase)]
+        private static partial Regex CreateMetaNameRegex();
+
+        [GeneratedRegex("content\\s*=\\s*[\"']([^\"']*)[\"']", RegexOptions.IgnoreCase)]
+        private static partial Regex CreateMetaContentRegex();
+
+        [GeneratedRegex("<h1[^>]*>(.*?)</h1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+        private static partial Regex CreateH1Regex();
+
+        [GeneratedRegex("<[^>]+>")]
+        private static partial Regex CreateTagsRegex();
 
         public async Task<Enrichment> FetchAsync(Uri url, CancellationToken cancellationToken)
         {
@@ -45,15 +64,42 @@ namespace Api.Features.Lan
 #pragma warning restore CA1031
         }
 
+        /// <summary>
+        /// The page's best display name: the first source that yields something usable,
+        /// in order of how well it names the service rather than a page of it.
+        /// </summary>
         static string? ExtractTitle(string html)
-        {
-            var match = CreateTitleRegex().Match(html);
-            var raw = match.Success ? match.Groups[1].Value : null;
+            => CleanTitle(CreateTitleRegex().Match(html).Groups[1].Value)
+            ?? MetaContent(html, "og:title")
+            ?? MetaContent(html, "twitter:title")
+            ?? MetaContent(html, "application-name")
+            ?? CleanTitle(CreateTagsRegex().Replace(CreateH1Regex().Match(html).Groups[1].Value, string.Empty))
+            ?? MetaContent(html, "og:site_name");
 
+        static string? MetaContent(string html, string name)
+        {
+            foreach (Match tag in CreateMetaTagRegex().Matches(html))
+            {
+                var attribute = CreateMetaNameRegex().Match(tag.Value);
+
+                if (!attribute.Success ||
+                    !string.Equals(attribute.Groups[1].Value.Trim(), name, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (CleanTitle(CreateMetaContentRegex().Match(tag.Value).Groups[1].Value) is { } content)
+                    return content;
+            }
+
+            return null;
+        }
+
+        /// <summary>Decodes entities, collapses whitespace, and keeps only usable titles.</summary>
+        static string? CleanTitle(string? raw)
+        {
             if (string.IsNullOrWhiteSpace(raw))
                 return null;
 
-            var title = string.Join(' ', raw.Split(' ', StringSplitOptions.RemoveEmptyEntries)).Trim();
+            var title = string.Join(' ', WebUtility.HtmlDecode(raw).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim();
 
             return title.Length is > 0 and <= MaxTitleLength ? title : null;
         }

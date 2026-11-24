@@ -110,6 +110,8 @@ spec:
             requests:
               cpu: 50m
               memory: 128Mi
+              # the settings it persists go to the writable layer at /app
+              ephemeral-storage: 32Mi
             limits:
               memory: 256Mi
 # Note: app state the dashboard persists (standalone pod snapshots, remembered

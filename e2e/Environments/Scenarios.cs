@@ -121,5 +121,19 @@ public static class Scenarios
         ExpectReady = false,
     };
 
-    public static IReadOnlyList<Scenario> All { get; } = [Basic, Settings, Error, Lan, ReadOnlySettings];
+    /// <summary>
+    /// The Kubernetes runtime: a kind cluster with demo workloads (deployment with a
+    /// NodePort service, stateful set, daemon set, an unstartable deployment and a
+    /// standalone pod), watched through the kubeconfig exported by the fixture.
+    /// </summary>
+    public static readonly Scenario Kubernetes = new()
+    {
+        Name = "kubernetes",
+        BaseUrl = new Uri("http://localhost:5016"),
+        Dashboard = "scenarios/kubernetes",
+        PrepareAsync = (scenario, token) => KubernetesCluster.CreateAndSeedAsync(token),
+        CleanupAsync = (scenario, token) => KubernetesCluster.DeleteAsync(token),
+    };
+
+    public static IReadOnlyList<Scenario> All { get; } = [Basic, Settings, Error, Lan, ReadOnlySettings, Kubernetes];
 }

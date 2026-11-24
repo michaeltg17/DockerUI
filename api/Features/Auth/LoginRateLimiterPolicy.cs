@@ -9,8 +9,9 @@ namespace Api.Features.Auth
     /// <summary>
     /// The sign-in route's rate-limiting policy. The permit limit and window come from the
     /// hot-reloaded 'DockerUI:Auth' settings (the defaults when the section is absent) and
-    /// are read per partition at request time, so a settings-file edit applies to the next
-    /// sign-in attempt without a restart.
+    /// are read per request, and the limits are stamped into the partition key —
+    /// <see cref="RateLimitPartition"/> caches a limiter per key — so a settings-file edit
+    /// applies to the next sign-in attempt without a restart.
     /// </summary>
     internal sealed class LoginRateLimiterPolicy(IOptionsMonitor<DockerUISettings> settings) : IConfigureOptions<RateLimiterOptions>
     {
@@ -27,19 +28,35 @@ namespace Api.Features.Auth
             };
 
             options.AddPolicy(LoginEndpoint.RateLimitPolicy, httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    _ =>
-                    {
-                        var auth = settings.CurrentValue.Auth;
+            {
+                var (permitLimit, windowMinutes) = CurrentLimits();
 
-                        return new FixedWindowRateLimiterOptions
-                        {
-                            PermitLimit = auth?.MaxLoginAttemptsPerWindow ?? AuthSettings.DefaultMaxLoginAttemptsPerWindow,
-                            Window = TimeSpan.FromMinutes(
-                                auth?.LoginRateLimitWindowMinutes ?? AuthSettings.DefaultLoginRateLimitWindowMinutes),
-                        };
-                    }));
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    PartitionKey(httpContext, permitLimit, windowMinutes),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = permitLimit,
+                        Window = TimeSpan.FromMinutes(windowMinutes),
+                    });
+            });
         }
+
+        /// <summary>The attempt limit and window as configured right now (the defaults without an Auth section).</summary>
+        (int PermitLimit, int WindowMinutes) CurrentLimits()
+        {
+            var auth = settings.CurrentValue.Auth;
+
+            return (
+                auth?.MaxLoginAttemptsPerWindow ?? AuthSettings.DefaultMaxLoginAttemptsPerWindow,
+                auth?.LoginRateLimitWindowMinutes ?? AuthSettings.DefaultLoginRateLimitWindowMinutes);
+        }
+
+        /// <summary>
+        /// The client's address with the limits it was read under. A settings edit changes
+        /// the key, so the next attempt is served by a fresh limiter holding the new
+        /// limits instead of the cached partition's stale ones.
+        /// </summary>
+        static string PartitionKey(HttpContext httpContext, int permitLimit, int windowMinutes)
+            => $"{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}|{permitLimit}|{windowMinutes}";
     }
 }

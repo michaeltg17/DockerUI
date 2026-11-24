@@ -1,0 +1,13 @@
+services:
+  docker-ui:
+    image: docker-ui-local:latest
+    container_name: docker-ui-e2e-kubernetes
+    ports:
+      - "5016:8080"
+    extra_hosts:
+      # Lets the bind-mounted kubeconfig reach the kind API server on the host.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./appsettings.json:/app/appsettings.json
+      - ./kubeconfig.container.yaml:/app/kubeconfig.yaml:ro
+      - ./coverage:/app/coverage

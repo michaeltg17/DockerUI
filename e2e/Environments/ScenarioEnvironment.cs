@@ -88,6 +88,9 @@ public class ScenarioEnvironment(Scenario Scenario) : IAsyncLifetime
 
     static async Task BringUpAsync(Scenario scenario)
     {
+        if (scenario.PrepareAsync is { } prepare)
+            await prepare(scenario, CancellationToken.None);
+
         foreach (var stackDirectory in scenario.StackDirectories)
             await DockerCli.EnsureSucceededAsync(stackDirectory, ["compose", "up", "-d"]);
 

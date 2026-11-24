@@ -40,6 +40,12 @@ RUN curl -fsSL -o /tmp/google-chrome-stable.deb https://dl.google.com/linux/dire
     && rm -f /tmp/google-chrome-stable.deb \
     && rm -rf /var/lib/apt/lists/*
 
+# kind + kubectl (the e2e kubernetes scenario creates a kind cluster on the mounted
+# daemon and seeds it with kubectl; pinned for reproducible clusters).
+RUN curl -fsSL "https://dl.k8s.io/release/v1.36.1/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl \
+    && curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64" -o /usr/local/bin/kind \
+    && chmod +x /usr/local/bin/kubectl /usr/local/bin/kind
+
 # The repository is bind-mounted onto its own checkout path at run time
 # (see ci.yml, -w + -v <workspace>:<workspace>), so the compose file volume
 # sources the docker client sends resolve to the same paths on the host

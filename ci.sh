@@ -99,7 +99,7 @@ echo "E2E: preparing scenario settings files for the non-root dashboard."
 find e2e/scenarios lighthouse -name appsettings.json -exec chown 1000:1000 {} +
 # The scenario coverage volumes (the collector entrypoint writes the Cobertura
 # report into the mounted directory) need the same ownership to exist first.
-for scenario in basic settings error lan; do
+for scenario in basic settings error lan kubernetes; do
   mkdir -p "e2e/scenarios/${scenario}/coverage"
 done
 find e2e/scenarios -type d -name coverage -exec chown 1000:1000 {} +

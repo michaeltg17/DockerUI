@@ -1,0 +1,21 @@
+# kind cluster for the e2e kubernetes scenario (created by KubernetesCluster.cs).
+# The API server port stays dynamic: the fixture rewrites whatever port 'kind export
+# kubeconfig' reports for the container-side copy, and host.docker.internal must be a
+# serving certificate SAN so the dashboard container can verify the API server through
+# the host gateway. The NodePort mapping lets the dashboard's node-port app urls
+# (nodePort 30080 on the k8s-web service) resolve on the host as well.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: dockerui-e2e-k8s
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          certSANs:
+            - host.docker.internal
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP

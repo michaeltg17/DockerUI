@@ -39,3 +39,11 @@ public sealed class ReadOnlySettingsEnvironment : ScenarioEnvironment
     {
     }
 }
+
+/// <summary>The <see cref="ScenarioEnvironment"/> for the kubernetes scenario (kind cluster backend).</summary>
+public sealed class KubernetesEnvironment : ScenarioEnvironment
+{
+    public KubernetesEnvironment() : base(Scenarios.Kubernetes)
+    {
+    }
+}

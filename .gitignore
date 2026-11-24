@@ -425,6 +425,7 @@ docker-compose.override.yml
 e2e/coverage/*/
 e2e/coverage/ui.lcov
 e2e/scenarios/*/coverage/
+e2e/scenarios/kubernetes/kubeconfig*.yaml
 
 # Local operator settings (see appsettings.example.json)
 /appsettings.json

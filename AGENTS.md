@@ -75,7 +75,9 @@ docker compose up -d --build                # http://localhost:5000
 dotnet build e2e/DockerUIE2E.slnx
 dotnet e2e/bin/Debug/net11.0/E2E.dll
 # Builds the DockerUI image once, then brings up the basic/settings/error/
-# lan/readonly-settings scenarios (ports 5010-5014) and tears them all down afterwards.
+# lan/readonly-settings/kubernetes scenarios (ports 5010-5016) and tears them
+# all down afterwards. The kubernetes scenario needs kind + kubectl in PATH,
+# and creates a kind cluster on the daemon (see the k8s gotcha below).
 
 # Local CI (same checks as GitHub CI: Dockerfile.ci runs ci.sh, which also
 # audits the dashboard with Lighthouse CI after the e2e scenarios)
@@ -187,12 +189,27 @@ docker run --rm --network host -w <ws> -v <ws>:<ws> \
   discover xunit v3 tests on this machine's SDK. CI runs the suite inside the
   `Dockerfile.ci` container with the runner's Docker socket mounted and
   `--network host` (the scenarios publish ports on the runner's localhost,
-  5010-5014). The checkout is mounted onto its own path (`-w` +
+  5010-5016). The checkout is mounted onto its own path (`-w` +
   `-v ws:ws`): the scenario compose files bind-mount `./appsettings.json`,
   and the daemon resolves that source on its own host, so the client's and
   the daemon's view of the path must be identical. The dashboard lists every
   compose project on the machine, so scenarios assert on their own apps, not
   the full card list.
+ - E2E kubernetes scenario: the fixture creates a kind cluster
+   (`e2e/Environments/KubernetesCluster.cs`, cluster `dockerui-e2e-k8s`) before
+   the dashboard boots, applies `e2e/scenarios/kubernetes/workloads.yaml`
+   (deployment + NodePort service, stateful set, daemon set, unpullable and
+   crash-looping deployments, a standalone pod) and exports the kubeconfig.
+   The container-side copy (`kubeconfig.container.yaml`, gitignored) rewrites
+   the API server to `host.docker.internal:<exported port>` — reachable via
+   the compose file's `extra_hosts: host-gateway`, and accepted by TLS because
+   `kind-config.yaml` adds that name to the API server's cert SANs through a
+   kubeadm patch. NodePort 30080 is host-published so card urls resolve. The
+   suite needs `kind` + `kubectl` in PATH: `Dockerfile.ci` installs pinned
+   copies (the cluster containers land on the mounted daemon); running the
+   k8s scenario on the host would need them installed there. A stopped
+   standalone pod's card disappears (the deleted pod has no object to list),
+   unlike stopped workloads which stay as scale-0 cards.
 
 ## Workflow
 Commit on `dev` → push `dev` → open (or update) the `dev` → `main` PR.

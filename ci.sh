@@ -128,7 +128,14 @@ mkdir -p e2e/coverage/api
 for file in e2e/scenarios/*/coverage/coverage.cobertura.xml; do
   [[ -e "${file}" ]] || continue
   scenario="$(basename "$(dirname "$(dirname "${file}")")")"
-  mv "${file}" "e2e/coverage/api/${scenario}.cobertura.xml"
+  target="e2e/coverage/api/${scenario}.cobertura.xml"
+  mv "${file}" "${target}"
+  # The paths in the report are the e2e image's build directory (Dockerfile.e2e
+  # builds the API from /src) and dotnet-coverage writes no <sources> root, so
+  # SonarCloud cannot resolve them to the files it analyzed and imports no C#
+  # coverage at all. The analysis runs with the checkout as its base directory, so
+  # make the paths relative to that: /src/api/Features/... -> api/Features/...
+  sed -i 's|filename="/src/|filename="|g' "${target}"
 done
 
 if docker image inspect docker-ui-local:latest > /dev/null 2>&1; then
